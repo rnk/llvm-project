@@ -734,6 +734,10 @@ std::error_code status(int FD, file_status &Result) {
   return getStatus(FileHandle, Result);
 }
 
+std::error_code status(file_t FileHandle, file_status &Result) {
+  return getStatus(FileHandle, Result);
+}
+
 std::error_code setPermissions(const Twine &Path, perms Permissions) {
   SmallVector<wchar_t, 128> PathUTF16;
   if (std::error_code EC = widenPath(Path, PathUTF16))
@@ -775,10 +779,9 @@ std::error_code setLastAccessAndModificationTime(int FD, TimePoint<> AccessTime,
   return std::error_code();
 }
 
-std::error_code mapped_file_region::init(int FD, uint64_t Offset,
-                                         mapmode Mode) {
+std::error_code mapped_file_region::init(sys::fs::file_t OrigFileHandle,
+                                         uint64_t Offset, mapmode Mode) {
   this->Mode = Mode;
-  HANDLE OrigFileHandle = reinterpret_cast<HANDLE>(_get_osfhandle(FD));
   if (OrigFileHandle == INVALID_HANDLE_VALUE)
     return make_error_code(errc::bad_file_descriptor);
 
@@ -845,8 +848,9 @@ std::error_code mapped_file_region::init(int FD, uint64_t Offset,
   return std::error_code();
 }
 
-mapped_file_region::mapped_file_region(int fd, mapmode mode, size_t length,
-                                       uint64_t offset, std::error_code &ec)
+mapped_file_region::mapped_file_region(sys::fs::file_t fd, mapmode mode,
+                                       size_t length, uint64_t offset,
+                                       std::error_code &ec)
     : Size(length), Mapping() {
   ec = init(fd, offset, mode);
   if (ec)
@@ -1196,9 +1200,74 @@ Expected<file_t> openNativeFileForRead(const Twine &Name, OpenFlags Flags,
   return Result;
 }
 
-void closeFile(file_t &F) {
-  ::CloseHandle(F);
+file_t convertFDToNativeFile(int FD) {
+  return reinterpret_cast<HANDLE>(::_get_osfhandle(FD));
+}
+
+file_t getStdinHandle() { return ::GetStdHandle(STD_INPUT_HANDLE); }
+file_t getStdoutHandle() { return ::GetStdHandle(STD_OUTPUT_HANDLE); }
+file_t getStderrHandle() { return ::GetStdHandle(STD_ERROR_HANDLE); }
+
+std::error_code readNativeFile(file_t FileHandle, MutableArrayRef<char> Buf,
+                               size_t *BytesRead) {
+  // ReadFile can only read 2GB at a time. The caller should check the number of
+  // bytes and read in a loop until termination.
+  DWORD BytesToRead32 =
+      std::min(size_t(std::numeric_limits<DWORD>::max()), Buf.size());
+  DWORD BytesRead32 = 0;
+  bool Success =
+      ::ReadFile(FileHandle, Buf.data(), BytesToRead32, &BytesRead32, nullptr);
+  *BytesRead = BytesRead32;
+  if (!Success) {
+    DWORD Err = ::GetLastError();
+    // Pipe EOF is not an error.
+    if (Err == ERROR_BROKEN_PIPE)
+      return std::error_code();
+    return mapWindowsError(Err);
+  }
+  return std::error_code();
+}
+
+std::error_code readNativeFileSlice(file_t FileHandle,
+                                    MutableArrayRef<char> Buf, size_t Offset) {
+  char *BufPtr = Buf.data();
+  size_t BytesLeft = Buf.size();
+
+  while (BytesLeft) {
+    uint64_t CurOff = Buf.size() - BytesLeft + Offset;
+    OVERLAPPED Overlapped = {};
+    Overlapped.Offset = uint32_t(CurOff);
+    Overlapped.OffsetHigh = uint32_t(uint64_t(CurOff) >> 32);
+    DWORD BytesToRead32 =
+        std::min(size_t(std::numeric_limits<DWORD>::max()), BytesLeft);
+    DWORD BytesRead32 = 0;
+    bool Success = ::ReadFile(FileHandle, BufPtr, BytesToRead32,
+                              &BytesRead32, &Overlapped);
+    if (!Success) {
+      DWORD Err = ::GetLastError();
+      // Pipe EOF is not an error.
+      if (Err == ERROR_BROKEN_PIPE)
+        return std::error_code();
+      return mapWindowsError(Err);
+    }
+
+    // Once we reach EOF, zero the remaining bytes in the buffer.
+    if (BytesRead32 == 0) {
+      memset(BufPtr, 0, BytesLeft);
+      break;
+    }
+    BytesLeft -= BytesRead32;
+    BufPtr += BytesRead32;
+  }
+  return std::error_code();
+}
+
+std::error_code closeFile(file_t &F) {
+  file_t TmpF = F;
   F = kInvalidFile;
+  if (!::CloseHandle(TmpF))
+    return mapWindowsError(::GetLastError());
+  return std::error_code();
 }
 
 std::error_code remove_directories(const Twine &path, bool IgnoreErrors) {
