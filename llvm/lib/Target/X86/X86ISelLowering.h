@@ -1191,6 +1191,9 @@ namespace llvm {
     SDValue BuildFILD(SDValue Op, EVT SrcVT, SDValue Chain, SDValue StackSlot,
                       SelectionDAG &DAG) const;
 
+    SDValue getMOVL(SelectionDAG &DAG, const SDLoc &dl, MVT VT, SDValue V1,
+                    SDValue V2) const;
+
     bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override;
 
     /// Customize the preferred legalization strategy for certain types.
