@@ -14,6 +14,7 @@
 #ifndef LLVM_LIB_TARGET_X86_X86ISELLOWERING_H
 #define LLVM_LIB_TARGET_X86_X86ISELLOWERING_H
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLowering.h"
@@ -686,6 +687,109 @@ namespace llvm {
     /// If Op is a constant whose elements are all the same constant or
     /// undefined, return true and return the constant value in \p SplatVal.
     bool isConstantSplat(SDValue Op, APInt &SplatVal);
+    bool isTargetShuffle(unsigned Opcode);
+    bool getTargetShuffleMask(SDNode *N, MVT VT, bool AllowSentinelZero,
+                              SmallVectorImpl<SDValue> &Ops,
+                              SmallVectorImpl<int> &Mask, bool &IsUnary);
+    SDValue extractSubVector(SDValue Vec, unsigned IdxVal, SelectionDAG &DAG,
+                            const SDLoc &dl, unsigned vectorWidth);
+    SDValue extract128BitVector(SDValue Vec, unsigned IdxVal, SelectionDAG &DAG,
+                                const SDLoc &dl);
+    SDValue extract256BitVector(SDValue Vec, unsigned IdxVal, SelectionDAG &DAG,
+                                const SDLoc &dl);
+    SDValue insertSubVector(SDValue Result, SDValue Vec, unsigned IdxVal,
+                            SelectionDAG &DAG, const SDLoc &dl,
+                            unsigned vectorWidth);
+    SDValue getUnpackh(SelectionDAG &DAG, const SDLoc &dl, MVT VT, SDValue V1,
+                       SDValue V2);
+    SDValue getUnpackl(SelectionDAG &DAG, const SDLoc &dl, MVT VT, SDValue V1,
+                       SDValue V2);
+    SDValue getShuffleVectorZeroOrUndef(SDValue V2, int Idx, bool IsZero,
+                                        const X86Subtarget &Subtarget,
+                                        SelectionDAG &DAG);
+    unsigned getOpcode_EXTEND_VECTOR_INREG(unsigned Opcode);
+    SDValue getExtendInVec(unsigned Opcode, const SDLoc &DL, EVT VT, SDValue In,
+                           SelectionDAG &DAG);
+    SDValue getZeroVector(MVT VT, const X86Subtarget &Subtarget,
+                          SelectionDAG &DAG, const SDLoc &dl);
+    SDValue getConstVector(ArrayRef<int> Values, MVT VT, SelectionDAG &DAG,
+                           const SDLoc &dl, bool IsMask = false);
+    SDValue getConstVector(ArrayRef<APInt> Bits, APInt &Undefs, MVT VT,
+                           SelectionDAG &DAG, const SDLoc &dl);
+    SDValue split256IntArith(SDValue Op, SelectionDAG &DAG);
+    bool collectConcatOps(SDNode *N, SmallVectorImpl<SDValue> &Ops);
+    SDValue getMaskNode(SDValue Mask, MVT MaskVT, const X86Subtarget &Subtarget,
+                        SelectionDAG &DAG, const SDLoc &dl);
+    SDValue getVectorMaskingNode(SDValue Op, SDValue Mask, SDValue PreservedSrc,
+                                 const X86Subtarget &Subtarget,
+                                 SelectionDAG &DAG);
+
+    bool hasIdenticalHalvesShuffleMask(ArrayRef<int> Mask);
+    bool getTargetConstantBitsFromNode(SDValue Op, unsigned EltSizeInBits,
+                                       APInt &UndefElts,
+                                       SmallVectorImpl<APInt> &EltBits,
+                                       bool AllowWholeUndefs = true,
+                                       bool AllowPartialUndefs = true);
+    SDValue ConvertI1VectorToInteger(SDValue Op, SelectionDAG &DAG);
+    bool MayFoldLoad(SDValue Op);
+    bool MayFoldIntoStore(SDValue Op);
+    bool MayFoldIntoZeroExtend(SDValue Op);
+    SDValue concatSubVectors(SDValue V1, SDValue V2, SelectionDAG &DAG,
+                             const SDLoc &dl);
+    SDValue combineX86ShufflesRecursively(
+        ArrayRef<SDValue> SrcOps, int SrcOpIndex, SDValue Root,
+        ArrayRef<int> RootMask, ArrayRef<const SDNode *> SrcNodes,
+        unsigned Depth, bool HasVariableMask, bool AllowVariableMask,
+        SelectionDAG &DAG, const X86Subtarget &Subtarget);
+    SDValue combineX86ShufflesRecursively(SDValue Op, SelectionDAG &DAG,
+                                          const X86Subtarget &Subtarget);
+    SDValue combineScalarToVector(SDNode *N, SelectionDAG &DAG);
+    SDValue combineConcatVectors(SDNode *N, SelectionDAG &DAG,
+                                 TargetLowering::DAGCombinerInfo &DCI,
+                                 const X86Subtarget &Subtarget);
+    SDValue combineInsertSubvector(SDNode *N, SelectionDAG &DAG,
+                                   TargetLowering::DAGCombinerInfo &DCI,
+                                   const X86Subtarget &Subtarget);
+    SDValue combineExtractSubvector(SDNode *N, SelectionDAG &DAG,
+                                    TargetLowering::DAGCombinerInfo &DCI,
+                                    const X86Subtarget &Subtarget);
+    SDValue combineVectorCompare(SDNode *N, SelectionDAG &DAG,
+                                 const X86Subtarget &Subtarget);
+    SDValue combineVectorPack(SDNode *N, SelectionDAG &DAG,
+                              TargetLowering::DAGCombinerInfo &DCI,
+                              const X86Subtarget &Subtarget);
+    SDValue combineVectorInsert(SDNode *N, SelectionDAG &DAG,
+                                TargetLowering::DAGCombinerInfo &DCI,
+                                const X86Subtarget &Subtarget);
+    SDValue combinePMULDQ(SDNode *N, SelectionDAG &DAG,
+                          TargetLowering::DAGCombinerInfo &DCI,
+                          const X86Subtarget &Subtarget);
+    SDValue combineShuffle(SDNode *N, SelectionDAG &DAG,
+                           TargetLowering::DAGCombinerInfo &DCI,
+                           const X86Subtarget &Subtarget);
+    SDValue combineExtInVec(SDNode *N, SelectionDAG &DAG,
+                            TargetLowering::DAGCombinerInfo &DCI,
+                            const X86Subtarget &Subtarget);
+    SDValue SplitOpsAndApply(
+        SelectionDAG &DAG, const X86Subtarget &Subtarget, const SDLoc &DL,
+        EVT VT, ArrayRef<SDValue> Ops,
+        function_ref<SDValue(SelectionDAG &, const SDLoc &, ArrayRef<SDValue>)>
+            Builder,
+        bool CheckBWI = true);
+    void getPackDemandedElts(EVT VT, const APInt &DemandedElts,
+                             APInt &DemandedLHS, APInt &DemandedRHS);
+    bool is128BitLaneRepeatedShuffleMask(MVT VT, ArrayRef<int> Mask);
+    bool canWidenShuffleElements(ArrayRef<int> Mask,
+                                 SmallVectorImpl<int> &WidenedMask);
+    bool canWidenShuffleElements(ArrayRef<int> Mask, const APInt &Zeroable,
+                                 SmallVectorImpl<int> &WidenedMask);
+    bool canWidenShuffleElements(ArrayRef<int> Mask);
+    bool resolveTargetShuffleInputs(SDValue Op,
+                                    SmallVectorImpl<SDValue> &Inputs,
+                                    SmallVectorImpl<int> &Mask,
+                                    SelectionDAG &DAG, unsigned Depth,
+                                    bool ResolveZero = true);
+    bool createShuffleMaskFromVSELECT(SmallVectorImpl<int> &Mask, SDValue Cond);
   } // end namespace X86
 
   //===--------------------------------------------------------------------===//
@@ -1302,9 +1406,14 @@ namespace llvm {
     SDValue FP_TO_INTHelper(SDValue Op, SelectionDAG &DAG, bool isSigned) const;
 
     SDValue LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerCONCAT_VECTORS(SDValue Op, SelectionDAG &DAG) const;
+    SDValue lowerVectorShuffle(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVSELECT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerINSERT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINSERT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerEXTRACT_SUBVECTOR(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) const;
 
     unsigned getGlobalWrapperKind(const GlobalValue *GV = nullptr,
                                   const unsigned char OpFlags = 0) const;
