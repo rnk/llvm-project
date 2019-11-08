@@ -19,7 +19,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/IR/DebugLoc.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/YAMLTraits.h"
 #include <algorithm>
@@ -30,13 +29,17 @@
 
 namespace llvm {
 
-// Forward declarations.
+class DebugLoc;
 class DiagnosticPrinter;
+class DIFile;
+class DISubprogram;
 class Function;
 class Instruction;
 class LLVMContext;
 class Module;
 class SMDiagnostic;
+class Type;
+class Value;
 
 /// Defines the different supported severity of a diagnostic.
 enum DiagnosticSeverity : char {

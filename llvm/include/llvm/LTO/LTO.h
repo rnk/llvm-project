@@ -19,8 +19,6 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/IR/DiagnosticInfo.h"
-#include "llvm/IR/ModuleSummaryIndex.h"
-#include "llvm/IR/RemarkStreamer.h"
 #include "llvm/LTO/Config.h"
 #include "llvm/Linker/IRMover.h"
 #include "llvm/Object/IRSymtab.h"
@@ -37,6 +35,7 @@ class Error;
 class LLVMContext;
 class MemoryBufferRef;
 class Module;
+class ModuleSummaryIndex;
 class Target;
 class raw_pwrite_stream;
 

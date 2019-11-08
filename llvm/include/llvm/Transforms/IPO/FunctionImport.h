@@ -27,6 +27,7 @@
 namespace llvm {
 
 class Module;
+class ModuleSummaryIndex;
 
 /// The function importer is automatically importing function from other modules
 /// based on the provided summary informations.
@@ -64,33 +65,6 @@ public:
     // to inline the function (e.g. it is marked with a NoInline attribute).
     NoInline
   };
-
-  /// Information optionally tracked for candidates the importer decided
-  /// not to import. Used for optional stat printing.
-  struct ImportFailureInfo {
-    // The ValueInfo corresponding to the candidate. We save an index hash
-    // table lookup for each GUID by stashing this here.
-    ValueInfo VI;
-    // The maximum call edge hotness for all failed imports of this candidate.
-    CalleeInfo::HotnessType MaxHotness;
-    // most recent reason for failing to import (doesn't necessarily correspond
-    // to the attempt with the maximum hotness).
-    ImportFailureReason Reason;
-    // The number of times we tried to import candidate but failed.
-    unsigned Attempts;
-    ImportFailureInfo(ValueInfo VI, CalleeInfo::HotnessType MaxHotness,
-                      ImportFailureReason Reason, unsigned Attempts)
-        : VI(VI), MaxHotness(MaxHotness), Reason(Reason), Attempts(Attempts) {}
-  };
-
-  /// Map of callee GUID considered for import into a given module to a pair
-  /// consisting of the largest threshold applied when deciding whether to
-  /// import it and, if we decided to import, a pointer to the summary instance
-  /// imported. If we decided not to import, the summary will be nullptr.
-  using ImportThresholdsTy =
-      DenseMap<GlobalValue::GUID,
-               std::tuple<unsigned, const GlobalValueSummary *,
-                          std::unique_ptr<ImportFailureInfo>>>;
 
   /// The map contains an entry for every module to import from, the key being
   /// the module identifier to pass to the ModuleLoader. The value is the set of

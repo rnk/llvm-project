@@ -12,6 +12,7 @@
 
 #include "polly/Support/GICHelper.h"
 #include "llvm/ADT/APInt.h"
+#include "llvm/IR/Value.h"
 #include "isl/val.h"
 
 using namespace llvm;

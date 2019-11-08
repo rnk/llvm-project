@@ -355,6 +355,35 @@ getFailureName(FunctionImporter::ImportFailureReason Reason) {
   llvm_unreachable("invalid reason");
 }
 
+namespace {
+/// Information optionally tracked for candidates the importer decided
+/// not to import. Used for optional stat printing.
+struct ImportFailureInfo {
+  // The ValueInfo corresponding to the candidate. We save an index hash
+  // table lookup for each GUID by stashing this here.
+  ValueInfo VI;
+  // The maximum call edge hotness for all failed imports of this candidate.
+  CalleeInfo::HotnessType MaxHotness;
+  // most recent reason for failing to import (doesn't necessarily correspond
+  // to the attempt with the maximum hotness).
+  FunctionImporter::ImportFailureReason Reason;
+  // The number of times we tried to import candidate but failed.
+  unsigned Attempts;
+  ImportFailureInfo(ValueInfo VI, CalleeInfo::HotnessType MaxHotness,
+                    FunctionImporter::ImportFailureReason Reason,
+                    unsigned Attempts)
+      : VI(VI), MaxHotness(MaxHotness), Reason(Reason), Attempts(Attempts) {}
+};
+} // namespace
+
+/// Map of callee GUID considered for import into a given module to a pair
+/// consisting of the largest threshold applied when deciding whether to
+/// import it and, if we decided to import, a pointer to the summary instance
+/// imported. If we decided not to import, the summary will be nullptr.
+using ImportThresholdsTy =
+    DenseMap<GlobalValue::GUID, std::tuple<unsigned, const GlobalValueSummary *,
+                                           std::unique_ptr<ImportFailureInfo>>>;
+
 /// Compute the list of functions to import for a given caller. Mark these
 /// imported functions and the symbols they reference in their source module as
 /// exported from their source module.
@@ -364,7 +393,7 @@ static void computeImportForFunction(
     SmallVectorImpl<EdgeInfo> &Worklist,
     FunctionImporter::ImportMapTy &ImportList,
     StringMap<FunctionImporter::ExportSetTy> *ExportLists,
-    FunctionImporter::ImportThresholdsTy &ImportThresholds) {
+    ImportThresholdsTy &ImportThresholds) {
   computeImportForReferencedGlobals(Summary, Index, DefinedGVSummaries,
                                     ImportList, ExportLists);
   static int ImportCount = 0;
@@ -464,7 +493,7 @@ static void computeImportForFunction(
         } else if (PrintImportFailures) {
           assert(!FailureInfo &&
                  "Expected no FailureInfo for newly rejected candidate");
-          FailureInfo = std::make_unique<FunctionImporter::ImportFailureInfo>(
+          FailureInfo = std::make_unique<ImportFailureInfo>(
               VI, Edge.second.getHotness(), Reason, 1);
         }
         LLVM_DEBUG(
@@ -544,7 +573,7 @@ static void ComputeImportForModule(
   // Worklist contains the list of function imported in this module, for which
   // we will analyse the callees and may import further down the callgraph.
   SmallVector<EdgeInfo, 128> Worklist;
-  FunctionImporter::ImportThresholdsTy ImportThresholds;
+  ImportThresholdsTy ImportThresholds;
 
   // Populate the worklist with the import for the functions in the current
   // module

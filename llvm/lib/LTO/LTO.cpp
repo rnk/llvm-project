@@ -1410,3 +1410,22 @@ lto::setupStatsFile(StringRef StatsFilename) {
   StatsFile->keep();
   return std::move(StatsFile);
 }
+
+namespace {
+struct LTOLLVMDiagnosticHandler : public DiagnosticHandler {
+  DiagnosticHandlerFunction *Fn;
+  LTOLLVMDiagnosticHandler(DiagnosticHandlerFunction *DiagHandlerFn)
+      : Fn(DiagHandlerFn) {}
+  bool handleDiagnostics(const DiagnosticInfo &DI) override {
+    (*Fn)(DI);
+    return true;
+  }
+};
+}
+
+LTOLLVMContext::LTOLLVMContext(const Config &C) : DiagHandler(C.DiagHandler) {
+  setDiscardValueNames(C.ShouldDiscardValueNames);
+  enableDebugTypeODRUniquing();
+  setDiagnosticHandler(std::make_unique<LTOLLVMDiagnosticHandler>(&DiagHandler),
+                       true);
+}
