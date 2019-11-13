@@ -42,12 +42,12 @@ class SimpleInliner : public LegacyInlinerBase {
 
 public:
   SimpleInliner() : LegacyInlinerBase(ID), Params(llvm::getInlineParams()) {
-    llvm::initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
+    initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
   }
 
   explicit SimpleInliner(InlineParams Params)
       : LegacyInlinerBase(ID), Params(std::move(Params)) {
-    llvm::initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
+    initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
   }
 
   static char ID; // Pass identification, replacement for typeid

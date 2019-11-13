@@ -27,7 +27,7 @@ struct FlattenCFGPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 public:
   FlattenCFGPass() : FunctionPass(ID) {
-    llvm::initializeFlattenCFGPassPass(*PassRegistry::getPassRegistry());
+    initializeFlattenCFGPassPass(*PassRegistry::getPassRegistry());
   }
   bool runOnFunction(Function &F) override;
 

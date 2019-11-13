@@ -167,7 +167,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   RewriteStatepointsForGCLegacyPass() : ModulePass(ID), Impl() {
-    llvm::initializeRewriteStatepointsForGCLegacyPassPass(
+    initializeRewriteStatepointsForGCLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

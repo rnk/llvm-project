@@ -38,8 +38,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     DeadMachineInstructionElim() : MachineFunctionPass(ID) {
-      llvm::initializeDeadMachineInstructionElimPass(
-          *PassRegistry::getPassRegistry());
+     initializeDeadMachineInstructionElimPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

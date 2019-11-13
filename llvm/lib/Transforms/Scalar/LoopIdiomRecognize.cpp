@@ -205,7 +205,7 @@ public:
   static char ID;
 
   explicit LoopIdiomRecognizeLegacyPass() : LoopPass(ID) {
-    llvm::initializeLoopIdiomRecognizeLegacyPassPass(
+    initializeLoopIdiomRecognizeLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

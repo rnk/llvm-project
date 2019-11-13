@@ -56,7 +56,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   IndirectBrExpandPass() : FunctionPass(ID) {
-    llvm::initializeIndirectBrExpandPassPass(*PassRegistry::getPassRegistry());
+    initializeIndirectBrExpandPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

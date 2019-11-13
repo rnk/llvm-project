@@ -162,7 +162,7 @@ extern "C" void LLVMInitializeAArch64Target() {
   RegisterTargetMachine<AArch64leTargetMachine> W(getTheARM64_32Target());
   RegisterTargetMachine<AArch64leTargetMachine> V(getTheAArch64_32Target());
   auto PR = PassRegistry::getPassRegistry();
-  llvm::initializeGlobalISel(*PR);
+  initializeGlobalISel(*PR);
   initializeAArch64A53Fix835769Pass(*PR);
   initializeAArch64A57FPLoadBalancingPass(*PR);
   initializeAArch64AdvSIMDScalarPass(*PR);

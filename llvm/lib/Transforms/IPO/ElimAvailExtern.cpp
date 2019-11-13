@@ -77,7 +77,7 @@ struct EliminateAvailableExternallyLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
 
   EliminateAvailableExternallyLegacyPass() : ModulePass(ID) {
-    llvm::initializeEliminateAvailableExternallyLegacyPassPass(
+    initializeEliminateAvailableExternallyLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

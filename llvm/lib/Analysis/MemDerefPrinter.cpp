@@ -25,7 +25,7 @@ namespace {
 
     static char ID; // Pass identification, replacement for typeid
     MemDerefPrinter() : FunctionPass(ID) {
-      llvm::initializeMemDerefPrinterPass(*PassRegistry::getPassRegistry());
+      initializeMemDerefPrinterPass(*PassRegistry::getPassRegistry());
     }
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();

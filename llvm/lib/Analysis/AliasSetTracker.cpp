@@ -746,7 +746,7 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
 
     AliasSetPrinter() : FunctionPass(ID) {
-      llvm::initializeAliasSetPrinterPass(*PassRegistry::getPassRegistry());
+      initializeAliasSetPrinterPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

@@ -43,7 +43,7 @@ namespace {
 struct CrossDSOCFI : public ModulePass {
   static char ID;
   CrossDSOCFI() : ModulePass(ID) {
-    llvm::initializeCrossDSOCFIPass(*PassRegistry::getPassRegistry());
+    initializeCrossDSOCFIPass(*PassRegistry::getPassRegistry());
   }
 
   MDNode *VeryLikelyWeights;

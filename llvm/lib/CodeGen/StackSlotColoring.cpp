@@ -98,7 +98,7 @@ namespace {
     static char ID; // Pass identification
 
     StackSlotColoring() : MachineFunctionPass(ID) {
-      llvm::initializeStackSlotColoringPass(*PassRegistry::getPassRegistry());
+      initializeStackSlotColoringPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

@@ -45,7 +45,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   AggressiveInstCombinerLegacyPass() : FunctionPass(ID) {
-    llvm::initializeAggressiveInstCombinerLegacyPassPass(
+    initializeAggressiveInstCombinerLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

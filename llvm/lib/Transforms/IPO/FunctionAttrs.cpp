@@ -1461,7 +1461,7 @@ struct PostOrderFunctionAttrsLegacyPass : public CallGraphSCCPass {
   static char ID;
 
   PostOrderFunctionAttrsLegacyPass() : CallGraphSCCPass(ID) {
-    llvm::initializePostOrderFunctionAttrsLegacyPassPass(
+    initializePostOrderFunctionAttrsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

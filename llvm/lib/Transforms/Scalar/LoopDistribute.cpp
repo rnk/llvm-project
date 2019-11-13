@@ -1010,7 +1010,7 @@ public:
 
   LoopDistributeLegacy() : FunctionPass(ID) {
     // The default is set by the caller.
-    llvm::initializeLoopDistributeLegacyPass(*PassRegistry::getPassRegistry());
+    initializeLoopDistributeLegacyPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

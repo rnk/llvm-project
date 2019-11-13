@@ -105,7 +105,7 @@ public:
   static char ID;
 
   ControlHeightReductionLegacyPass() : FunctionPass(ID) {
-    llvm::initializeControlHeightReductionLegacyPassPass(
+    initializeControlHeightReductionLegacyPassPass(
         *PassRegistry::getPassRegistry());
     parseCHRFilterFiles();
   }

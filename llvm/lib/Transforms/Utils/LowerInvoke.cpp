@@ -33,8 +33,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     explicit LowerInvokeLegacyPass() : FunctionPass(ID) {
-      llvm::initializeLowerInvokeLegacyPassPass(
-          *PassRegistry::getPassRegistry());
+      initializeLowerInvokeLegacyPassPass(*PassRegistry::getPassRegistry());
     }
     bool runOnFunction(Function &F) override;
   };

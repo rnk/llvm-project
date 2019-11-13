@@ -48,8 +48,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   explicit ScalarizeMaskedMemIntrin() : FunctionPass(ID) {
-    llvm::initializeScalarizeMaskedMemIntrinPass(
-        *PassRegistry::getPassRegistry());
+    initializeScalarizeMaskedMemIntrinPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

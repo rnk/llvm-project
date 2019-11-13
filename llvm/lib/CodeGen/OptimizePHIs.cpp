@@ -42,7 +42,7 @@ namespace {
     static char ID; // Pass identification
 
     OptimizePHIs() : MachineFunctionPass(ID) {
-      llvm::initializeOptimizePHIsPass(*PassRegistry::getPassRegistry());
+      initializeOptimizePHIsPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &Fn) override;

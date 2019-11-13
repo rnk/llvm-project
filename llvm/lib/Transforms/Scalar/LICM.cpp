@@ -198,7 +198,7 @@ struct LegacyLICMPass : public LoopPass {
       unsigned LicmMssaOptCap = SetLicmMssaOptCap,
       unsigned LicmMssaNoAccForPromotionCap = SetLicmMssaNoAccForPromotionCap)
       : LoopPass(ID), LICM(LicmMssaOptCap, LicmMssaNoAccForPromotionCap) {
-    llvm::initializeLegacyLICMPassPass(*PassRegistry::getPassRegistry());
+    initializeLegacyLICMPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

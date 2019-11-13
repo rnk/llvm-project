@@ -151,8 +151,7 @@ class LowerConstantIntrinsics : public FunctionPass {
 public:
   static char ID;
   LowerConstantIntrinsics() : FunctionPass(ID) {
-    llvm::initializeLowerConstantIntrinsicsPass(
-        *PassRegistry::getPassRegistry());
+    initializeLowerConstantIntrinsicsPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

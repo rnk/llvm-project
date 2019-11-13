@@ -382,7 +382,7 @@ class LowerExpectIntrinsic : public FunctionPass {
 public:
   static char ID;
   LowerExpectIntrinsic() : FunctionPass(ID) {
-    llvm::initializeLowerExpectIntrinsicPass(*PassRegistry::getPassRegistry());
+    initializeLowerExpectIntrinsicPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override { return lowerExpectIntrinsic(F); }

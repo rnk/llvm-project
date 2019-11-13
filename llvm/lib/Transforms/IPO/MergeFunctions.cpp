@@ -202,7 +202,7 @@ public:
 
   MergeFunctions()
     : ModulePass(ID), FnTree(FunctionNodeCmp(&GlobalNumbers)) {
-    llvm::initializeMergeFunctionsPass(*PassRegistry::getPassRegistry());
+    initializeMergeFunctionsPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override;

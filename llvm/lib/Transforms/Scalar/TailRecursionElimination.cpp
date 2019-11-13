@@ -813,7 +813,7 @@ namespace {
 struct TailCallElim : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   TailCallElim() : FunctionPass(ID) {
-    llvm::initializeTailCallElimPass(*PassRegistry::getPassRegistry());
+    initializeTailCallElimPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

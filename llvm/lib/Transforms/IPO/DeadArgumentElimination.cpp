@@ -70,7 +70,7 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
 
     DAE() : ModulePass(ID) {
-      llvm::initializeDAEPass(*PassRegistry::getPassRegistry());
+      initializeDAEPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnModule(Module &M) override {

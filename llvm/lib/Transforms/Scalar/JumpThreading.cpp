@@ -133,7 +133,7 @@ namespace {
     static char ID; // Pass identification
 
     JumpThreading(int T = -1) : FunctionPass(ID), Impl(T) {
-      llvm::initializeJumpThreadingPass(*PassRegistry::getPassRegistry());
+      initializeJumpThreadingPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

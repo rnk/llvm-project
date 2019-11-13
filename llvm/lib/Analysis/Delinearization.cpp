@@ -47,7 +47,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   Delinearization() : FunctionPass(ID) {
-    llvm::initializeDelinearizationPass(*PassRegistry::getPassRegistry());
+    initializeDelinearizationPass(*PassRegistry::getPassRegistry());
   }
   bool runOnFunction(Function &F) override;
   void getAnalysisUsage(AnalysisUsage &AU) const override;

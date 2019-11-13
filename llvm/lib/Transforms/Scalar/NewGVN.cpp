@@ -4176,7 +4176,7 @@ public:
   static char ID;
 
   NewGVNLegacyPass() : FunctionPass(ID) {
-    llvm::initializeNewGVNLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeNewGVNLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

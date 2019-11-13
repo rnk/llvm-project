@@ -110,7 +110,7 @@ namespace {
     static char ID; // Pass identification
 
     MachineSinking() : MachineFunctionPass(ID) {
-      llvm::initializeMachineSinkingPass(*PassRegistry::getPassRegistry());
+      initializeMachineSinkingPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

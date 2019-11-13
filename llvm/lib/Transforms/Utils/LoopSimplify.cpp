@@ -746,7 +746,7 @@ namespace {
   struct LoopSimplify : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     LoopSimplify() : FunctionPass(ID) {
-      llvm::initializeLoopSimplifyPass(*PassRegistry::getPassRegistry());
+      initializeLoopSimplifyPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

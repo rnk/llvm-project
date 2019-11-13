@@ -145,7 +145,7 @@ class ExpandReductions : public FunctionPass {
 public:
   static char ID;
   ExpandReductions() : FunctionPass(ID) {
-    llvm::initializeExpandReductionsPass(*PassRegistry::getPassRegistry());
+    initializeExpandReductionsPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

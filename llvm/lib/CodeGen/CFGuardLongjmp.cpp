@@ -39,7 +39,7 @@ public:
   static char ID;
 
   CFGuardLongjmp() : MachineFunctionPass(ID) {
-    llvm::initializeCFGuardLongjmpPass(*PassRegistry::getPassRegistry());
+    initializeCFGuardLongjmpPass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override {

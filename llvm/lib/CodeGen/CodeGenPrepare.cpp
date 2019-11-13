@@ -312,7 +312,7 @@ class TypePromotionTransaction;
     static char ID; // Pass identification, replacement for typeid
 
     CodeGenPrepare() : FunctionPass(ID) {
-      llvm::initializeCodeGenPreparePass(*PassRegistry::getPassRegistry());
+      initializeCodeGenPreparePass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

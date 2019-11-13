@@ -42,7 +42,7 @@ namespace {
 struct DeadInstElimination : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   DeadInstElimination() : FunctionPass(ID) {
-    llvm::initializeDeadInstEliminationPass(*PassRegistry::getPassRegistry());
+    initializeDeadInstEliminationPass(*PassRegistry::getPassRegistry());
   }
   bool runOnFunction(Function &F) override {
     if (skipFunction(F))

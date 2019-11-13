@@ -155,7 +155,7 @@ struct RegionPrinter
   RegionPrinter()
       : DOTGraphTraitsPrinter<RegionInfoPass, false, RegionInfo *,
                               RegionInfoPassGraphTraits>("reg", ID) {
-    llvm::initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
+    initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
   }
 };
 char RegionPrinter::ID = 0;

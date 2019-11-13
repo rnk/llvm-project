@@ -93,8 +93,7 @@ namespace {
     static char ID;
 
     CorrelatedValuePropagation(): FunctionPass(ID) {
-      llvm::initializeCorrelatedValuePropagationPass(
-          *PassRegistry::getPassRegistry());
+     initializeCorrelatedValuePropagationPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

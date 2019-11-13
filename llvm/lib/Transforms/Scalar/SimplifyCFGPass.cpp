@@ -238,7 +238,7 @@ struct CFGSimplifyPass : public FunctionPass {
                   std::function<bool(const Function &)> Ftor = nullptr)
       : FunctionPass(ID), PredicateFtor(std::move(Ftor)) {
 
-    llvm::initializeCFGSimplifyPassPass(*PassRegistry::getPassRegistry());
+    initializeCFGSimplifyPassPass(*PassRegistry::getPassRegistry());
 
     // Check for command-line overrides of options for debug/customization.
     Options.BonusInstThreshold = UserBonusInstThreshold.getNumOccurrences()

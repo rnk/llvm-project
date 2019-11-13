@@ -156,7 +156,7 @@ namespace {
 struct BDCELegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   BDCELegacyPass() : FunctionPass(ID) {
-    llvm::initializeBDCELegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeBDCELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

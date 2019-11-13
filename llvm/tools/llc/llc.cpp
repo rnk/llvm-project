@@ -303,7 +303,7 @@ int main(int argc, char **argv) {
   // Initialize codegen and IR passes used by llc so that the -print-after,
   // -print-before, and -stop-after options work.
   PassRegistry *Registry = PassRegistry::getPassRegistry();
-  llvm::initializeCore(*Registry);
+  initializeCore(*Registry);
   initializeCodeGen(*Registry);
   initializeLoopStrengthReducePass(*Registry);
   initializeLowerIntrinsicsPass(*Registry);

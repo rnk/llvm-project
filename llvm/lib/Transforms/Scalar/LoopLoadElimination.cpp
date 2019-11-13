@@ -632,7 +632,7 @@ public:
   static char ID;
 
   LoopLoadElimination() : FunctionPass(ID) {
-    llvm::initializeLoopLoadEliminationPass(*PassRegistry::getPassRegistry());
+    initializeLoopLoadEliminationPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

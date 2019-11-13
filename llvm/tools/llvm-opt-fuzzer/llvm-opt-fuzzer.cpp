@@ -184,7 +184,7 @@ extern "C" LLVM_ATTRIBUTE_USED int LLVMFuzzerInitialize(
   InitializeAllTargetMCs();
 
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  llvm::initializeCore(Registry);
+  initializeCore(Registry);
   initializeCoroutines(Registry);
   initializeScalarOpts(Registry);
   initializeObjCARCOpts(Registry);

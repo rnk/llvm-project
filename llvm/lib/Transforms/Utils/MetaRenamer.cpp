@@ -74,7 +74,7 @@ namespace {
     static char ID;
 
     MetaRenamer() : ModulePass(ID) {
-      llvm::initializeMetaRenamerPass(*PassRegistry::getPassRegistry());
+      initializeMetaRenamerPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

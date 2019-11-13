@@ -168,8 +168,7 @@ class HotColdSplittingLegacyPass : public ModulePass {
 public:
   static char ID;
   HotColdSplittingLegacyPass() : ModulePass(ID) {
-    llvm::initializeHotColdSplittingLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeHotColdSplittingLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

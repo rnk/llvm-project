@@ -47,7 +47,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     GlobalDCELegacyPass() : ModulePass(ID) {
-      llvm::initializeGlobalDCELegacyPassPass(*PassRegistry::getPassRegistry());
+      initializeGlobalDCELegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     // run - Do the GlobalDCE pass on the specified module, optionally updating

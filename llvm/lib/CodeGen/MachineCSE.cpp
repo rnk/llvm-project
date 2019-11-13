@@ -74,7 +74,7 @@ namespace {
     static char ID; // Pass identification
 
     MachineCSE() : MachineFunctionPass(ID) {
-      llvm::initializeMachineCSEPass(*PassRegistry::getPassRegistry());
+      initializeMachineCSEPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

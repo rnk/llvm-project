@@ -121,8 +121,7 @@ public:
   static char ID;
 
   NaryReassociateLegacyPass() : FunctionPass(ID) {
-    llvm::initializeNaryReassociateLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeNaryReassociateLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool doInitialization(Module &M) override {

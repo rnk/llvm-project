@@ -121,7 +121,7 @@ struct LoopVersioningLICM : public LoopPass {
   LoopVersioningLICM()
       : LoopPass(ID), LoopDepthThreshold(LVLoopDepthThreshold),
         InvariantThreshold(LVInvarThreshold) {
-    llvm::initializeLoopVersioningLICMPass(*PassRegistry::getPassRegistry());
+    initializeLoopVersioningLICMPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override;

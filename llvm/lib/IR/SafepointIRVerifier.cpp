@@ -214,7 +214,7 @@ namespace {
 struct SafepointIRVerifier : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   SafepointIRVerifier() : FunctionPass(ID) {
-    llvm::initializeSafepointIRVerifierPass(*PassRegistry::getPassRegistry());
+    initializeSafepointIRVerifierPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

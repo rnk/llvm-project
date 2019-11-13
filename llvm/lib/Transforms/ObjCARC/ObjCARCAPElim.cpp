@@ -47,7 +47,7 @@ namespace {
   public:
     static char ID;
     ObjCARCAPElim() : ModulePass(ID) {
-      llvm::initializeObjCARCAPElimPass(*PassRegistry::getPassRegistry());
+      initializeObjCARCAPElimPass(*PassRegistry::getPassRegistry());
     }
   };
 }

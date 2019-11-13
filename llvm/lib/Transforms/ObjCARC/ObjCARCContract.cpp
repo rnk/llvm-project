@@ -105,7 +105,7 @@ namespace {
   public:
     static char ID;
     ObjCARCContract() : FunctionPass(ID) {
-      llvm::initializeObjCARCContractPass(*PassRegistry::getPassRegistry());
+      initializeObjCARCContractPass(*PassRegistry::getPassRegistry());
     }
   };
 }

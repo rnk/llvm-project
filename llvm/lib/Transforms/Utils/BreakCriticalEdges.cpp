@@ -44,7 +44,7 @@ namespace {
   struct BreakCriticalEdges : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     BreakCriticalEdges() : FunctionPass(ID) {
-      llvm::initializeBreakCriticalEdgesPass(*PassRegistry::getPassRegistry());
+      initializeBreakCriticalEdgesPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

@@ -414,7 +414,7 @@ namespace {
 struct LCSSAWrapperPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   LCSSAWrapperPass() : FunctionPass(ID) {
-    llvm::initializeLCSSAWrapperPassPass(*PassRegistry::getPassRegistry());
+    initializeLCSSAWrapperPassPass(*PassRegistry::getPassRegistry());
   }
 
   // Cached analysis information for the current function.

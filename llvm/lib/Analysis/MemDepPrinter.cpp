@@ -40,7 +40,7 @@ namespace {
 
     static char ID; // Pass identifcation, replacement for typeid
     MemDepPrinter() : FunctionPass(ID) {
-      llvm::initializeMemDepPrinterPass(*PassRegistry::getPassRegistry());
+      initializeMemDepPrinterPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

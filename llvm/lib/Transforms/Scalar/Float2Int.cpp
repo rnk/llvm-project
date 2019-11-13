@@ -54,7 +54,7 @@ namespace {
   struct Float2IntLegacyPass : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     Float2IntLegacyPass() : FunctionPass(ID) {
-      llvm::initializeFloat2IntLegacyPassPass(*PassRegistry::getPassRegistry());
+      initializeFloat2IntLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

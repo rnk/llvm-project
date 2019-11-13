@@ -37,7 +37,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     WriteBitcodePass() : ModulePass(ID), OS(dbgs()) {
-      llvm::initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
+      initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
     }
 
     explicit WriteBitcodePass(raw_ostream &o, bool ShouldPreserveUseListOrder,
@@ -45,7 +45,7 @@ namespace {
         : ModulePass(ID), OS(o),
           ShouldPreserveUseListOrder(ShouldPreserveUseListOrder),
           EmitSummaryIndex(EmitSummaryIndex), EmitModuleHash(EmitModuleHash) {
-      llvm::initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
+      initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
     }
 
     StringRef getPassName() const override { return "Bitcode Writer"; }

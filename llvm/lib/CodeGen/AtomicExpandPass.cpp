@@ -63,7 +63,7 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
 
     AtomicExpand() : FunctionPass(ID) {
-      llvm::initializeAtomicExpandPass(*PassRegistry::getPassRegistry());
+      initializeAtomicExpandPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

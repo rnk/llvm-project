@@ -59,7 +59,7 @@ namespace {
   public:
     static char ID;
     ObjCARCExpand() : FunctionPass(ID) {
-      llvm::initializeObjCARCExpandPass(*PassRegistry::getPassRegistry());
+      initializeObjCARCExpandPass(*PassRegistry::getPassRegistry());
     }
   };
 }

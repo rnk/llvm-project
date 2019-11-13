@@ -211,8 +211,7 @@ public:
   static char ID;
 
   LoadStoreVectorizerLegacyPass() : FunctionPass(ID) {
-    llvm::initializeLoadStoreVectorizerLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeLoadStoreVectorizerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

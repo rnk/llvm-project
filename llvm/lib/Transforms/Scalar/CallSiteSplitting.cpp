@@ -548,8 +548,7 @@ namespace {
 struct CallSiteSplittingLegacyPass : public FunctionPass {
   static char ID;
   CallSiteSplittingLegacyPass() : FunctionPass(ID) {
-    llvm::initializeCallSiteSplittingLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeCallSiteSplittingLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

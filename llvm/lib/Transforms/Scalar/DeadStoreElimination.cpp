@@ -1351,7 +1351,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   DSELegacyPass() : FunctionPass(ID) {
-    llvm::initializeDSELegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeDSELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

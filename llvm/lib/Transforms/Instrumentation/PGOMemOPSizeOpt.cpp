@@ -103,8 +103,7 @@ public:
   static char ID;
 
   PGOMemOPSizeOptLegacyPass() : FunctionPass(ID) {
-    llvm::initializePGOMemOPSizeOptLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializePGOMemOPSizeOptLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override { return "PGOMemOPSize"; }

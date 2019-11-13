@@ -852,7 +852,7 @@ struct MachineOutliner : public ModulePass {
   }
 
   MachineOutliner() : ModulePass(ID) {
-    llvm::initializeMachineOutlinerPass(*PassRegistry::getPassRegistry());
+    initializeMachineOutlinerPass(*PassRegistry::getPassRegistry());
   }
 
   /// Remark output explaining that not outlining a set of candidates would be

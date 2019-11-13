@@ -271,7 +271,7 @@ namespace {
   public:
     static char ID; // Pass identification
     SinkingLegacyPass() : FunctionPass(ID) {
-      llvm::initializeSinkingLegacyPassPass(*PassRegistry::getPassRegistry());
+      initializeSinkingLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

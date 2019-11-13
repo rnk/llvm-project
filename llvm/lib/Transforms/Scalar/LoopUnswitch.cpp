@@ -206,7 +206,7 @@ namespace {
     explicit LoopUnswitch(bool Os = false, bool hasBranchDivergence = false)
         : LoopPass(ID), OptimizeForSize(Os),
           hasBranchDivergence(hasBranchDivergence) {
-      llvm::initializeLoopUnswitchPass(*PassRegistry::getPassRegistry());
+        initializeLoopUnswitchPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnLoop(Loop *L, LPPassManager &LPM) override;

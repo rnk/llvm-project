@@ -247,7 +247,7 @@ public:
   static char ID;
 
   IRCELegacyPass() : LoopPass(ID) {
-    llvm::initializeIRCELegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeIRCELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

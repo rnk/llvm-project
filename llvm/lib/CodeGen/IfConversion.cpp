@@ -207,7 +207,7 @@ namespace {
 
     IfConverter(std::function<bool(const MachineFunction &)> Ftor = nullptr)
         : MachineFunctionPass(ID), PredicateFtor(std::move(Ftor)) {
-      llvm::initializeIfConverterPass(*PassRegistry::getPassRegistry());
+      initializeIfConverterPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

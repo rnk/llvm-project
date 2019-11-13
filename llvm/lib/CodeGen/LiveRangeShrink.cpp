@@ -45,7 +45,7 @@ public:
   static char ID;
 
   LiveRangeShrink() : MachineFunctionPass(ID) {
-    llvm::initializeLiveRangeShrinkPass(*PassRegistry::getPassRegistry());
+    initializeLiveRangeShrinkPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

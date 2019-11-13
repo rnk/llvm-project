@@ -497,12 +497,12 @@ class WriteThinLTOBitcode : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   WriteThinLTOBitcode() : ModulePass(ID), OS(dbgs()), ThinLinkOS(nullptr) {
-    llvm::initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
+    initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
   }
 
   explicit WriteThinLTOBitcode(raw_ostream &o, raw_ostream *ThinLinkOS)
       : ModulePass(ID), OS(o), ThinLinkOS(ThinLinkOS) {
-    llvm::initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
+    initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override { return "ThinLTO Bitcode Writer"; }

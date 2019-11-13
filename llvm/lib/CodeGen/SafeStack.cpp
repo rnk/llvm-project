@@ -842,7 +842,7 @@ public:
   static char ID; // Pass identification, replacement for typeid..
 
   SafeStackLegacyPass() : FunctionPass(ID) {
-    llvm::initializeSafeStackLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeSafeStackLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

@@ -77,7 +77,7 @@ namespace {
     static char ID;
 
     LowerSwitch() : FunctionPass(ID) {
-      llvm::initializeLowerSwitchPass(*PassRegistry::getPassRegistry());
+      initializeLowerSwitchPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

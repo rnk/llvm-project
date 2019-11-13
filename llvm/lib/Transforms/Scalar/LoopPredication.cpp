@@ -312,8 +312,7 @@ class LoopPredicationLegacyPass : public LoopPass {
 public:
   static char ID;
   LoopPredicationLegacyPass() : LoopPass(ID) {
-    llvm::initializeLoopPredicationLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeLoopPredicationLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

@@ -228,8 +228,7 @@ class LoopDeletionLegacyPass : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopDeletionLegacyPass() : LoopPass(ID) {
-    llvm::initializeLoopDeletionLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeLoopDeletionLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   // Possibly eliminate loop L if it is dead.

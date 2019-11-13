@@ -147,8 +147,7 @@ public:
   static char ID;
 
   StraightLineStrengthReduce() : FunctionPass(ID) {
-    llvm::initializeStraightLineStrengthReducePass(
-        *PassRegistry::getPassRegistry());
+    initializeStraightLineStrengthReducePass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

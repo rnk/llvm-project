@@ -102,8 +102,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   ConstantHoistingLegacyPass() : FunctionPass(ID) {
-    llvm::initializeConstantHoistingLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeConstantHoistingLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &Fn) override;

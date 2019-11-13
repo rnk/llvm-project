@@ -363,7 +363,7 @@ public:
 
   PGOInstrumentationGenLegacyPass(bool IsCS = false)
       : ModulePass(ID), IsCS(IsCS) {
-    llvm::initializePGOInstrumentationGenLegacyPassPass(
+    initializePGOInstrumentationGenLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

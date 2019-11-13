@@ -1214,7 +1214,7 @@ public:
         ProvidedAllowPeeling(AllowPeeling),
         ProvidedAllowProfileBasedPeeling(AllowProfileBasedPeeling),
         ProvidedFullUnrollMaxCount(ProvidedFullUnrollMaxCount) {
-    llvm::initializeLoopUnrollPass(*PassRegistry::getPassRegistry());
+    initializeLoopUnrollPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

@@ -24,7 +24,7 @@ namespace {
   struct InstNamer : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     InstNamer() : FunctionPass(ID) {
-      llvm::initializeInstNamerPass(*PassRegistry::getPassRegistry());
+      initializeInstNamerPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &Info) const override {

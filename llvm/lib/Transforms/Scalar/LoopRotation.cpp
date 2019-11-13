@@ -69,7 +69,7 @@ class LoopRotateLegacyPass : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopRotateLegacyPass(int SpecifiedMaxHeaderSize = -1) : LoopPass(ID) {
-    llvm::initializeLoopRotateLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeLoopRotateLegacyPassPass(*PassRegistry::getPassRegistry());
     if (SpecifiedMaxHeaderSize == -1)
       MaxHeaderSize = DefaultRotationThreshold;
     else

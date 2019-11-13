@@ -348,8 +348,7 @@ public:
 
   SeparateConstOffsetFromGEP(bool LowerGEP = false)
       : FunctionPass(ID), LowerGEP(LowerGEP) {
-    llvm::initializeSeparateConstOffsetFromGEPPass(
-        *PassRegistry::getPassRegistry());
+    initializeSeparateConstOffsetFromGEPPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

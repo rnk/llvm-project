@@ -166,7 +166,7 @@ namespace {
     static char ID; // Pass ID, replacement for typeid
 
     LoopReroll() : LoopPass(ID) {
-      llvm::initializeLoopRerollPass(*PassRegistry::getPassRegistry());
+      initializeLoopRerollPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnLoop(Loop *L, LPPassManager &LPM) override;

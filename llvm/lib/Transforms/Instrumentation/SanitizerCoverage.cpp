@@ -256,7 +256,7 @@ public:
   ModuleSanitizerCoverageLegacyPass(
       const SanitizerCoverageOptions &Options = SanitizerCoverageOptions())
       : ModulePass(ID), Options(Options) {
-    llvm::initializeModuleSanitizerCoverageLegacyPassPass(
+    initializeModuleSanitizerCoverageLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
   bool runOnModule(Module &M) override {

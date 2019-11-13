@@ -373,7 +373,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
   MergedLoadStoreMotionLegacyPass(bool SplitFooterBB = false)
       : FunctionPass(ID), SplitFooterBB(SplitFooterBB) {
-    llvm::initializeMergedLoadStoreMotionLegacyPassPass(
+    initializeMergedLoadStoreMotionLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

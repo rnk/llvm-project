@@ -32,7 +32,7 @@ namespace {
 struct LowerWidenableConditionLegacyPass : public FunctionPass {
   static char ID;
   LowerWidenableConditionLegacyPass() : FunctionPass(ID) {
-    llvm::initializeLowerWidenableConditionLegacyPassPass(
+    initializeLowerWidenableConditionLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

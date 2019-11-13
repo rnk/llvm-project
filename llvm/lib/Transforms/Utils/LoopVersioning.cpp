@@ -257,7 +257,7 @@ namespace {
 class LoopVersioningPass : public FunctionPass {
 public:
   LoopVersioningPass() : FunctionPass(ID) {
-    llvm::initializeLoopVersioningPassPass(*PassRegistry::getPassRegistry());
+    initializeLoopVersioningPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

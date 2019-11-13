@@ -5144,12 +5144,12 @@ struct VerifierLegacyPass : public FunctionPass {
   bool FatalErrors = true;
 
   VerifierLegacyPass() : FunctionPass(ID) {
-    llvm::initializeVerifierLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeVerifierLegacyPassPass(*PassRegistry::getPassRegistry());
   }
   explicit VerifierLegacyPass(bool FatalErrors)
       : FunctionPass(ID),
         FatalErrors(FatalErrors) {
-    llvm::initializeVerifierLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeVerifierLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool doInitialization(Module &M) override {

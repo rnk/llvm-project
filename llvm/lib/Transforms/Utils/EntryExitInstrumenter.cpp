@@ -123,7 +123,7 @@ namespace {
 struct EntryExitInstrumenter : public FunctionPass {
   static char ID;
   EntryExitInstrumenter() : FunctionPass(ID) {
-    llvm::initializeEntryExitInstrumenterPass(*PassRegistry::getPassRegistry());
+    initializeEntryExitInstrumenterPass(*PassRegistry::getPassRegistry());
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addPreserved<GlobalsAAWrapperPass>();

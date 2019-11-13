@@ -448,7 +448,7 @@ public:
                      [&](Function &F) -> TargetTransformInfo & {
                        return TTIWP->getTTI(F);
                      }) {
-    llvm::initializeSampleProfileLoaderLegacyPassPass(
+    initializeSampleProfileLoaderLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

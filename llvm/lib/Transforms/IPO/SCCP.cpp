@@ -43,7 +43,7 @@ public:
   static char ID;
 
   IPSCCPLegacyPass() : ModulePass(ID) {
-    llvm::initializeIPSCCPLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeIPSCCPLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

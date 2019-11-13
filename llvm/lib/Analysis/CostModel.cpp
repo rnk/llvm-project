@@ -46,7 +46,8 @@ namespace {
   public:
     static char ID; // Class identification, replacement for typeinfo
     CostModelAnalysis() : FunctionPass(ID), F(nullptr), TTI(nullptr) {
-      llvm::initializeCostModelAnalysisPass(*PassRegistry::getPassRegistry());
+      initializeCostModelAnalysisPass(
+        *PassRegistry::getPassRegistry());
     }
 
     /// Returns the expected cost of the instruction.

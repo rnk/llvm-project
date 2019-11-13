@@ -348,8 +348,7 @@ struct PartialInlinerLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
 
   PartialInlinerLegacyPass() : ModulePass(ID) {
-    llvm::initializePartialInlinerLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializePartialInlinerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

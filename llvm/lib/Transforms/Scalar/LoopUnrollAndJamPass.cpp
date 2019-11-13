@@ -435,7 +435,7 @@ public:
   unsigned OptLevel;
 
   LoopUnrollAndJam(int OptLevel = 2) : LoopPass(ID), OptLevel(OptLevel) {
-    llvm::initializeLoopUnrollAndJamPass(*PassRegistry::getPassRegistry());
+    initializeLoopUnrollAndJamPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

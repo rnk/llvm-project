@@ -3176,8 +3176,7 @@ struct IndVarSimplifyLegacyPass : public LoopPass {
   static char ID; // Pass identification, replacement for typeid
 
   IndVarSimplifyLegacyPass() : LoopPass(ID) {
-    llvm::initializeIndVarSimplifyLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeIndVarSimplifyLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

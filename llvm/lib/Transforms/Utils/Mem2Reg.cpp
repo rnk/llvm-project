@@ -76,7 +76,7 @@ struct PromoteLegacyPass : public FunctionPass {
   static char ID;
 
   PromoteLegacyPass() : FunctionPass(ID) {
-    llvm::initializePromoteLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializePromoteLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   // runOnFunction - To run this pass, first we calculate the alloca

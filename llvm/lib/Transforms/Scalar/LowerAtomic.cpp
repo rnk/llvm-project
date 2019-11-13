@@ -156,7 +156,7 @@ public:
   static char ID;
 
   LowerAtomicLegacyPass() : FunctionPass(ID) {
-    llvm::initializeLowerAtomicLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeLowerAtomicLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

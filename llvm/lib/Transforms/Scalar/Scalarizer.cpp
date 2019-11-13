@@ -222,7 +222,7 @@ public:
   static char ID;
 
   ScalarizerLegacyPass() : FunctionPass(ID) {
-    llvm::initializeScalarizerLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeScalarizerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

@@ -2995,7 +2995,7 @@ struct GlobalOptLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
 
   GlobalOptLegacyPass() : ModulePass(ID) {
-    llvm::initializeGlobalOptLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeGlobalOptLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

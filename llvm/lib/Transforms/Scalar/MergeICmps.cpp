@@ -893,7 +893,7 @@ public:
   static char ID;
 
   MergeICmpsLegacyPass() : FunctionPass(ID) {
-    llvm::initializeMergeICmpsLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeMergeICmpsLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

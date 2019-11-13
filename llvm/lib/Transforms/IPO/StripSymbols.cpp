@@ -40,7 +40,7 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
     explicit StripSymbols(bool ODI = false)
       : ModulePass(ID), OnlyDebugInfo(ODI) {
-      llvm::initializeStripSymbolsPass(*PassRegistry::getPassRegistry());
+        initializeStripSymbolsPass(*PassRegistry::getPassRegistry());
       }
 
     bool runOnModule(Module &M) override;

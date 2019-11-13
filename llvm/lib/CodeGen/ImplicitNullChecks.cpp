@@ -211,7 +211,7 @@ public:
   static char ID;
 
   ImplicitNullChecks() : MachineFunctionPass(ID) {
-    llvm::initializeImplicitNullChecksPass(*PassRegistry::getPassRegistry());
+    initializeImplicitNullChecksPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;

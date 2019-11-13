@@ -1564,7 +1564,7 @@ struct LoopFuseLegacy : public FunctionPass {
   static char ID;
 
   LoopFuseLegacy() : FunctionPass(ID) {
-    llvm::initializeLoopFuseLegacyPass(*PassRegistry::getPassRegistry());
+    initializeLoopFuseLegacyPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

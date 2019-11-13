@@ -441,7 +441,7 @@ public:
   static char ID;
 
   StackColoring() : MachineFunctionPass(ID) {
-    llvm::initializeStackColoringPass(*PassRegistry::getPassRegistry());
+    initializeStackColoringPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;

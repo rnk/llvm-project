@@ -351,7 +351,7 @@ namespace {
 struct LegacyLoopSinkPass : public LoopPass {
   static char ID;
   LegacyLoopSinkPass() : LoopPass(ID) {
-    llvm::initializeLegacyLoopSinkPassPass(*PassRegistry::getPassRegistry());
+    initializeLegacyLoopSinkPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

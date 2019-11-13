@@ -2473,8 +2473,7 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
 
     ReassociateLegacyPass() : FunctionPass(ID) {
-      llvm::initializeReassociateLegacyPassPass(
-          *PassRegistry::getPassRegistry());
+      initializeReassociateLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

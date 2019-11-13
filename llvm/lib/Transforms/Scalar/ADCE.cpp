@@ -698,7 +698,7 @@ struct ADCELegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 
   ADCELegacyPass() : FunctionPass(ID) {
-    llvm::initializeADCELegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeADCELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

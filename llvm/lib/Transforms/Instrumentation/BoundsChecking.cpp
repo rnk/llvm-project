@@ -221,8 +221,7 @@ struct BoundsCheckingLegacyPass : public FunctionPass {
   static char ID;
 
   BoundsCheckingLegacyPass() : FunctionPass(ID) {
-    llvm::initializeBoundsCheckingLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeBoundsCheckingLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

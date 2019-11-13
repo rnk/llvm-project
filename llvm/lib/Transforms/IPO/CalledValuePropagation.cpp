@@ -417,7 +417,7 @@ public:
   }
 
   CalledValuePropagationLegacyPass() : ModulePass(ID) {
-    llvm::initializeCalledValuePropagationLegacyPassPass(
+    initializeCalledValuePropagationLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

@@ -48,8 +48,7 @@ namespace {
 struct AlignmentFromAssumptions : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   AlignmentFromAssumptions() : FunctionPass(ID) {
-    llvm::initializeAlignmentFromAssumptionsPass(
-        *PassRegistry::getPassRegistry());
+    initializeAlignmentFromAssumptionsPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

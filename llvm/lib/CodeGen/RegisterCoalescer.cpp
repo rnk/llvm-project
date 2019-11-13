@@ -330,7 +330,7 @@ namespace {
     static char ID; ///< Class identification, replacement for typeinfo
 
     RegisterCoalescer() : MachineFunctionPass(ID) {
-      llvm::initializeRegisterCoalescerPass(*PassRegistry::getPassRegistry());
+      initializeRegisterCoalescerPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override;

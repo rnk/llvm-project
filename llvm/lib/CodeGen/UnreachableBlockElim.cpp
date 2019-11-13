@@ -50,7 +50,7 @@ class UnreachableBlockElimLegacyPass : public FunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
   UnreachableBlockElimLegacyPass() : FunctionPass(ID) {
-    llvm::initializeUnreachableBlockElimLegacyPassPass(
+    initializeUnreachableBlockElimLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

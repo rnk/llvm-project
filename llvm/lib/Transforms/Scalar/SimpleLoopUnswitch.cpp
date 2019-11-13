@@ -2901,7 +2901,7 @@ public:
 
   explicit SimpleLoopUnswitchLegacyPass(bool NonTrivial = false)
       : LoopPass(ID), NonTrivial(NonTrivial) {
-    llvm::initializeSimpleLoopUnswitchLegacyPassPass(
+    initializeSimpleLoopUnswitchLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

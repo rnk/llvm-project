@@ -39,7 +39,7 @@ public:
   static char ID;
 
   ProcessImplicitDefs() : MachineFunctionPass(ID) {
-    llvm::initializeProcessImplicitDefsPass(*PassRegistry::getPassRegistry());
+    initializeProcessImplicitDefsPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &au) const override;

@@ -165,7 +165,7 @@ struct GlobalSplit : public ModulePass {
   static char ID;
 
   GlobalSplit() : ModulePass(ID) {
-    llvm::initializeGlobalSplitPass(*PassRegistry::getPassRegistry());
+    initializeGlobalSplitPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

@@ -117,8 +117,7 @@ struct PlaceBackedgeSafepointsImpl : public FunctionPass {
 
   PlaceBackedgeSafepointsImpl(bool CallSafepoints = false)
       : FunctionPass(ID), CallSafepointsEnabled(CallSafepoints) {
-    llvm::initializePlaceBackedgeSafepointsImplPass(
-        *PassRegistry::getPassRegistry());
+    initializePlaceBackedgeSafepointsImplPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *);

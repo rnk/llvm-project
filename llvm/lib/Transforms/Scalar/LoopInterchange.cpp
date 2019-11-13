@@ -440,7 +440,7 @@ struct LoopInterchange : public LoopPass {
   OptimizationRemarkEmitter *ORE;
 
   LoopInterchange() : LoopPass(ID) {
-    llvm::initializeLoopInterchangePass(*PassRegistry::getPassRegistry());
+    initializeLoopInterchangePass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

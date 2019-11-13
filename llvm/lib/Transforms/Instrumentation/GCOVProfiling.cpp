@@ -145,8 +145,7 @@ public:
       : GCOVProfilerLegacyPass(GCOVOptions::getDefault()) {}
   GCOVProfilerLegacyPass(const GCOVOptions &Opts)
       : ModulePass(ID), Profiler(Opts) {
-    llvm::initializeGCOVProfilerLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeGCOVProfilerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
   StringRef getPassName() const override { return "GCOV Profiler"; }
 

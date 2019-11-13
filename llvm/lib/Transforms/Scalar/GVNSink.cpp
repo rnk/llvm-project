@@ -891,7 +891,7 @@ public:
   static char ID;
 
   GVNSinkLegacyPass() : FunctionPass(ID) {
-    llvm::initializeGVNSinkLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeGVNSinkLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

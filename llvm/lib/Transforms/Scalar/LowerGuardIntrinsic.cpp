@@ -32,7 +32,7 @@ namespace {
 struct LowerGuardIntrinsicLegacyPass : public FunctionPass {
   static char ID;
   LowerGuardIntrinsicLegacyPass() : FunctionPass(ID) {
-    llvm::initializeLowerGuardIntrinsicLegacyPassPass(
+    initializeLowerGuardIntrinsicLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

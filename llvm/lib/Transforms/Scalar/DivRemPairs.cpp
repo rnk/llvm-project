@@ -324,7 +324,7 @@ namespace {
 struct DivRemPairsLegacyPass : public FunctionPass {
   static char ID;
   DivRemPairsLegacyPass() : FunctionPass(ID) {
-    llvm::initializeDivRemPairsLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeDivRemPairsLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

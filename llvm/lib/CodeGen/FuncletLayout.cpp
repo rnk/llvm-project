@@ -24,7 +24,7 @@ class FuncletLayout : public MachineFunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
   FuncletLayout() : MachineFunctionPass(ID) {
-    llvm::initializeFuncletLayoutPass(*PassRegistry::getPassRegistry());
+    initializeFuncletLayoutPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

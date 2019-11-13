@@ -257,7 +257,7 @@ public:
 
   InternalizeLegacyPass(std::function<bool(const GlobalValue &)> MustPreserveGV)
       : ModulePass(ID), MustPreserveGV(std::move(MustPreserveGV)) {
-    llvm::initializeInternalizeLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeInternalizeLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

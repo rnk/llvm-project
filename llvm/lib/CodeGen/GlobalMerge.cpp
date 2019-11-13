@@ -187,7 +187,7 @@ namespace {
 
     explicit GlobalMerge()
         : FunctionPass(ID), MaxOffset(GlobalMergeMaxOffset) {
-      llvm::initializeGlobalMergePass(*PassRegistry::getPassRegistry());
+      initializeGlobalMergePass(*PassRegistry::getPassRegistry());
     }
 
     explicit GlobalMerge(const TargetMachine *TM, unsigned MaximalOffset,
@@ -195,7 +195,7 @@ namespace {
         : FunctionPass(ID), TM(TM), MaxOffset(MaximalOffset),
           OnlyOptimizeForSize(OnlyOptimizeForSize),
           MergeExternalGlobals(MergeExternalGlobals) {
-      llvm::initializeGlobalMergePass(*PassRegistry::getPassRegistry());
+      initializeGlobalMergePass(*PassRegistry::getPassRegistry());
     }
 
     bool doInitialization(Module &M) override;

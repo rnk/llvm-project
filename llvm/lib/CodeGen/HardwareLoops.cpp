@@ -122,7 +122,7 @@ namespace {
     static char ID;
 
     HardwareLoops() : FunctionPass(ID) {
-      llvm::initializeHardwareLoopsPass(*PassRegistry::getPassRegistry());
+      initializeHardwareLoopsPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

@@ -105,8 +105,7 @@ class LoopDataPrefetchLegacyPass : public FunctionPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopDataPrefetchLegacyPass() : FunctionPass(ID) {
-    llvm::initializeLoopDataPrefetchLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeLoopDataPrefetchLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

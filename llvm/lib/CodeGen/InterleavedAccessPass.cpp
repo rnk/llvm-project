@@ -85,7 +85,7 @@ public:
   static char ID;
 
   InterleavedAccess() : FunctionPass(ID) {
-    llvm::initializeInterleavedAccessPass(*PassRegistry::getPassRegistry());
+    initializeInterleavedAccessPass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override { return "Interleaved Access Pass"; }

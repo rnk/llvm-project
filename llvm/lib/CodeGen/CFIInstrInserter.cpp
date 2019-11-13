@@ -40,7 +40,7 @@ class CFIInstrInserter : public MachineFunctionPass {
   static char ID;
 
   CFIInstrInserter() : MachineFunctionPass(ID) {
-    llvm::initializeCFIInstrInserterPass(*PassRegistry::getPassRegistry());
+    initializeCFIInstrInserterPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

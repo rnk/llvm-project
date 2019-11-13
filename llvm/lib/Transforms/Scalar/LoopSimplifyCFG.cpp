@@ -713,8 +713,7 @@ class LoopSimplifyCFGLegacyPass : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopSimplifyCFGLegacyPass() : LoopPass(ID) {
-    llvm::initializeLoopSimplifyCFGLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeLoopSimplifyCFGLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

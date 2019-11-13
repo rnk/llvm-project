@@ -27,7 +27,7 @@ namespace {
 struct FEntryInserter : public MachineFunctionPass {
   static char ID; // Pass identification, replacement for typeid
   FEntryInserter() : MachineFunctionPass(ID) {
-    llvm::initializeFEntryInserterPass(*PassRegistry::getPassRegistry());
+    initializeFEntryInserterPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

@@ -103,14 +103,12 @@ class AlwaysInlinerLegacyPass : public LegacyInlinerBase {
 
 public:
   AlwaysInlinerLegacyPass() : LegacyInlinerBase(ID, /*InsertLifetime*/ true) {
-    llvm::initializeAlwaysInlinerLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeAlwaysInlinerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   AlwaysInlinerLegacyPass(bool InsertLifetime)
       : LegacyInlinerBase(ID, InsertLifetime) {
-    llvm::initializeAlwaysInlinerLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeAlwaysInlinerLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   /// Main run interface method.  We override here to avoid calling skipSCC().

@@ -218,7 +218,7 @@ public:
   static char ID;
 
   ShrinkWrap() : MachineFunctionPass(ID) {
-    llvm::initializeShrinkWrapPass(*PassRegistry::getPassRegistry());
+    initializeShrinkWrapPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

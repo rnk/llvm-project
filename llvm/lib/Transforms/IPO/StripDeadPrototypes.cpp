@@ -66,7 +66,7 @@ class StripDeadPrototypesLegacyPass : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   StripDeadPrototypesLegacyPass() : ModulePass(ID) {
-    llvm::initializeStripDeadPrototypesLegacyPassPass(
+    initializeStripDeadPrototypesLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
   bool runOnModule(Module &M) override {

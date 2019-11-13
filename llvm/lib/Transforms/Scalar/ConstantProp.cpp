@@ -42,7 +42,7 @@ namespace {
   struct ConstantPropagation : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     ConstantPropagation() : FunctionPass(ID) {
-      llvm::initializeConstantPropagationPass(*PassRegistry::getPassRegistry());
+      initializeConstantPropagationPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

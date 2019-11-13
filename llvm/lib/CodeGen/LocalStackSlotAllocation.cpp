@@ -91,7 +91,7 @@ namespace {
     static char ID; // Pass identification, replacement for typeid
 
     explicit LocalStackSlotPass() : MachineFunctionPass(ID) {
-      llvm::initializeLocalStackSlotPassPass(*PassRegistry::getPassRegistry());
+      initializeLocalStackSlotPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

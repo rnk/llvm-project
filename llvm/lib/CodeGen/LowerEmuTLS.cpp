@@ -32,7 +32,7 @@ class LowerEmuTLS : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   LowerEmuTLS() : ModulePass(ID) {
-    llvm::initializeLowerEmuTLSPass(*PassRegistry::getPassRegistry());
+    initializeLowerEmuTLSPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override;

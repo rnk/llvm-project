@@ -28,7 +28,7 @@ namespace {
 struct StripGCRelocates : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   StripGCRelocates() : FunctionPass(ID) {
-    llvm::initializeStripGCRelocatesPass(*PassRegistry::getPassRegistry());
+    initializeStripGCRelocatesPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &Info) const override {}

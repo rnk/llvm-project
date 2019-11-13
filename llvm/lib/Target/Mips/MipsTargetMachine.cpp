@@ -53,7 +53,7 @@ extern "C" void LLVMInitializeMipsTarget() {
   RegisterTargetMachine<MipselTargetMachine> B(getTheMips64elTarget());
 
   PassRegistry *PR = PassRegistry::getPassRegistry();
-  llvm::initializeGlobalISel(*PR);
+  initializeGlobalISel(*PR);
   initializeMipsDelaySlotFillerPass(*PR);
   initializeMipsBranchExpansionPass(*PR);
   initializeMicroMipsSizeReducePass(*PR);

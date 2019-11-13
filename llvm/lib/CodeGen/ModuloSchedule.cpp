@@ -2042,7 +2042,7 @@ public:
   static char ID;
 
   ModuloScheduleTest() : MachineFunctionPass(ID) {
-    llvm::initializeModuloScheduleTestPass(*PassRegistry::getPassRegistry());
+    initializeModuloScheduleTestPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &MF) override;

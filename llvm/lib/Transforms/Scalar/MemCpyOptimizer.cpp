@@ -261,7 +261,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   MemCpyOptLegacyPass() : FunctionPass(ID) {
-    llvm::initializeMemCpyOptLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeMemCpyOptLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

@@ -39,7 +39,7 @@ namespace {
   struct RegToMem : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     RegToMem() : FunctionPass(ID) {
-      llvm::initializeRegToMemPass(*PassRegistry::getPassRegistry());
+      initializeRegToMemPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

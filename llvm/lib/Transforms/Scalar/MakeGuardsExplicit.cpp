@@ -48,8 +48,7 @@ namespace {
 struct MakeGuardsExplicitLegacyPass : public FunctionPass {
   static char ID;
   MakeGuardsExplicitLegacyPass() : FunctionPass(ID) {
-    llvm::initializeMakeGuardsExplicitLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeMakeGuardsExplicitLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

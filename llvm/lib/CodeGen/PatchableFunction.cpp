@@ -26,7 +26,7 @@ namespace {
 struct PatchableFunction : public MachineFunctionPass {
   static char ID; // Pass identification, replacement for typeid
   PatchableFunction() : MachineFunctionPass(ID) {
-    llvm::initializePatchableFunctionPass(*PassRegistry::getPassRegistry());
+    initializePatchableFunctionPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

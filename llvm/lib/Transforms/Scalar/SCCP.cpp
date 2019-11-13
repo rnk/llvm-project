@@ -1883,7 +1883,7 @@ public:
   static char ID;
 
   SCCPLegacyPass() : FunctionPass(ID) {
-    llvm::initializeSCCPLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeSCCPLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

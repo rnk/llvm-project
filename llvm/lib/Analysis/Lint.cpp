@@ -138,7 +138,7 @@ namespace {
 
     static char ID; // Pass identification, replacement for typeid
     Lint() : FunctionPass(ID), MessagesStr(Messages) {
-      llvm::initializeLintPass(*PassRegistry::getPassRegistry());
+      initializeLintPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

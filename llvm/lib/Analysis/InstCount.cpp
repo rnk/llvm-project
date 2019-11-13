@@ -51,7 +51,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     InstCount() : FunctionPass(ID) {
-      llvm::initializeInstCountPass(*PassRegistry::getPassRegistry());
+      initializeInstCountPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

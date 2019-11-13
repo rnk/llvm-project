@@ -90,8 +90,7 @@ struct AddDiscriminatorsLegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 
   AddDiscriminatorsLegacyPass() : FunctionPass(ID) {
-    llvm::initializeAddDiscriminatorsLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeAddDiscriminatorsLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

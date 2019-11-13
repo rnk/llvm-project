@@ -111,7 +111,7 @@ struct DomViewer : public DOTGraphTraitsViewer<
       : DOTGraphTraitsViewer<DominatorTreeWrapperPass, false, DominatorTree *,
                              DominatorTreeWrapperPassAnalysisGraphTraits>(
             "dom", ID) {
-    llvm::initializeDomViewerPass(*PassRegistry::getPassRegistry());
+    initializeDomViewerPass(*PassRegistry::getPassRegistry());
   }
 };
 

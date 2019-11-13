@@ -54,7 +54,7 @@ struct CallGraphViewer
       : DOTGraphTraitsModuleViewer<CallGraphWrapperPass, true, CallGraph *,
                                    AnalysisCallGraphWrapperPassTraits>(
             "callgraph", ID) {
-    llvm::initializeCallGraphViewerPass(*PassRegistry::getPassRegistry());
+    initializeCallGraphViewerPass(*PassRegistry::getPassRegistry());
   }
 };
 

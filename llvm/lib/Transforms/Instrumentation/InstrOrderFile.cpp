@@ -178,7 +178,7 @@ public:
   static char ID;
 
   InstrOrderFileLegacyPass() : ModulePass(ID) {
-    llvm::initializeInstrOrderFileLegacyPassPass(
+    initializeInstrOrderFileLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

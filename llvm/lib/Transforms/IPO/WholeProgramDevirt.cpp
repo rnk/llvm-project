@@ -620,14 +620,14 @@ struct WholeProgramDevirt : public ModulePass {
   const ModuleSummaryIndex *ImportSummary;
 
   WholeProgramDevirt() : ModulePass(ID), UseCommandLine(true) {
-    llvm::initializeWholeProgramDevirtPass(*PassRegistry::getPassRegistry());
+    initializeWholeProgramDevirtPass(*PassRegistry::getPassRegistry());
   }
 
   WholeProgramDevirt(ModuleSummaryIndex *ExportSummary,
                      const ModuleSummaryIndex *ImportSummary)
       : ModulePass(ID), ExportSummary(ExportSummary),
         ImportSummary(ImportSummary) {
-    llvm::initializeWholeProgramDevirtPass(*PassRegistry::getPassRegistry());
+    initializeWholeProgramDevirtPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

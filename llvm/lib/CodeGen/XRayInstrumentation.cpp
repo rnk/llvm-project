@@ -47,7 +47,7 @@ struct XRayInstrumentation : public MachineFunctionPass {
   static char ID;
 
   XRayInstrumentation() : MachineFunctionPass(ID) {
-    llvm::initializeXRayInstrumentationPass(*PassRegistry::getPassRegistry());
+    initializeXRayInstrumentationPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

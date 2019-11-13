@@ -190,8 +190,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   MachineCopyPropagation() : MachineFunctionPass(ID) {
-    llvm::initializeMachineCopyPropagationPass(
-        *PassRegistry::getPassRegistry());
+    initializeMachineCopyPropagationPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

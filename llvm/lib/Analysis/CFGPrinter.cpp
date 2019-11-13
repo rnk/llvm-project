@@ -36,7 +36,7 @@ namespace {
   struct CFGViewerLegacyPass : public FunctionPass {
     static char ID; // Pass identifcation, replacement for typeid
     CFGViewerLegacyPass() : FunctionPass(ID) {
-      llvm::initializeCFGViewerLegacyPassPass(*PassRegistry::getPassRegistry());
+      initializeCFGViewerLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

@@ -264,8 +264,7 @@ struct ConstantMergeLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
 
   ConstantMergeLegacyPass() : ModulePass(ID) {
-    llvm::initializeConstantMergeLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeConstantMergeLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   // For this pass, process all of the globals in the module, eliminating

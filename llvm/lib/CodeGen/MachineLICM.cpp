@@ -283,7 +283,7 @@ namespace {
   public:
     static char ID;
     MachineLICM() : MachineLICMBase(ID, false) {
-      llvm::initializeMachineLICMPass(*PassRegistry::getPassRegistry());
+      initializeMachineLICMPass(*PassRegistry::getPassRegistry());
     }
   };
 

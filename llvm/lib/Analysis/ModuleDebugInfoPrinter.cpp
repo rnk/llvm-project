@@ -29,8 +29,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     ModuleDebugInfoPrinter() : ModulePass(ID) {
-      llvm::initializeModuleDebugInfoPrinterPass(
-          *PassRegistry::getPassRegistry());
+      initializeModuleDebugInfoPrinterPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnModule(Module &M) override;

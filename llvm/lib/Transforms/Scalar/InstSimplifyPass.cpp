@@ -82,8 +82,7 @@ namespace {
 struct InstSimplifyLegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   InstSimplifyLegacyPass() : FunctionPass(ID) {
-    llvm::initializeInstSimplifyLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeInstSimplifyLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

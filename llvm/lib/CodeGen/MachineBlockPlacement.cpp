@@ -522,7 +522,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   MachineBlockPlacement() : MachineFunctionPass(ID) {
-    llvm::initializeMachineBlockPlacementPass(*PassRegistry::getPassRegistry());
+    initializeMachineBlockPlacementPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

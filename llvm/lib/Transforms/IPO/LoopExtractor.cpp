@@ -42,7 +42,7 @@ namespace {
 
     explicit LoopExtractor(unsigned numLoops = ~0)
       : LoopPass(ID), NumLoops(numLoops) {
-      llvm::initializeLoopExtractorPass(*PassRegistry::getPassRegistry());
+        initializeLoopExtractorPass(*PassRegistry::getPassRegistry());
       }
 
     bool runOnLoop(Loop *L, LPPassManager &) override;

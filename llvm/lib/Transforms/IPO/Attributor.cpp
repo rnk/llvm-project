@@ -5653,7 +5653,7 @@ struct AttributorLegacyPass : public ModulePass {
   static char ID;
 
   AttributorLegacyPass() : ModulePass(ID) {
-    llvm::initializeAttributorLegacyPassPass(*PassRegistry::getPassRegistry());
+    initializeAttributorLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

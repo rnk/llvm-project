@@ -87,7 +87,7 @@ public:
   static char ID;
 
   PEI() : MachineFunctionPass(ID) {
-    llvm::initializePEIPass(*PassRegistry::getPassRegistry());
+    initializePEIPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override;

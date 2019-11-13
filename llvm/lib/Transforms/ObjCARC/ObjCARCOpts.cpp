@@ -564,7 +564,7 @@ namespace {
     static char ID;
 
     ObjCARCOpt() : FunctionPass(ID) {
-      llvm::initializeObjCARCOptPass(*PassRegistry::getPassRegistry());
+      initializeObjCARCOptPass(*PassRegistry::getPassRegistry());
     }
   };
 

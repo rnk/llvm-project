@@ -782,7 +782,7 @@ public:
   static char ID;
 
   ExpandMemCmpPass() : FunctionPass(ID) {
-    llvm::initializeExpandMemCmpPassPass(*PassRegistry::getPassRegistry());
+    initializeExpandMemCmpPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

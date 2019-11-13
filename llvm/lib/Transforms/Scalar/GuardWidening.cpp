@@ -849,8 +849,7 @@ struct GuardWideningLegacyPass : public FunctionPass {
   static char ID;
 
   GuardWideningLegacyPass() : FunctionPass(ID) {
-    llvm::initializeGuardWideningLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeGuardWideningLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

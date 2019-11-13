@@ -264,7 +264,7 @@ public:
         SkipUniformRegions(SkipUniformRegions_) {
     if (ForceSkipUniformRegions.getNumOccurrences())
       SkipUniformRegions = ForceSkipUniformRegions.getValue();
-    llvm::initializeStructurizeCFGPass(*PassRegistry::getPassRegistry());
+    initializeStructurizeCFGPass(*PassRegistry::getPassRegistry());
   }
 
   bool doInitialization(Region *R, RGPassManager &RGM) override;

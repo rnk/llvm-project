@@ -554,7 +554,7 @@ public:
   static char ID;
 
   ASanGlobalsMetadataWrapperPass() : ModulePass(ID) {
-    llvm::initializeASanGlobalsMetadataWrapperPassPass(
+    initializeASanGlobalsMetadataWrapperPassPass(
         *PassRegistry::getPassRegistry());
   }
 

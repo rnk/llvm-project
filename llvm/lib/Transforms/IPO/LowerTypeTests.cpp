@@ -518,14 +518,14 @@ struct LowerTypeTests : public ModulePass {
   const ModuleSummaryIndex *ImportSummary;
 
   LowerTypeTests() : ModulePass(ID), UseCommandLine(true) {
-    llvm::initializeLowerTypeTestsPass(*PassRegistry::getPassRegistry());
+    initializeLowerTypeTestsPass(*PassRegistry::getPassRegistry());
   }
 
   LowerTypeTests(ModuleSummaryIndex *ExportSummary,
                  const ModuleSummaryIndex *ImportSummary)
       : ModulePass(ID), ExportSummary(ExportSummary),
         ImportSummary(ImportSummary) {
-    llvm::initializeLowerTypeTestsPass(*PassRegistry::getPassRegistry());
+    initializeLowerTypeTestsPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

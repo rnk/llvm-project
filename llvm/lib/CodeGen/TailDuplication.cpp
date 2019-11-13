@@ -46,7 +46,7 @@ class TailDuplicate : public TailDuplicateBase {
 public:
   static char ID;
   TailDuplicate() : TailDuplicateBase(ID, false) {
-    llvm::initializeTailDuplicatePass(*PassRegistry::getPassRegistry());
+    initializeTailDuplicatePass(*PassRegistry::getPassRegistry());
   }
 };
 

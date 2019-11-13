@@ -1590,7 +1590,7 @@ struct LoopVectorize : public FunctionPass {
       : FunctionPass(ID) {
     Impl.InterleaveOnlyWhenForced = InterleaveOnlyWhenForced;
     Impl.VectorizeOnlyWhenForced = VectorizeOnlyWhenForced;
-    llvm::initializeLoopVectorizePass(*PassRegistry::getPassRegistry());
+    initializeLoopVectorizePass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

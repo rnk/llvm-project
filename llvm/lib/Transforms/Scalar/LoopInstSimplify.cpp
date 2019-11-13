@@ -181,8 +181,7 @@ public:
   static char ID; // Pass ID, replacement for typeid
 
   LoopInstSimplifyLegacyPass() : LoopPass(ID) {
-    llvm::initializeLoopInstSimplifyLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+    initializeLoopInstSimplifyLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

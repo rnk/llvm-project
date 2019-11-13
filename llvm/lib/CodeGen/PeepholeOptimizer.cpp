@@ -162,7 +162,7 @@ namespace {
     static char ID; // Pass identification
 
     PeepholeOptimizer() : MachineFunctionPass(ID) {
-      llvm::initializePeepholeOptimizerPass(*PassRegistry::getPassRegistry());
+      initializePeepholeOptimizerPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

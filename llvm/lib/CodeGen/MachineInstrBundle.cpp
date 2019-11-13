@@ -27,8 +27,7 @@ namespace {
     UnpackMachineBundles(
         std::function<bool(const MachineFunction &)> Ftor = nullptr)
         : MachineFunctionPass(ID), PredicateFtor(std::move(Ftor)) {
-      llvm::initializeUnpackMachineBundlesPass(
-          *PassRegistry::getPassRegistry());
+      initializeUnpackMachineBundlesPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

@@ -53,7 +53,7 @@ namespace {
 struct InferFunctionAttrsLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
   InferFunctionAttrsLegacyPass() : ModulePass(ID) {
-    llvm::initializeInferFunctionAttrsLegacyPassPass(
+    initializeInferFunctionAttrsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

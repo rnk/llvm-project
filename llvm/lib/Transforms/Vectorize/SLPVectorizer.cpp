@@ -5436,7 +5436,7 @@ struct SLPVectorizer : public FunctionPass {
   static char ID;
 
   explicit SLPVectorizer() : FunctionPass(ID) {
-    llvm::initializeSLPVectorizerPass(*PassRegistry::getPassRegistry());
+    initializeSLPVectorizerPass(*PassRegistry::getPassRegistry());
   }
 
   bool doInitialization(Module &M) override {

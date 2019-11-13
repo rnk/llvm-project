@@ -299,7 +299,7 @@ namespace {
 
     MachineVerifierPass(std::string banner = std::string())
       : MachineFunctionPass(ID), Banner(std::move(banner)) {
-      llvm::initializeMachineVerifierPassPass(*PassRegistry::getPassRegistry());
+        initializeMachineVerifierPassPass(*PassRegistry::getPassRegistry());
       }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

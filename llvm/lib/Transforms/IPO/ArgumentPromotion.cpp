@@ -1074,7 +1074,7 @@ struct ArgPromotion : public CallGraphSCCPass {
 
   explicit ArgPromotion(unsigned MaxElements = 3)
       : CallGraphSCCPass(ID), MaxElements(MaxElements) {
-    llvm::initializeArgPromotionPass(*PassRegistry::getPassRegistry());
+    initializeArgPromotionPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

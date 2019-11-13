@@ -5679,7 +5679,7 @@ private:
 } // end anonymous namespace
 
 LoopStrengthReduce::LoopStrengthReduce() : LoopPass(ID) {
-  llvm::initializeLoopStrengthReducePass(*PassRegistry::getPassRegistry());
+  initializeLoopStrengthReducePass(*PassRegistry::getPassRegistry());
 }
 
 void LoopStrengthReduce::getAnalysisUsage(AnalysisUsage &AU) const {

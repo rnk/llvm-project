@@ -147,7 +147,7 @@ public:
   static char ID;
 
   PartiallyInlineLibCallsLegacyPass() : FunctionPass(ID) {
-    llvm::initializePartiallyInlineLibCallsLegacyPassPass(
+    initializePartiallyInlineLibCallsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

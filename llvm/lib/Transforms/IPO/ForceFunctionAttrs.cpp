@@ -103,7 +103,7 @@ namespace {
 struct ForceFunctionAttrsLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
   ForceFunctionAttrsLegacyPass() : ModulePass(ID) {
-    llvm::initializeForceFunctionAttrsLegacyPassPass(
+    initializeForceFunctionAttrsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

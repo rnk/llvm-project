@@ -20,8 +20,7 @@ namespace {
 struct StripNonLineTableDebugInfo : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
   StripNonLineTableDebugInfo() : ModulePass(ID) {
-    llvm::initializeStripNonLineTableDebugInfoPass(
-        *PassRegistry::getPassRegistry());
+    initializeStripNonLineTableDebugInfoPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

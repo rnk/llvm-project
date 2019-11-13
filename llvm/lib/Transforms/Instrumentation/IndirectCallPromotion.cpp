@@ -122,7 +122,7 @@ public:
 
   PGOIndirectCallPromotionLegacyPass(bool InLTO = false, bool SamplePGO = false)
       : ModulePass(ID), InLTO(InLTO), SamplePGO(SamplePGO) {
-    llvm::initializePGOIndirectCallPromotionLegacyPassPass(
+    initializePGOIndirectCallPromotionLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

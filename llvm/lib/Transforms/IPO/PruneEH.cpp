@@ -40,7 +40,7 @@ namespace {
   struct PruneEH : public CallGraphSCCPass {
     static char ID; // Pass identification, replacement for typeid
     PruneEH() : CallGraphSCCPass(ID) {
-      llvm::initializePruneEHPass(*PassRegistry::getPassRegistry());
+      initializePruneEHPass(*PassRegistry::getPassRegistry());
     }
 
     // runOnSCC - Analyze the SCC, performing the transformation if possible.

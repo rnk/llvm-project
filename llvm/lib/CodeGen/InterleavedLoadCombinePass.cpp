@@ -1305,8 +1305,7 @@ struct InterleavedLoadCombine : public FunctionPass {
   static char ID;
 
   InterleavedLoadCombine() : FunctionPass(ID) {
-    llvm::initializeInterleavedLoadCombinePass(
-        *PassRegistry::getPassRegistry());
+    initializeInterleavedLoadCombinePass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override {

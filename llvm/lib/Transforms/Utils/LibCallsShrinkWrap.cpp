@@ -54,7 +54,7 @@ class LibCallsShrinkWrapLegacyPass : public FunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
   explicit LibCallsShrinkWrapLegacyPass() : FunctionPass(ID) {
-    llvm::initializeLibCallsShrinkWrapLegacyPassPass(
+    initializeLibCallsShrinkWrapLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override;

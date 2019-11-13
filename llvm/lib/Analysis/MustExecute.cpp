@@ -304,7 +304,7 @@ namespace {
 
     static char ID; // Pass identification, replacement for typeid
     MustExecutePrinter() : FunctionPass(ID) {
-      llvm::initializeMustExecutePrinterPass(*PassRegistry::getPassRegistry());
+      initializeMustExecutePrinterPass(*PassRegistry::getPassRegistry());
     }
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();

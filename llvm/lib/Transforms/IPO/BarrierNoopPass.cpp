@@ -33,7 +33,7 @@ public:
   static char ID; // Pass identification.
 
   BarrierNoop() : ModulePass(ID) {
-    llvm::initializeBarrierNoopPass(*PassRegistry::getPassRegistry());
+    initializeBarrierNoopPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override { return false; }
