@@ -68,6 +68,7 @@
 #include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Mangler.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -851,7 +852,7 @@ struct MachineOutliner : public ModulePass {
   }
 
   MachineOutliner() : ModulePass(ID) {
-    initializeMachineOutlinerPass(*PassRegistry::getPassRegistry());
+    llvm::initializeMachineOutlinerPass(*PassRegistry::getPassRegistry());
   }
 
   /// Remark output explaining that not outlining a set of candidates would be

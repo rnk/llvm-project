@@ -42,6 +42,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/User.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/BranchProbability.h"
@@ -347,7 +348,8 @@ struct PartialInlinerLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
 
   PartialInlinerLegacyPass() : ModulePass(ID) {
-    initializePartialInlinerLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializePartialInlinerLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

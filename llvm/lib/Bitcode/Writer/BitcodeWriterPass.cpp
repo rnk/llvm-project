@@ -15,6 +15,7 @@
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 using namespace llvm;
 
@@ -36,7 +37,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     WriteBitcodePass() : ModulePass(ID), OS(dbgs()) {
-      initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
     }
 
     explicit WriteBitcodePass(raw_ostream &o, bool ShouldPreserveUseListOrder,
@@ -44,7 +45,7 @@ namespace {
         : ModulePass(ID), OS(o),
           ShouldPreserveUseListOrder(ShouldPreserveUseListOrder),
           EmitSummaryIndex(EmitSummaryIndex), EmitModuleHash(EmitModuleHash) {
-      initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeWriteBitcodePassPass(*PassRegistry::getPassRegistry());
     }
 
     StringRef getPassName() const override { return "Bitcode Writer"; }

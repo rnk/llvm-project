@@ -50,6 +50,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -892,7 +893,7 @@ public:
   static char ID;
 
   MergeICmpsLegacyPass() : FunctionPass(ID) {
-    initializeMergeICmpsLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeMergeICmpsLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

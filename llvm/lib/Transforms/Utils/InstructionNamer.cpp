@@ -15,6 +15,7 @@
 
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils.h"
 using namespace llvm;
@@ -23,7 +24,7 @@ namespace {
   struct InstNamer : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     InstNamer() : FunctionPass(ID) {
-      initializeInstNamerPass(*PassRegistry::getPassRegistry());
+      llvm::initializeInstNamerPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &Info) const override {

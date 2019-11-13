@@ -22,6 +22,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/Inliner.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -102,12 +103,14 @@ class AlwaysInlinerLegacyPass : public LegacyInlinerBase {
 
 public:
   AlwaysInlinerLegacyPass() : LegacyInlinerBase(ID, /*InsertLifetime*/ true) {
-    initializeAlwaysInlinerLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeAlwaysInlinerLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   AlwaysInlinerLegacyPass(bool InsertLifetime)
       : LegacyInlinerBase(ID, InsertLifetime) {
-    initializeAlwaysInlinerLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeAlwaysInlinerLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   /// Main run interface method.  We override here to avoid calling skipSCC().

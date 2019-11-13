@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/LoopDataPrefetch.h"
+#include "llvm/InitializePasses.h"
 
 #define DEBUG_TYPE "loop-data-prefetch"
 #include "llvm/ADT/DepthFirstIterator.h"
@@ -104,7 +105,8 @@ class LoopDataPrefetchLegacyPass : public FunctionPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopDataPrefetchLegacyPass() : FunctionPass(ID) {
-    initializeLoopDataPrefetchLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLoopDataPrefetchLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

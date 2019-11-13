@@ -66,6 +66,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
@@ -137,7 +138,7 @@ namespace {
 
     static char ID; // Pass identification, replacement for typeid
     Lint() : FunctionPass(ID), MessagesStr(Messages) {
-      initializeLintPass(*PassRegistry::getPassRegistry());
+      llvm::initializeLintPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

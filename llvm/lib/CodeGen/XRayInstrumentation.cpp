@@ -26,6 +26,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -46,7 +47,7 @@ struct XRayInstrumentation : public MachineFunctionPass {
   static char ID;
 
   XRayInstrumentation() : MachineFunctionPass(ID) {
-    initializeXRayInstrumentationPass(*PassRegistry::getPassRegistry());
+    llvm::initializeXRayInstrumentationPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

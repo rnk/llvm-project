@@ -21,6 +21,7 @@
 #include "llvm/Analysis/ValueLatticeUtils.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/IPO.h"
 using namespace llvm;
 
@@ -416,7 +417,7 @@ public:
   }
 
   CalledValuePropagationLegacyPass() : ModulePass(ID) {
-    initializeCalledValuePropagationLegacyPassPass(
+    llvm::initializeCalledValuePropagationLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

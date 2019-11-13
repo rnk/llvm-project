@@ -13,6 +13,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils.h"
 using namespace llvm;
@@ -122,7 +123,7 @@ namespace {
 struct EntryExitInstrumenter : public FunctionPass {
   static char ID;
   EntryExitInstrumenter() : FunctionPass(ID) {
-    initializeEntryExitInstrumenterPass(*PassRegistry::getPassRegistry());
+    llvm::initializeEntryExitInstrumenterPass(*PassRegistry::getPassRegistry());
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addPreserved<GlobalsAAWrapperPass>();

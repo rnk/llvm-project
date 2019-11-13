@@ -82,6 +82,7 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -186,7 +187,7 @@ namespace {
 
     explicit GlobalMerge()
         : FunctionPass(ID), MaxOffset(GlobalMergeMaxOffset) {
-      initializeGlobalMergePass(*PassRegistry::getPassRegistry());
+      llvm::initializeGlobalMergePass(*PassRegistry::getPassRegistry());
     }
 
     explicit GlobalMerge(const TargetMachine *TM, unsigned MaximalOffset,
@@ -194,7 +195,7 @@ namespace {
         : FunctionPass(ID), TM(TM), MaxOffset(MaximalOffset),
           OnlyOptimizeForSize(OnlyOptimizeForSize),
           MergeExternalGlobals(MergeExternalGlobals) {
-      initializeGlobalMergePass(*PassRegistry::getPassRegistry());
+      llvm::initializeGlobalMergePass(*PassRegistry::getPassRegistry());
     }
 
     bool doInitialization(Module &M) override;

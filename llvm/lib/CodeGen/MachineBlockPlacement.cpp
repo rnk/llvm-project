@@ -48,6 +48,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/BlockFrequency.h"
@@ -521,7 +522,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   MachineBlockPlacement() : MachineFunctionPass(ID) {
-    initializeMachineBlockPlacementPass(*PassRegistry::getPassRegistry());
+    llvm::initializeMachineBlockPlacementPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

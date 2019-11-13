@@ -19,6 +19,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/IPO.h"
@@ -41,7 +42,7 @@ namespace {
 
     explicit LoopExtractor(unsigned numLoops = ~0)
       : LoopPass(ID), NumLoops(numLoops) {
-        initializeLoopExtractorPass(*PassRegistry::getPassRegistry());
+      llvm::initializeLoopExtractorPass(*PassRegistry::getPassRegistry());
       }
 
     bool runOnLoop(Loop *L, LPPassManager &) override;

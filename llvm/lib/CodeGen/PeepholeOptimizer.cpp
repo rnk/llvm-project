@@ -84,6 +84,7 @@
 #include "llvm/CodeGen/TargetOpcodes.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Pass.h"
@@ -161,7 +162,7 @@ namespace {
     static char ID; // Pass identification
 
     PeepholeOptimizer() : MachineFunctionPass(ID) {
-      initializePeepholeOptimizerPass(*PassRegistry::getPassRegistry());
+      llvm::initializePeepholeOptimizerPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

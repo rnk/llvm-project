@@ -31,6 +31,7 @@
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -5652,7 +5653,7 @@ struct AttributorLegacyPass : public ModulePass {
   static char ID;
 
   AttributorLegacyPass() : ModulePass(ID) {
-    initializeAttributorLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeAttributorLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

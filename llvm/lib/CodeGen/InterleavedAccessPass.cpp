@@ -58,6 +58,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -84,7 +85,7 @@ public:
   static char ID;
 
   InterleavedAccess() : FunctionPass(ID) {
-    initializeInterleavedAccessPass(*PassRegistry::getPassRegistry());
+    llvm::initializeInterleavedAccessPass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override { return "Interleaved Access Pass"; }

@@ -30,6 +30,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -144,7 +145,8 @@ public:
       : GCOVProfilerLegacyPass(GCOVOptions::getDefault()) {}
   GCOVProfilerLegacyPass(const GCOVOptions &Opts)
       : ModulePass(ID), Profiler(Opts) {
-    initializeGCOVProfilerLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeGCOVProfilerLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
   StringRef getPassName() const override { return "GCOV Profiler"; }
 

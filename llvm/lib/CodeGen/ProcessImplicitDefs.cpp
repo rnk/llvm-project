@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -38,7 +39,7 @@ public:
   static char ID;
 
   ProcessImplicitDefs() : MachineFunctionPass(ID) {
-    initializeProcessImplicitDefsPass(*PassRegistry::getPassRegistry());
+    llvm::initializeProcessImplicitDefsPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &au) const override;

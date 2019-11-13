@@ -20,6 +20,7 @@
 #include "llvm/Analysis/DomPrinter.h"
 #include "llvm/Analysis/DOTGraphTraitsPass.h"
 #include "llvm/Analysis/PostDominators.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -110,7 +111,7 @@ struct DomViewer : public DOTGraphTraitsViewer<
       : DOTGraphTraitsViewer<DominatorTreeWrapperPass, false, DominatorTree *,
                              DominatorTreeWrapperPassAnalysisGraphTraits>(
             "dom", ID) {
-    initializeDomViewerPass(*PassRegistry::getPassRegistry());
+    llvm::initializeDomViewerPass(*PassRegistry::getPassRegistry());
   }
 };
 

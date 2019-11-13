@@ -16,6 +16,7 @@
 #include "llvm/Transforms/IPO/StripDeadPrototypes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/IPO.h"
 
@@ -65,7 +66,7 @@ class StripDeadPrototypesLegacyPass : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   StripDeadPrototypesLegacyPass() : ModulePass(ID) {
-    initializeStripDeadPrototypesLegacyPassPass(
+    llvm::initializeStripDeadPrototypesLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
   bool runOnModule(Module &M) override {

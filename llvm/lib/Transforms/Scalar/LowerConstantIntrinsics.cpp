@@ -24,6 +24,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Scalar.h"
@@ -150,7 +151,8 @@ class LowerConstantIntrinsics : public FunctionPass {
 public:
   static char ID;
   LowerConstantIntrinsics() : FunctionPass(ID) {
-    initializeLowerConstantIntrinsicsPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLowerConstantIntrinsicsPass(
+        *PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

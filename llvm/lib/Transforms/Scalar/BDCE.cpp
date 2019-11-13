@@ -19,13 +19,14 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/DemandedBits.h"
 #include "llvm/Analysis/GlobalsModRef.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "bdce"
@@ -155,7 +156,7 @@ namespace {
 struct BDCELegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   BDCELegacyPass() : FunctionPass(ID) {
-    initializeBDCELegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeBDCELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

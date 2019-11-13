@@ -40,6 +40,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCRegisterInfo.h"
@@ -329,7 +330,7 @@ namespace {
     static char ID; ///< Class identification, replacement for typeinfo
 
     RegisterCoalescer() : MachineFunctionPass(ID) {
-      initializeRegisterCoalescerPass(*PassRegistry::getPassRegistry());
+      llvm::initializeRegisterCoalescerPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override;

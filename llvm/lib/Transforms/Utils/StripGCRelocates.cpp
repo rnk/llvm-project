@@ -18,6 +18,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Statepoint.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -27,7 +28,7 @@ namespace {
 struct StripGCRelocates : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   StripGCRelocates() : FunctionPass(ID) {
-    initializeStripGCRelocatesPass(*PassRegistry::getPassRegistry());
+    llvm::initializeStripGCRelocatesPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &Info) const override {}

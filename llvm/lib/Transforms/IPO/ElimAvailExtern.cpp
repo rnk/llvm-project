@@ -18,6 +18,7 @@
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Utils/GlobalStatus.h"
@@ -76,7 +77,7 @@ struct EliminateAvailableExternallyLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
 
   EliminateAvailableExternallyLegacyPass() : ModulePass(ID) {
-    initializeEliminateAvailableExternallyLegacyPassPass(
+    llvm::initializeEliminateAvailableExternallyLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

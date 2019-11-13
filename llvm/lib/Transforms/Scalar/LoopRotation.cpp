@@ -18,6 +18,7 @@
 #include "llvm/Analysis/MemorySSAUpdater.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
@@ -68,7 +69,7 @@ class LoopRotateLegacyPass : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopRotateLegacyPass(int SpecifiedMaxHeaderSize = -1) : LoopPass(ID) {
-    initializeLoopRotateLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLoopRotateLegacyPassPass(*PassRegistry::getPassRegistry());
     if (SpecifiedMaxHeaderSize == -1)
       MaxHeaderSize = DefaultRotationThreshold;
     else

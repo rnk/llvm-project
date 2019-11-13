@@ -24,6 +24,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -44,7 +45,7 @@ public:
   static char ID;
 
   LiveRangeShrink() : MachineFunctionPass(ID) {
-    initializeLiveRangeShrinkPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLiveRangeShrinkPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

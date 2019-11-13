@@ -15,6 +15,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
 #include <utility>
 using namespace llvm;
@@ -26,7 +27,8 @@ namespace {
     UnpackMachineBundles(
         std::function<bool(const MachineFunction &)> Ftor = nullptr)
         : MachineFunctionPass(ID), PredicateFtor(std::move(Ftor)) {
-      initializeUnpackMachineBundlesPass(*PassRegistry::getPassRegistry());
+      llvm::initializeUnpackMachineBundlesPass(
+          *PassRegistry::getPassRegistry());
     }
 
     bool runOnMachineFunction(MachineFunction &MF) override;

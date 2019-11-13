@@ -48,6 +48,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -1350,7 +1351,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   DSELegacyPass() : FunctionPass(ID) {
-    initializeDSELegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeDSELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

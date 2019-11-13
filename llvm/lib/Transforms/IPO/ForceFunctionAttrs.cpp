@@ -11,6 +11,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -102,7 +103,7 @@ namespace {
 struct ForceFunctionAttrsLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
   ForceFunctionAttrsLegacyPass() : ModulePass(ID) {
-    initializeForceFunctionAttrsLegacyPassPass(
+    llvm::initializeForceFunctionAttrsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

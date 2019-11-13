@@ -14,6 +14,7 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -39,7 +40,7 @@ namespace {
 
     static char ID; // Pass identifcation, replacement for typeid
     MemDepPrinter() : FunctionPass(ID) {
-      initializeMemDepPrinterPass(*PassRegistry::getPassRegistry());
+      llvm::initializeMemDepPrinterPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

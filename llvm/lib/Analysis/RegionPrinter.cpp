@@ -16,6 +16,7 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -154,7 +155,7 @@ struct RegionPrinter
   RegionPrinter()
       : DOTGraphTraitsPrinter<RegionInfoPass, false, RegionInfo *,
                               RegionInfoPassGraphTraits>("reg", ID) {
-    initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
+    llvm::initializeRegionPrinterPass(*PassRegistry::getPassRegistry());
   }
 };
 char RegionPrinter::ID = 0;

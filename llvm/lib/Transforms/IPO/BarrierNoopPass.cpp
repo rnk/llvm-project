@@ -17,6 +17,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/IPO.h"
 using namespace llvm;
@@ -32,7 +33,7 @@ public:
   static char ID; // Pass identification.
 
   BarrierNoop() : ModulePass(ID) {
-    initializeBarrierNoopPass(*PassRegistry::getPassRegistry());
+    llvm::initializeBarrierNoopPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override { return false; }

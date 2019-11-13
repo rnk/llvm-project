@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -26,7 +27,7 @@ namespace {
 struct FEntryInserter : public MachineFunctionPass {
   static char ID; // Pass identification, replacement for typeid
   FEntryInserter() : MachineFunctionPass(ID) {
-    initializeFEntryInserterPass(*PassRegistry::getPassRegistry());
+    llvm::initializeFEntryInserterPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

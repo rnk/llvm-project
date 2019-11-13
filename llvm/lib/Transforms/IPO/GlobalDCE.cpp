@@ -22,6 +22,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Utils/CtorUtils.h"
@@ -46,7 +47,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     GlobalDCELegacyPass() : ModulePass(ID) {
-      initializeGlobalDCELegacyPassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeGlobalDCELegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     // run - Do the GlobalDCE pass on the specified module, optionally updating

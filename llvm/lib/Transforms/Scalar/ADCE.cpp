@@ -42,6 +42,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Use.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/ProfileData/InstrProf.h"
 #include "llvm/Support/Casting.h"
@@ -697,7 +698,7 @@ struct ADCELegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 
   ADCELegacyPass() : FunctionPass(ID) {
-    initializeADCELegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeADCELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

@@ -18,6 +18,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/CFGPrinter.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/FileSystem.h"
 using namespace llvm;
@@ -35,7 +36,7 @@ namespace {
   struct CFGViewerLegacyPass : public FunctionPass {
     static char ID; // Pass identifcation, replacement for typeid
     CFGViewerLegacyPass() : FunctionPass(ID) {
-      initializeCFGViewerLegacyPassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeCFGViewerLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

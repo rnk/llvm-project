@@ -21,6 +21,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/Inliner.h"
 
@@ -41,12 +42,12 @@ class SimpleInliner : public LegacyInlinerBase {
 
 public:
   SimpleInliner() : LegacyInlinerBase(ID), Params(llvm::getInlineParams()) {
-    initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
+    llvm::initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
   }
 
   explicit SimpleInliner(InlineParams Params)
       : LegacyInlinerBase(ID), Params(std::move(Params)) {
-    initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
+    llvm::initializeSimpleInlinerPass(*PassRegistry::getPassRegistry());
   }
 
   static char ID; // Pass identification, replacement for typeid

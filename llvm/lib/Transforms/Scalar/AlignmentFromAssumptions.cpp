@@ -15,6 +15,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/InitializePasses.h"
 #define AA_NAME "alignment-from-assumptions"
 #define DEBUG_TYPE AA_NAME
 #include "llvm/Transforms/Scalar/AlignmentFromAssumptions.h"
@@ -47,7 +48,8 @@ namespace {
 struct AlignmentFromAssumptions : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   AlignmentFromAssumptions() : FunctionPass(ID) {
-    initializeAlignmentFromAssumptionsPass(*PassRegistry::getPassRegistry());
+    llvm::initializeAlignmentFromAssumptionsPass(
+        *PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

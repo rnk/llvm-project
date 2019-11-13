@@ -47,6 +47,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 
 #include "llvm/ADT/SetVector.h"
@@ -116,7 +117,8 @@ struct PlaceBackedgeSafepointsImpl : public FunctionPass {
 
   PlaceBackedgeSafepointsImpl(bool CallSafepoints = false)
       : FunctionPass(ID), CallSafepointsEnabled(CallSafepoints) {
-    initializePlaceBackedgeSafepointsImplPass(*PassRegistry::getPassRegistry());
+    llvm::initializePlaceBackedgeSafepointsImplPass(
+        *PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *);

@@ -54,6 +54,7 @@
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
@@ -189,7 +190,8 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   MachineCopyPropagation() : MachineFunctionPass(ID) {
-    initializeMachineCopyPropagationPass(*PassRegistry::getPassRegistry());
+    llvm::initializeMachineCopyPropagationPass(
+        *PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

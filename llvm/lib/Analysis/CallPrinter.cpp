@@ -16,6 +16,7 @@
 #include "llvm/Analysis/CallPrinter.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/DOTGraphTraitsPass.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -53,7 +54,7 @@ struct CallGraphViewer
       : DOTGraphTraitsModuleViewer<CallGraphWrapperPass, true, CallGraph *,
                                    AnalysisCallGraphWrapperPassTraits>(
             "callgraph", ID) {
-    initializeCallGraphViewerPass(*PassRegistry::getPassRegistry());
+    llvm::initializeCallGraphViewerPass(*PassRegistry::getPassRegistry());
   }
 };
 

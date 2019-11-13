@@ -20,6 +20,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 
@@ -144,7 +145,7 @@ class ExpandReductions : public FunctionPass {
 public:
   static char ID;
   ExpandReductions() : FunctionPass(ID) {
-    initializeExpandReductionsPass(*PassRegistry::getPassRegistry());
+    llvm::initializeExpandReductionsPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

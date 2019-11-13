@@ -14,6 +14,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "funclet-layout"
@@ -23,7 +24,7 @@ class FuncletLayout : public MachineFunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
   FuncletLayout() : MachineFunctionPass(ID) {
-    initializeFuncletLayoutPass(*PassRegistry::getPassRegistry());
+    llvm::initializeFuncletLayoutPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

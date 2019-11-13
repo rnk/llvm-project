@@ -30,6 +30,7 @@
 #include "llvm/Analysis/ScalarEvolutionAliasAnalysis.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils.h"
@@ -712,7 +713,8 @@ class LoopSimplifyCFGLegacyPass : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopSimplifyCFGLegacyPass() : LoopPass(ID) {
-    initializeLoopSimplifyCFGLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLoopSimplifyCFGLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   bool runOnLoop(Loop *L, LPPassManager &LPM) override {

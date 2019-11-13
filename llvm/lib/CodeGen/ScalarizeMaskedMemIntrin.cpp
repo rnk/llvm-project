@@ -29,6 +29,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include <algorithm>
@@ -47,7 +48,8 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   explicit ScalarizeMaskedMemIntrin() : FunctionPass(ID) {
-    initializeScalarizeMaskedMemIntrinPass(*PassRegistry::getPassRegistry());
+    llvm::initializeScalarizeMaskedMemIntrinPass(
+        *PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

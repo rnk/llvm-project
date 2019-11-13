@@ -55,6 +55,7 @@
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -1009,7 +1010,7 @@ public:
 
   LoopDistributeLegacy() : FunctionPass(ID) {
     // The default is set by the caller.
-    initializeLoopDistributeLegacyPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLoopDistributeLegacyPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

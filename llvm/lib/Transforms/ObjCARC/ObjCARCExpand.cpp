@@ -28,6 +28,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/PassAnalysisSupport.h"
 #include "llvm/PassRegistry.h"
@@ -58,7 +59,7 @@ namespace {
   public:
     static char ID;
     ObjCARCExpand() : FunctionPass(ID) {
-      initializeObjCARCExpandPass(*PassRegistry::getPassRegistry());
+      llvm::initializeObjCARCExpandPass(*PassRegistry::getPassRegistry());
     }
   };
 }

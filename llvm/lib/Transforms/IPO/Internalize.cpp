@@ -24,6 +24,7 @@
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -256,7 +257,7 @@ public:
 
   InternalizeLegacyPass(std::function<bool(const GlobalValue &)> MustPreserveGV)
       : ModulePass(ID), MustPreserveGV(std::move(MustPreserveGV)) {
-    initializeInternalizeLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeInternalizeLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override {

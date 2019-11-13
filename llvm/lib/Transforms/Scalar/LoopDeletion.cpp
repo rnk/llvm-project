@@ -20,6 +20,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Scalar/LoopPassManager.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -227,7 +228,8 @@ class LoopDeletionLegacyPass : public LoopPass {
 public:
   static char ID; // Pass ID, replacement for typeid
   LoopDeletionLegacyPass() : LoopPass(ID) {
-    initializeLoopDeletionLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLoopDeletionLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   // Possibly eliminate loop L if it is dead.

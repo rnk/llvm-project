@@ -83,6 +83,7 @@
 #include "llvm/Analysis/Loads.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
@@ -372,7 +373,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
   MergedLoadStoreMotionLegacyPass(bool SplitFooterBB = false)
       : FunctionPass(ID), SplitFooterBB(SplitFooterBB) {
-    initializeMergedLoadStoreMotionLegacyPassPass(
+    llvm::initializeMergedLoadStoreMotionLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

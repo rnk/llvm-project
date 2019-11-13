@@ -21,6 +21,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Scalar.h"
@@ -270,7 +271,7 @@ namespace {
   public:
     static char ID; // Pass identification
     SinkingLegacyPass() : FunctionPass(ID) {
-      initializeSinkingLegacyPassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeSinkingLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

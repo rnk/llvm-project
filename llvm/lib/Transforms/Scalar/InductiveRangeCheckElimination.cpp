@@ -74,6 +74,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/Casting.h"
@@ -246,7 +247,7 @@ public:
   static char ID;
 
   IRCELegacyPass() : LoopPass(ID) {
-    initializeIRCELegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeIRCELegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

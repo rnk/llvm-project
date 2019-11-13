@@ -76,6 +76,7 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -812,7 +813,7 @@ namespace {
 struct TailCallElim : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   TailCallElim() : FunctionPass(ID) {
-    initializeTailCallElimPass(*PassRegistry::getPassRegistry());
+    llvm::initializeTailCallElimPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

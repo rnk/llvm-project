@@ -13,6 +13,7 @@
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -26,7 +27,7 @@ struct FlattenCFGPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 public:
   FlattenCFGPass() : FunctionPass(ID) {
-    initializeFlattenCFGPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeFlattenCFGPassPass(*PassRegistry::getPassRegistry());
   }
   bool runOnFunction(Function &F) override;
 

@@ -59,6 +59,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/LaneBitmask.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCInstrDesc.h"
@@ -298,7 +299,7 @@ namespace {
 
     MachineVerifierPass(std::string banner = std::string())
       : MachineFunctionPass(ID), Banner(std::move(banner)) {
-        initializeMachineVerifierPassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeMachineVerifierPassPass(*PassRegistry::getPassRegistry());
       }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

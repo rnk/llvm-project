@@ -16,6 +16,7 @@
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/DebugCounter.h"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -146,7 +147,7 @@ public:
   static char ID;
 
   PartiallyInlineLibCallsLegacyPass() : FunctionPass(ID) {
-    initializePartiallyInlineLibCallsLegacyPassPass(
+    llvm::initializePartiallyInlineLibCallsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

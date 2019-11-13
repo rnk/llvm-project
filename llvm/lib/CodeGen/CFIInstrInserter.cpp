@@ -25,6 +25,7 @@
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
@@ -39,7 +40,7 @@ class CFIInstrInserter : public MachineFunctionPass {
   static char ID;
 
   CFIInstrInserter() : MachineFunctionPass(ID) {
-    initializeCFIInstrInserterPass(*PassRegistry::getPassRegistry());
+    llvm::initializeCFIInstrInserterPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

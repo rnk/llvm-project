@@ -17,6 +17,7 @@
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Object/ModuleSymbolTable.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ScopedPrinter.h"
@@ -496,12 +497,12 @@ class WriteThinLTOBitcode : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   WriteThinLTOBitcode() : ModulePass(ID), OS(dbgs()), ThinLinkOS(nullptr) {
-    initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
+    llvm::initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
   }
 
   explicit WriteThinLTOBitcode(raw_ostream &o, raw_ostream *ThinLinkOS)
       : ModulePass(ID), OS(o), ThinLinkOS(ThinLinkOS) {
-    initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
+    llvm::initializeWriteThinLTOBitcodePass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override { return "ThinLTO Bitcode Writer"; }

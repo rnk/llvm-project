@@ -11,6 +11,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
@@ -52,7 +53,7 @@ namespace {
 struct InferFunctionAttrsLegacyPass : public ModulePass {
   static char ID; // Pass identification, replacement for typeid
   InferFunctionAttrsLegacyPass() : ModulePass(ID) {
-    initializeInferFunctionAttrsLegacyPassPass(
+    llvm::initializeInferFunctionAttrsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

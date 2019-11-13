@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 
 using namespace llvm;
@@ -31,7 +32,7 @@ class LowerEmuTLS : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
   LowerEmuTLS() : ModulePass(ID) {
-    initializeLowerEmuTLSPass(*PassRegistry::getPassRegistry());
+    llvm::initializeLowerEmuTLSPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnModule(Module &M) override;

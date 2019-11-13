@@ -17,6 +17,7 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/IR/DebugInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -28,7 +29,8 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     ModuleDebugInfoPrinter() : ModulePass(ID) {
-      initializeModuleDebugInfoPrinterPass(*PassRegistry::getPassRegistry());
+      llvm::initializeModuleDebugInfoPrinterPass(
+          *PassRegistry::getPassRegistry());
     }
 
     bool runOnModule(Module &M) override;

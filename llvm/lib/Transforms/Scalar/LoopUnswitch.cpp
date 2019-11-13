@@ -59,6 +59,7 @@
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
 #include "llvm/IR/ValueHandle.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -205,7 +206,7 @@ namespace {
     explicit LoopUnswitch(bool Os = false, bool hasBranchDivergence = false)
         : LoopPass(ID), OptimizeForSize(Os),
           hasBranchDivergence(hasBranchDivergence) {
-        initializeLoopUnswitchPass(*PassRegistry::getPassRegistry());
+      llvm::initializeLoopUnswitchPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnLoop(Loop *L, LPPassManager &LPM) override;

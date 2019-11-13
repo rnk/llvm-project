@@ -27,6 +27,7 @@
 #include "llvm/IR/InstrTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
@@ -76,7 +77,7 @@ namespace {
     static char ID;
 
     LowerSwitch() : FunctionPass(ID) {
-      initializeLowerSwitchPass(*PassRegistry::getPassRegistry());
+      llvm::initializeLowerSwitchPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

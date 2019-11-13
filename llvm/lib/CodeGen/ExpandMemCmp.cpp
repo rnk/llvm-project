@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/TargetPassConfig.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -781,7 +782,7 @@ public:
   static char ID;
 
   ExpandMemCmpPass() : FunctionPass(ID) {
-    initializeExpandMemCmpPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeExpandMemCmpPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override {

@@ -40,6 +40,7 @@
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
 #include "llvm/IR/DebugLoc.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Pass.h"
@@ -282,7 +283,7 @@ namespace {
   public:
     static char ID;
     MachineLICM() : MachineLICMBase(ID, false) {
-      initializeMachineLICMPass(*PassRegistry::getPassRegistry());
+      llvm::initializeMachineLICMPass(*PassRegistry::getPassRegistry());
     }
   };
 

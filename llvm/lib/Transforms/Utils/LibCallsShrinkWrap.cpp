@@ -39,6 +39,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/MDBuilder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 using namespace llvm;
@@ -53,7 +54,7 @@ class LibCallsShrinkWrapLegacyPass : public FunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid
   explicit LibCallsShrinkWrapLegacyPass() : FunctionPass(ID) {
-    initializeLibCallsShrinkWrapLegacyPassPass(
+    llvm::initializeLibCallsShrinkWrapLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override;

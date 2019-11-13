@@ -70,6 +70,7 @@
 #include "llvm/IR/Use.h"
 #include "llvm/IR/User.h"
 #include "llvm/IR/Value.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
@@ -1073,7 +1074,7 @@ struct ArgPromotion : public CallGraphSCCPass {
 
   explicit ArgPromotion(unsigned MaxElements = 3)
       : CallGraphSCCPass(ID), MaxElements(MaxElements) {
-    initializeArgPromotionPass(*PassRegistry::getPassRegistry());
+    llvm::initializeArgPromotionPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

@@ -34,6 +34,7 @@
 #include "llvm/IR/RemarkStreamer.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
@@ -302,7 +303,7 @@ int main(int argc, char **argv) {
   // Initialize codegen and IR passes used by llc so that the -print-after,
   // -print-before, and -stop-after options work.
   PassRegistry *Registry = PassRegistry::getPassRegistry();
-  initializeCore(*Registry);
+  llvm::initializeCore(*Registry);
   initializeCodeGen(*Registry);
   initializeLoopStrengthReducePass(*Registry);
   initializeLowerIntrinsicsPass(*Registry);

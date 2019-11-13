@@ -14,6 +14,7 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstVisitor.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -50,7 +51,7 @@ namespace {
   public:
     static char ID; // Pass identification, replacement for typeid
     InstCount() : FunctionPass(ID) {
-      initializeInstCountPass(*PassRegistry::getPassRegistry());
+      llvm::initializeInstCountPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

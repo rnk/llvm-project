@@ -27,6 +27,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeFinder.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils.h"
 
@@ -73,7 +74,7 @@ namespace {
     static char ID;
 
     MetaRenamer() : ModulePass(ID) {
-      initializeMetaRenamerPass(*PassRegistry::getPassRegistry());
+      llvm::initializeMetaRenamerPass(*PassRegistry::getPassRegistry());
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {

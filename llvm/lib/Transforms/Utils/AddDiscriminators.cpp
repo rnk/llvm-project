@@ -63,6 +63,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
@@ -89,7 +90,8 @@ struct AddDiscriminatorsLegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
 
   AddDiscriminatorsLegacyPass() : FunctionPass(ID) {
-    initializeAddDiscriminatorsLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeAddDiscriminatorsLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

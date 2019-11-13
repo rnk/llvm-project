@@ -18,6 +18,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils.h"
 #include "llvm/Transforms/Utils/Local.h"
@@ -81,7 +82,8 @@ namespace {
 struct InstSimplifyLegacyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
   InstSimplifyLegacyPass() : FunctionPass(ID) {
-    initializeInstSimplifyLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeInstSimplifyLegacyPassPass(
+        *PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

@@ -20,6 +20,7 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/DebugCounter.h"
 #include "llvm/Transforms/Scalar.h"
@@ -323,7 +324,7 @@ namespace {
 struct DivRemPairsLegacyPass : public FunctionPass {
   static char ID;
   DivRemPairsLegacyPass() : FunctionPass(ID) {
-    initializeDivRemPairsLegacyPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeDivRemPairsLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {

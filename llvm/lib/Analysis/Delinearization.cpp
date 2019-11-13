@@ -24,6 +24,7 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Type.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -46,7 +47,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   Delinearization() : FunctionPass(ID) {
-    initializeDelinearizationPass(*PassRegistry::getPassRegistry());
+    llvm::initializeDelinearizationPass(*PassRegistry::getPassRegistry());
   }
   bool runOnFunction(Function &F) override;
   void getAnalysisUsage(AnalysisUsage &AU) const override;

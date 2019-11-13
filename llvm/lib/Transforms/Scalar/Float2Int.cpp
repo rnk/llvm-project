@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/InitializePasses.h"
 #define DEBUG_TYPE "float2int"
 
 #include "llvm/Transforms/Scalar/Float2Int.h"
@@ -53,7 +54,7 @@ namespace {
   struct Float2IntLegacyPass : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     Float2IntLegacyPass() : FunctionPass(ID) {
-      initializeFloat2IntLegacyPassPass(*PassRegistry::getPassRegistry());
+      llvm::initializeFloat2IntLegacyPassPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override {

@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/TargetFrameLowering.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -25,7 +26,7 @@ namespace {
 struct PatchableFunction : public MachineFunctionPass {
   static char ID; // Pass identification, replacement for typeid
   PatchableFunction() : MachineFunctionPass(ID) {
-    initializePatchableFunctionPass(*PassRegistry::getPassRegistry());
+    llvm::initializePatchableFunctionPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnMachineFunction(MachineFunction &F) override;

@@ -36,6 +36,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -55,7 +56,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   IndirectBrExpandPass() : FunctionPass(ID) {
-    initializeIndirectBrExpandPassPass(*PassRegistry::getPassRegistry());
+    llvm::initializeIndirectBrExpandPassPass(*PassRegistry::getPassRegistry());
   }
 
   bool runOnFunction(Function &F) override;

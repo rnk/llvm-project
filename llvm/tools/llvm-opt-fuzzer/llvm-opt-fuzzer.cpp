@@ -16,6 +16,7 @@
 #include "llvm/FuzzMutate/FuzzerCLI.h"
 #include "llvm/FuzzMutate/IRMutator.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -183,7 +184,7 @@ extern "C" LLVM_ATTRIBUTE_USED int LLVMFuzzerInitialize(
   InitializeAllTargetMCs();
 
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
-  initializeCore(Registry);
+  llvm::initializeCore(Registry);
   initializeCoroutines(Registry);
   initializeScalarOpts(Registry);
   initializeObjCARCOpts(Registry);

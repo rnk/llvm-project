@@ -25,6 +25,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PatternMatch.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
@@ -44,7 +45,7 @@ public:
   static char ID; // Pass identification, replacement for typeid
 
   AggressiveInstCombinerLegacyPass() : FunctionPass(ID) {
-    initializeAggressiveInstCombinerLegacyPassPass(
+    llvm::initializeAggressiveInstCombinerLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
 

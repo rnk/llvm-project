@@ -18,15 +18,16 @@
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/Analysis/EHPersonalities.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/IPO.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include <algorithm>
 using namespace llvm;
 
@@ -39,7 +40,7 @@ namespace {
   struct PruneEH : public CallGraphSCCPass {
     static char ID; // Pass identification, replacement for typeid
     PruneEH() : CallGraphSCCPass(ID) {
-      initializePruneEHPass(*PassRegistry::getPassRegistry());
+      llvm::initializePruneEHPass(*PassRegistry::getPassRegistry());
     }
 
     // runOnSCC - Analyze the SCC, performing the transformation if possible.

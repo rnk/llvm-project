@@ -12,13 +12,14 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Analysis/PostDominators.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
@@ -303,7 +304,7 @@ namespace {
 
     static char ID; // Pass identification, replacement for typeid
     MustExecutePrinter() : FunctionPass(ID) {
-      initializeMustExecutePrinterPass(*PassRegistry::getPassRegistry());
+      llvm::initializeMustExecutePrinterPass(*PassRegistry::getPassRegistry());
     }
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();

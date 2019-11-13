@@ -20,6 +20,7 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Function.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -45,8 +46,7 @@ namespace {
   public:
     static char ID; // Class identification, replacement for typeinfo
     CostModelAnalysis() : FunctionPass(ID), F(nullptr), TTI(nullptr) {
-      initializeCostModelAnalysisPass(
-        *PassRegistry::getPassRegistry());
+      llvm::initializeCostModelAnalysisPass(*PassRegistry::getPassRegistry());
     }
 
     /// Returns the expected cost of the instruction.

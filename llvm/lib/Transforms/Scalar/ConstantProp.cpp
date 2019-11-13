@@ -25,6 +25,7 @@
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instruction.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/DebugCounter.h"
 #include "llvm/Transforms/Scalar.h"
@@ -41,7 +42,7 @@ namespace {
   struct ConstantPropagation : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     ConstantPropagation() : FunctionPass(ID) {
-      initializeConstantPropagationPass(*PassRegistry::getPassRegistry());
+      llvm::initializeConstantPropagationPass(*PassRegistry::getPassRegistry());
     }
 
     bool runOnFunction(Function &F) override;

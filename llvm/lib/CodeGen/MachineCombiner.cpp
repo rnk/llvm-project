@@ -23,6 +23,7 @@
 #include "llvm/CodeGen/TargetRegisterInfo.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/CodeGen/TargetSubtargetInfo.h"
+#include "llvm/InitializePasses.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -75,7 +76,7 @@ class MachineCombiner : public MachineFunctionPass {
 public:
   static char ID;
   MachineCombiner() : MachineFunctionPass(ID) {
-    initializeMachineCombinerPass(*PassRegistry::getPassRegistry());
+    llvm::initializeMachineCombinerPass(*PassRegistry::getPassRegistry());
   }
   void getAnalysisUsage(AnalysisUsage &AU) const override;
   bool runOnMachineFunction(MachineFunction &MF) override;

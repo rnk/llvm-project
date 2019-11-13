@@ -21,6 +21,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/InitializePasses.h"
 
 using namespace llvm;
 
@@ -38,7 +39,7 @@ public:
   static char ID;
 
   CFGuardLongjmp() : MachineFunctionPass(ID) {
-    initializeCFGuardLongjmpPass(*PassRegistry::getPassRegistry());
+    llvm::initializeCFGuardLongjmpPass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override {
