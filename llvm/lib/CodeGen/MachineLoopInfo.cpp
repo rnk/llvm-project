@@ -28,6 +28,9 @@ template class llvm::LoopBase<MachineBasicBlock, MachineLoop>;
 template class llvm::LoopInfoBase<MachineBasicBlock, MachineLoop>;
 
 char MachineLoopInfo::ID = 0;
+MachineLoopInfo::MachineLoopInfo() : MachineFunctionPass(ID) {
+  initializeMachineLoopInfoPass(*PassRegistry::getPassRegistry());
+}
 INITIALIZE_PASS_BEGIN(MachineLoopInfo, "machine-loops",
                 "Machine Natural Loop Construction", true, true)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
