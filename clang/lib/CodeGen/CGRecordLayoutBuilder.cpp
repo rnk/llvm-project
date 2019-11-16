@@ -10,11 +10,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CGRecordLayout.h"
 #include "CGCXXABI.h"
+#include "CGRecordLayout.h"
 #include "CodeGenTypes.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"

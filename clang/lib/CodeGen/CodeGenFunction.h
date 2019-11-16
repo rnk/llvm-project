@@ -21,6 +21,7 @@
 #include "CodeGenPGO.h"
 #include "EHScopeStack.h"
 #include "VarBypassDetector.h"
+#include "clang/AST/Attrs.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/CurrentSourceLocExprScope.h"
 #include "clang/AST/ExprCXX.h"

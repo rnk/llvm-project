@@ -13,6 +13,7 @@
 
 #include "clang/Analysis/Analyses/Consumed.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Expr.h"

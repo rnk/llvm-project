@@ -12,12 +12,12 @@
 #ifndef LLVM_CLANG_LIB_STATICANALYZER_CHECKERS_INTERCHECKERAPI_H
 #define LLVM_CLANG_LIB_STATICANALYZER_CHECKERS_INTERCHECKERAPI_H
 namespace clang {
-class CheckerManager;
-
 namespace ento {
+class CheckerManager;
 
 /// Register the part of MallocChecker connected to InnerPointerChecker.
 void registerInnerPointerCheckerAux(CheckerManager &Mgr);
 
-}}
+} // namespace ento
+} // namespace clang
 #endif /* INTERCHECKERAPI_H_ */

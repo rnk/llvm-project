@@ -12,8 +12,16 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/Type.h"
 using namespace clang;
+
+ParamIdx::ParamIdx(unsigned Idx, const Decl *D)
+    : Idx(Idx), HasThis(false), IsValid(true) {
+  assert(Idx >= 1 && "Idx must be one-origin");
+  if (const auto *FD = dyn_cast<FunctionDecl>(D))
+    HasThis = FD->isCXXInstanceMember();
+}
 
 #include "clang/AST/AttrImpl.inc"

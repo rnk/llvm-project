@@ -6,40 +6,35 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file defines the Attr interface and subclasses.
+//  This file defines the Attr interface.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_AST_ATTR_H
 #define LLVM_CLANG_AST_ATTR_H
 
-#include "clang/AST/ASTContextAllocate.h"  // For Attrs.inc
-#include "clang/AST/AttrIterator.h"
-#include "clang/AST/Decl.h"
-#include "clang/AST/Expr.h"
-#include "clang/AST/Type.h"
+#include "clang/AST/ASTContextAllocate.h"
 #include "clang/Basic/AttrKinds.h"
 #include "clang/Basic/AttributeCommonInfo.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LLVM.h"
-#include "clang/Basic/OpenMPKinds.h"
-#include "clang/Basic/Sanitizers.h"
+#include "clang/Basic/PartialDiagnostic.h"
 #include "clang/Basic/SourceLocation.h"
-#include "llvm/ADT/StringSwitch.h"
-#include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/VersionTuple.h"
+#include "clang/Basic/Specifiers.h"
 #include "llvm/Support/raw_ostream.h"
-#include <algorithm>
 #include <cassert>
 
 namespace clang {
 class ASTContext;
 class AttributeCommonInfo;
+class Decl;
+class Expr;
+class FunctionDecl;
 class IdentifierInfo;
 class ObjCInterfaceDecl;
-class Expr;
 class QualType;
-class FunctionDecl;
 class TypeSourceInfo;
+struct PrintingPolicy;
 
 /// Attr - This represents one attribute.
 class Attr : public AttributeCommonInfo {
@@ -237,12 +232,7 @@ public:
   ///
   /// \param D is the declaration containing the parameters.  It is used to
   /// determine if there is a C++ implicit this parameter.
-  ParamIdx(unsigned Idx, const Decl *D)
-      : Idx(Idx), HasThis(false), IsValid(true) {
-    assert(Idx >= 1 && "Idx must be one-origin");
-    if (const auto *FD = dyn_cast<FunctionDecl>(D))
-      HasThis = FD->isCXXInstanceMember();
-  }
+  ParamIdx(unsigned Idx, const Decl *D);
 
   /// A type into which \c ParamIdx can be serialized.
   ///
@@ -328,8 +318,6 @@ public:
 
 static_assert(sizeof(ParamIdx) == sizeof(ParamIdx::SerialType),
               "ParamIdx does not fit its serialization type");
-
-#include "clang/AST/Attrs.inc"
 
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            const Attr *At) {

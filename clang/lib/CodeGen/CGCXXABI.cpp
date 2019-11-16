@@ -13,6 +13,7 @@
 
 #include "CGCXXABI.h"
 #include "CGCleanup.h"
+#include "clang/AST/Attrs.h"
 
 using namespace clang;
 using namespace CodeGen;

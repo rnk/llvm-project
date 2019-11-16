@@ -13,6 +13,7 @@
 
 #include "RetainCountDiagnostics.h"
 #include "RetainCountChecker.h"
+#include "clang/AST/Attrs.h"
 
 using namespace clang;
 using namespace ento;

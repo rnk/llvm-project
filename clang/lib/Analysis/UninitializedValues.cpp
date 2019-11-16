@@ -12,6 +12,7 @@
 
 #include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/Expr.h"

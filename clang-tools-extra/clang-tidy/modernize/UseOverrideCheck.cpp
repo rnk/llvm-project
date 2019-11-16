@@ -8,6 +8,7 @@
 
 #include "UseOverrideCheck.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attrs.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Lex/Lexer.h"
 

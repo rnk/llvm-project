@@ -12,6 +12,7 @@
 
 #include "clang/AST/TypeLoc.h"
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/Attrs.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateBase.h"

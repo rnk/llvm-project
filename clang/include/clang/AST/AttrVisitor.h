@@ -14,6 +14,7 @@
 #define LLVM_CLANG_AST_ATTRVISITOR_H
 
 #include "clang/AST/Attr.h"
+#include "clang/AST/Attrs.h"
 
 namespace clang {
 
