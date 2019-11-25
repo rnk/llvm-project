@@ -43,8 +43,12 @@ class GlobalTypeTableBuilder : public TypeCollection {
   /// Contains a list of all records indexed by TypeIndex.toArrayIndex().
   SmallVector<ArrayRef<uint8_t>, 2> SeenRecords;
 
-  /// Contains a list of all hash values inexed by TypeIndex.toArrayIndex().
+  /// Contains a list of all hash values indexed by TypeIndex.toArrayIndex().
   SmallVector<GloballyHashedType, 2> SeenHashes;
+
+  /// When verbose is enabled, this is a list of the times a duplicate type
+  /// record was encountered, indexed by TypeIndex.toArrayIndex().
+  SmallVector<uint32_t, 0> DuplicateCounts;
 
 public:
   explicit GlobalTypeTableBuilder(BumpPtrAllocator &Storage);
@@ -67,6 +71,7 @@ public:
 
   ArrayRef<ArrayRef<uint8_t>> records() const;
   ArrayRef<GloballyHashedType> hashes() const;
+  ArrayRef<uint32_t> duplicateCounts() const { return DuplicateCounts; }
 
   template <typename CreateFunc>
   TypeIndex insertRecordAs(GloballyHashedType Hash, size_t RecordSize,
@@ -95,7 +100,12 @@ public:
       }
       SeenRecords.push_back(StableRecord);
       SeenHashes.push_back(Hash);
+      DuplicateCounts.push_back(1);
+    } else {
+      // This is a duplicate, we've already seen it.
+      DuplicateCounts[Result.first->second.toArrayIndex()] += 1;
     }
+
 
     return Result.first->second;
   }

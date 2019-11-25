@@ -54,6 +54,7 @@
 #include "llvm/Support/CRC.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/Errc.h"
+#include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
@@ -1333,6 +1334,38 @@ void PDBLinker::printStats() {
   print(globalSymbols, "Global symbol records");
   print(moduleSymbols, "Module symbol records");
   print(publicSymbols, "Public symbol records");
+
+  // Figure out which type indices were responsible for the most duplicate bytes
+  // in the input files. These should be frequently emitted LF_CLASS and
+  // LF_FIELDLIST records.
+  struct TypeSizeInfo {
+    uint32_t TypeSize;
+    uint32_t DupCount;
+    TypeIndex TI;
+    uint64_t totalInputSize() const { return uint64_t(DupCount) * TypeSize; }
+    bool operator<(const TypeSizeInfo &RHS) const {
+      return totalInputSize() < RHS.totalInputSize();
+    }
+  };
+  SmallVector<TypeSizeInfo, 0> TSIs;
+  for (auto E : enumerate(tMerger.globalTypeTable.duplicateCounts())) {
+    TypeIndex TI = TypeIndex::fromArrayIndex(E.index());
+    uint32_t DupCount = E.value();
+    uint32_t TypeSize = tMerger.globalTypeTable.records()[E.index()].size();
+    TSIs.push_back({TypeSize, DupCount, TI});
+  }
+
+  if (!TSIs.empty()) {
+    stream << "\nTop 10 types responsible for the most TPI input:\n";
+    llvm::sort(TSIs);
+    unsigned I = 0;
+    for (const auto &TSI : reverse(TSIs)) {
+      stream << formatv("  {0,10:X}: {1,14:N} = {2,5:N} * {3,6:N}\n", TSI.TI.getIndex(),
+                        TSI.totalInputSize(), TSI.DupCount, TSI.TypeSize);
+      if (++I >= 10)
+        break;
+    }
+  }
 
   message(buffer);
 }
