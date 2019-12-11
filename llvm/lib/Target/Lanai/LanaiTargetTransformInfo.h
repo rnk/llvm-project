@@ -70,8 +70,8 @@ public:
     return getIntImmCost(Imm, Ty);
   }
 
-  int getIntImmCost(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
-                    Type *Ty) {
+  int getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx, const APInt &Imm,
+                          Type *Ty) {
     return getIntImmCost(Imm, Ty);
   }
 

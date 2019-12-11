@@ -85,8 +85,8 @@ int RISCVTTIImpl::getIntImmCost(unsigned Opcode, unsigned Idx, const APInt &Imm,
   return TTI::TCC_Free;
 }
 
-int RISCVTTIImpl::getIntImmCost(Intrinsic::ID IID, unsigned Idx,
-                                const APInt &Imm, Type *Ty) {
+int RISCVTTIImpl::getIntImmCostIntrin(Intrinsic::ID IID, unsigned Idx,
+                                      const APInt &Imm, Type *Ty) {
   // Prevent hoisting in unknown cases.
   return TTI::TCC_Free;
 }
