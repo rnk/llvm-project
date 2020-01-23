@@ -33,13 +33,7 @@ declare i8* @llvm.stacksave()
 ; CHECK-NEXT: ldr [[DESTREG:r[0-9]+]], {{\[}}[[BUFREG]], #4]
 ; CHECK-NEXT: ldr r7, {{\[}}[[BUFREG]]{{\]}}
 ; CHECK-NEXT: bx [[DESTREG]]
-;
-; longjmp sequence2:
-; CHECK: ldr [[TEMPREG:r[0-9]+]], [{{\s*}}[[BUFREG:r[0-9]+]], #8]
-; CHECK-NEXT: mov sp, [[TEMPREG]]
-; CHECK-NEXT: ldr [[DESTREG:r[0-9]+]], {{\[}}[[BUFREG]], #4]
-; CHECK-NEXT: ldr r7, {{\[}}[[BUFREG]]{{\]}}
-; CHECK-NEXT: bx [[DESTREG]]
+
 define void @double_foobar() {
 entry:
   %buf = alloca [5 x i8*], align 4
@@ -61,7 +55,8 @@ if.then:
   br label %if.end
 
 if.else:
-  store volatile i32 0, i32* @g, align 4
+  %p = phi i32 [ 0, %entry ], [ 1, %if.end ]
+  store volatile i32 %p, i32* @g, align 4
   call void @llvm.eh.sjlj.longjmp(i8* %bufptr)
   unreachable
 
@@ -73,16 +68,11 @@ if.end:
 
   %setjmpres2 = call i32 @llvm.eh.sjlj.setjmp(i8* %bufptr)
   %tobool2 = icmp ne i32 %setjmpres2, 0
-  br i1 %tobool2, label %if2.then, label %if2.else
+  br i1 %tobool2, label %if2.then, label %if.else
 
 if2.then:
   store volatile i32 3, i32* @g, align 4
-  br label %if2.end
-
-if2.else:
-  store volatile i32 2, i32* @g, align 4
-  call void @llvm.eh.sjlj.longjmp(i8* %bufptr)
-  unreachable
+  br label %if.end
 
 if2.end:
   ret void

@@ -48,39 +48,39 @@ bb5.i:		; preds = %bb42.i
 
 bb7.i:		; preds = %bb42.i
 	call  void @_T_addtol(%struct._T_tstr** @_T_gtol, i32 0, i8* null) nounwind
-	unreachable
+	ret i32 0
 
 bb15.i:		; preds = %bb42.i
 	call  void @_T_addtol(%struct._T_tstr** @_T_gtol, i32 2, i8* null) nounwind
-	unreachable
+	ret i32 0
 
 bb23.i:		; preds = %bb42.i
 	%1 = call  i32 @strlen(i8* null) nounwind readonly		; <i32> [#uses=0]
-	unreachable
+	ret i32 0
 
 bb33.i:		; preds = %bb42.i
 	store i32 0, i32* @_C_nextcmd, align 4
 	%2 = call  noalias i8* @calloc(i32 21, i32 1) nounwind		; <i8*> [#uses=0]
-	unreachable
+	ret i32 0
 
 bb34.i:		; preds = %bb42.i
 	%3 = load i32, i32* @_C_nextcmd, align 4		; <i32> [#uses=1]
 	%4 = add i32 %3, 1		; <i32> [#uses=1]
 	store i32 %4, i32* @_C_nextcmd, align 4
 	%5 = call  noalias i8* @calloc(i32 22, i32 1) nounwind		; <i8*> [#uses=0]
-	unreachable
+	ret i32 0
 
 bb35.i:		; preds = %bb42.i
 	%6 = call  noalias i8* @calloc(i32 20, i32 1) nounwind		; <i8*> [#uses=0]
-	unreachable
+	ret i32 0
 
 bb37.i:		; preds = %bb42.i
 	%7 = call  noalias i8* @calloc(i32 14, i32 1) nounwind		; <i8*> [#uses=0]
-	unreachable
+	ret i32 0
 
 bb39.i:		; preds = %bb42.i
 	call  void @Z_fatal(i8* getelementptr ([28 x i8], [28 x i8]* @.str31, i32 0, i32 0)) nounwind
-	unreachable
+	ret i32 0
 
 bb40.i:		; preds = %bb42.i, %bb5.i, %bb1.i2
 	br label %bb42.i

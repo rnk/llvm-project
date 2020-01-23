@@ -19,11 +19,11 @@ in_bounds:
   ret void
 
 out_of_bounds:
-  call void @foo(i64 0)
+  call void @foo()
   unreachable
 
 out_of_bounds2:
-  call void @foo(i64 1)
+  call void @bar()
   unreachable
 }
 
@@ -45,11 +45,11 @@ in_bounds:
   ret void
 
 out_of_bounds:
-  call void @foo(i64 0)
+  call void @foo()
   unreachable
 
 out_of_bounds2:
-  call void @foo(i64 1)
+  call void @bar()
   unreachable
 }
 
@@ -69,13 +69,14 @@ in_bounds:
   ret void
 
 out_of_bounds:
-  call void @foo(i64 0)
+  call void @foo()
   unreachable
 
 out_of_bounds2:
-  call void @foo(i64 1)
+  call void @bar()
   unreachable
 }
 
-declare void @foo(i64)
+declare void @foo()
+declare void @bar()
 
