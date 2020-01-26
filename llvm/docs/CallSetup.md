@@ -1,4 +1,4 @@
-# RFC: Replace inalloca with llvm.call.setup
+# RFC: Replace inalloca with llvm.call.setup and preallocated
 
 In order to pass non-trivially copyable objects by value in a way that is
 compatible with the Visual C++ compiler on 32-bit x86, Clang has to be able to
@@ -124,25 +124,30 @@ such an unnecessary cleanup. However, to make things easy for the inliner, the
 frontend is required to emit these cleanups. Prior to code generation, the
 WinEHPrepare pass can remove any unneeded argument memory cleanups.
 
+## Canonical Form
+
+`llvm.call.setup` is designed for compatibility, not for performance or
+analyzability. Mid-level optimization passes should generally try to remove
+these intrinsics and attributes when possible. When it is possible to change
+the prototype of a function using these attributes, call sites should be
+canonicalized in the following way:
+
+- Create a static alloca of appropriate type for each preallocated argument
+- Replace all uses of `llvm.call.alloc` with the corresponding new alloca
+- Insert `lifetime.start` for each static alloca at the original alloc site,
+  and `llvm.lifetime.end` after the call and at `llvm.call.teardown`.
+- Remove all setup, alloc, teardown intrinsics, and remove the `preallocated`
+  attributes from caller and callee.
+
+GlobalOpt seems like a logical place for this transform. This form should
+enable downstream optimizations, and reduce the number of transforms that need
+to be taught that `llvm.call.alloc` creates stack memory.
+
 ## Inliner Considerations
 
-When inlining a call site with a callsetup bundle, the inliner will want to
-turn preallocated arguments into regular static allocas. This should be
-straightforward:
-
-- Create a static alloca for each preallocated argument using its type
-- Replace all uses of `llvm.call.alloc` with the corresponding new alloca
-- Insert `lifetime.start/end`. Start at the alloc site, end at
-  `llvm.call.teardown` and after call.
-- Remove all setup, alloc, teardown intrinsics.
-
-## GlobalOpt Considerations
-
-Functions which cannot be inlined but are internal should receive the same
-treatment described above. Global opt should call the same utility as the
-inliner, and then remove the `preallocated` argument attributes from the
-function prototype. This will enable downstream optimizations such as dead
-argument elimination (DAE) and argument promotion.
+When inlining a call site that uses `llvm.call.setup`, the inliner should also
+make the transforms described above, only without adjusting the callee's
+prototype.
 
 ## Corner cases
 
