@@ -27,6 +27,7 @@ LLVM and API reference documentation.
    GwpAsan
    HowToSetUpLLVMStyleRTTI
    HowToUseAttributes
+   CallSetup
    InAlloca
    LangRef
    LibFuzzer
@@ -115,6 +116,10 @@ LLVM IR
 :doc:`LLVM Language Reference Manual <LangRef>`
   Defines the LLVM intermediate representation and the assembly form of the
   different nodes.
+
+:doc:`CallSetup`
+  Description of the ``llvm.call.setup`` intrinsics and ``preallocated``
+  attribute.
 
 :doc:`InAlloca`
   Description of the ``inalloca`` argument attribute.
