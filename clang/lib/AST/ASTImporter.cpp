@@ -186,26 +186,20 @@ namespace clang {
       return import(*From);
     }
 
-    // Helper for error management in importSeq.
-    template <typename T> void importInPlace(Error &E, T &Node) {
-      if (E)
-        return;
-      Expected<T> NewNode = import(Node);
-      if (NewNode)
-        Node = *NewNode;
-      else
-        E = NewNode.takeError();
-    }
-
-    // Import multiple objects with a single function call.
-    // This should work for every type for which a variant of `import` exists.
-    // The arguments are processed from left to right and import is stopped on
-    // first error.
-    template <class... NodeTys> Error importSeq(NodeTys &... Nodes) {
-      Error E = Error::success();
-      char IterNodes[] = {(importInPlace(E, Nodes), '\0')...};
-      (void)IterNodes;
-      return E;
+    // Helper for chaining together multiple imports. If an error is detected,
+    // subsequent imports will return default constructed nodes, so that failure
+    // can be detected with a single conditional branch after a sequence of
+    // imports.
+    template <typename T> T importChecked(Error &Err, const T &From) {
+      // Don't attempt to import nodes if we hit an error earlier.
+      if (Err)
+        return T{};
+      Expected<T> MaybeVal = import(From);
+      if (!MaybeVal) {
+        Err = MaybeVal.takeError();
+        return T{};
+      }
+      return *MaybeVal;
     }
 
     // Wrapper for an overload set.
@@ -1146,10 +1140,11 @@ ASTNodeImporter::VisitMemberPointerType(const MemberPointerType *T) {
 
 ExpectedType
 ASTNodeImporter::VisitConstantArrayType(const ConstantArrayType *T) {
-  QualType ToElementType = T->getElementType();
-  const Expr *ToSizeExpr = T->getSizeExpr();
-  if (Error E = importSeq(ToElementType, ToSizeExpr))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToElementType = importChecked(Err, T->getElementType());
+  auto ToSizeExpr = importChecked(Err, T->getSizeExpr());
+  if (Err)
+    return std::move(Err);
 
   return Importer.getToContext().getConstantArrayType(
       ToElementType, T->getSize(), ToSizeExpr, T->getSizeModifier(),
@@ -1169,11 +1164,12 @@ ASTNodeImporter::VisitIncompleteArrayType(const IncompleteArrayType *T) {
 
 ExpectedType
 ASTNodeImporter::VisitVariableArrayType(const VariableArrayType *T) {
+  Error Err = Error::success();
   QualType ToElementType = T->getElementType();
   Expr *ToSizeExpr = T->getSizeExpr();
   SourceRange ToBracketsRange = T->getBracketsRange();
-  if (Error E = importSeq(ToElementType, ToSizeExpr, ToBracketsRange))
-    return std::move(E);
+  if (Err)
+    return std::move(Err);
   return Importer.getToContext().getVariableArrayType(
       ToElementType, ToSizeExpr, T->getSizeModifier(),
       T->getIndexTypeCVRQualifiers(), ToBracketsRange);
@@ -1181,11 +1177,12 @@ ASTNodeImporter::VisitVariableArrayType(const VariableArrayType *T) {
 
 ExpectedType ASTNodeImporter::VisitDependentSizedArrayType(
     const DependentSizedArrayType *T) {
+  Error Err = Error::success();
   QualType ToElementType = T->getElementType();
   Expr *ToSizeExpr = T->getSizeExpr();
   SourceRange ToBracketsRange = T->getBracketsRange();
-  if (Error E = importSeq(ToElementType, ToSizeExpr, ToBracketsRange))
-    return std::move(E);
+  if (Err)
+    return std::move(Err);
   // SizeExpr may be null if size is not specified directly.
   // For example, 'int a[]'.
 
@@ -1250,6 +1247,7 @@ ASTNodeImporter::VisitFunctionProtoType(const FunctionProtoType *T) {
   }
 
   FunctionProtoType::ExtProtoInfo FromEPI = T->getExtProtoInfo();
+  Error Err = Error::success();
   FunctionProtoType::ExtProtoInfo ToEPI;
   ToEPI.ExtInfo = FromEPI.ExtInfo;
   ToEPI.Variadic = FromEPI.Variadic;
@@ -1257,15 +1255,16 @@ ASTNodeImporter::VisitFunctionProtoType(const FunctionProtoType *T) {
   ToEPI.TypeQuals = FromEPI.TypeQuals;
   ToEPI.RefQualifier = FromEPI.RefQualifier;
   ToEPI.ExceptionSpec.Type = FromEPI.ExceptionSpec.Type;
-  ToEPI.ExceptionSpec.NoexceptExpr = FromEPI.ExceptionSpec.NoexceptExpr;
-  ToEPI.ExceptionSpec.SourceDecl = FromEPI.ExceptionSpec.SourceDecl;
-  ToEPI.ExceptionSpec.SourceTemplate = FromEPI.ExceptionSpec.SourceTemplate;
+  ToEPI.ExceptionSpec.NoexceptExpr =
+      importChecked(Err, FromEPI.ExceptionSpec.NoexceptExpr);
+  ToEPI.ExceptionSpec.SourceDecl =
+      importChecked(Err, FromEPI.ExceptionSpec.SourceDecl);
+  ToEPI.ExceptionSpec.SourceTemplate =
+      importChecked(Err, FromEPI.ExceptionSpec.SourceTemplate);
   ToEPI.ExceptionSpec.Exceptions = ExceptionTypes;
 
-  if (Error E = importSeq(ToEPI.ExceptionSpec.NoexceptExpr,
-                           ToEPI.ExceptionSpec.SourceDecl,
-                           ToEPI.ExceptionSpec.SourceTemplate))
-    return std::move(E);
+  if (Err)
+    return std::move(Err);
 
   return Importer.getToContext().getFunctionType(
       *ToReturnTypeOrErr, ArgTypes, ToEPI);
@@ -1273,10 +1272,11 @@ ASTNodeImporter::VisitFunctionProtoType(const FunctionProtoType *T) {
 
 ExpectedType ASTNodeImporter::VisitUnresolvedUsingType(
     const UnresolvedUsingType *T) {
-  UnresolvedUsingTypenameDecl *ToD = T->getDecl();
-  Decl *ToPrevD = T->getDecl()->getPreviousDecl();
-  if (Error E = importSeq(ToD, ToPrevD))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToD = importChecked(Err, T->getDecl());
+  auto ToPrevD = importChecked(Err, T->getDecl()->getPreviousDecl());
+  if (Err)
+    return std::move(Err);
 
   return Importer.getToContext().getTypeDeclType(
       ToD, cast_or_null<TypeDecl>(ToPrevD));
@@ -2230,12 +2230,13 @@ ExpectedDecl ASTNodeImporter::VisitStaticAssertDecl(StaticAssertDecl *D) {
   DeclContext *DC = *DCOrErr;
   DeclContext *LexicalDC = DC;
 
-  SourceLocation ToLocation = D->getLocation();
-  SourceLocation ToRParenLoc = D->getRParenLoc();
-  Expr *ToAssertExpr = D->getAssertExpr();
-  StringLiteral *ToMessage = D->getMessage();
-  if (Error E = importSeq(ToLocation, ToAssertExpr, ToMessage, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLocation = importChecked(Err, D->getLocation());
+  auto ToRParenLoc = importChecked(Err, D->getRParenLoc());
+  auto ToAssertExpr = importChecked(Err, D->getAssertExpr());
+  auto ToMessage = importChecked(Err, D->getMessage());
+  if (Err)
+    return std::move(Err);
 
   StaticAssertDecl *ToD;
   if (GetImportedOrCreateDecl(
@@ -2344,14 +2345,14 @@ ExpectedDecl ASTNodeImporter::VisitNamespaceAliasDecl(NamespaceAliasDecl *D) {
 
   // NOTE: No conflict resolution is done for namespace aliases now.
 
-  SourceLocation ToNamespaceLoc = D->getNamespaceLoc();
-  SourceLocation ToAliasLoc = D->getAliasLoc();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  SourceLocation ToTargetNameLoc = D->getTargetNameLoc();
-  NamespaceDecl *ToNamespace = D->getNamespace();
-  if (Error E = importSeq(ToNamespaceLoc, ToAliasLoc, ToQualifierLoc,
-                            ToTargetNameLoc, ToNamespace))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToNamespaceLoc = importChecked(Err, D->getNamespaceLoc());
+  auto ToAliasLoc = importChecked(Err, D->getAliasLoc());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  auto ToTargetNameLoc = importChecked(Err, D->getTargetNameLoc());
+  auto ToNamespace = importChecked(Err, D->getNamespace());
+  if (Err)
+    return std::move(Err);
 
   IdentifierInfo *ToIdentifier = Importer.Import(D->getIdentifier());
 
@@ -2421,15 +2422,16 @@ ASTNodeImporter::VisitTypedefNameDecl(TypedefNameDecl *D, bool IsAlias) {
     }
   }
 
-  QualType ToUnderlyingType = D->getUnderlyingType();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  SourceLocation ToBeginLoc = D->getBeginLoc();
-  if (Error E = importSeq(
-      ToUnderlyingType, ToTypeSourceInfo, ToBeginLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToUnderlyingType = importChecked(Err, D->getUnderlyingType());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToBeginLoc = importChecked(Err, D->getBeginLoc());
+  if (Err)
+    return std::move(Err);
 
   // Create the new typedef node.
   // FIXME: ToUnderlyingType is not used.
+  (void)ToUnderlyingType;
   TypedefNameDecl *ToTypedef;
   if (IsAlias) {
     if (GetImportedOrCreateDecl<TypeAliasDecl>(
@@ -2497,10 +2499,11 @@ ASTNodeImporter::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl *D) {
     }
   }
 
-  TemplateParameterList *ToTemplateParameters = D->getTemplateParameters();
-  TypeAliasDecl *ToTemplatedDecl = D->getTemplatedDecl();
-  if (Error E = importSeq(ToTemplateParameters, ToTemplatedDecl))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToTemplateParameters = importChecked(Err, D->getTemplateParameters());
+  auto ToTemplatedDecl = importChecked(Err, D->getTemplatedDecl());
+  if (Err)
+    return std::move(Err);
 
   TypeAliasTemplateDecl *ToAlias;
   if (GetImportedOrCreateDecl(ToAlias, D, Importer.getToContext(), DC, Loc,
@@ -2610,13 +2613,13 @@ ExpectedDecl ASTNodeImporter::VisitEnumDecl(EnumDecl *D) {
     }
   }
 
-  SourceLocation ToBeginLoc = D->getBeginLoc();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  QualType ToIntegerType = D->getIntegerType();
-  SourceRange ToBraceRange = D->getBraceRange();
-  if (Error E =
-          importSeq(ToBeginLoc, ToQualifierLoc, ToIntegerType, ToBraceRange))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBeginLoc = importChecked(Err, D->getBeginLoc());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  auto ToIntegerType = importChecked(Err, D->getIntegerType());
+  auto ToBraceRange = importChecked(Err, D->getBraceRange());
+  if (Err)
+    return std::move(Err);
 
   // Create the enum declaration.
   EnumDecl *D2;
@@ -3259,16 +3262,16 @@ ExpectedDecl ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
         FromReturnTy, FromFPT->getParamTypes(), FromEPI);
   }
 
-  QualType T = FromTy;
-  TypeSourceInfo *TInfo = D->getTypeSourceInfo();
-  SourceLocation ToInnerLocStart = D->getInnerLocStart();
-  SourceLocation ToEndLoc = D->getEndLoc();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  Expr *TrailingRequiresClause = D->getTrailingRequiresClause();
-  if (Error E = importSeq(
-      T, TInfo, ToInnerLocStart,
-      ToQualifierLoc, ToEndLoc, TrailingRequiresClause))
-    return std::move(E);
+  Error Err = Error::success();
+  auto T = importChecked(Err, FromTy);
+  auto TInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToInnerLocStart = importChecked(Err, D->getInnerLocStart());
+  auto ToEndLoc = importChecked(Err, D->getEndLoc());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  auto TrailingRequiresClause =
+      importChecked(Err, D->getTrailingRequiresClause());
+  if (Err)
+    return std::move(Err);
 
   // Import the function parameters.
   SmallVector<ParmVarDecl *, 8> Parameters;
@@ -3302,10 +3305,12 @@ ExpectedDecl ASTNodeImporter::VisitFunctionDecl(FunctionDecl *D) {
       return ToFunction;
   } else if (CXXDestructorDecl *FromDtor = dyn_cast<CXXDestructorDecl>(D)) {
 
-    FunctionDecl *ToOperatorDelete = const_cast<FunctionDecl *>(FromDtor->getOperatorDelete());
-    Expr *ToThisArg = FromDtor->getOperatorDeleteThisArg();
-    if (Error E = importSeq(ToOperatorDelete, ToThisArg))
-      return std::move(E);
+    Error Err = Error::success();
+    auto ToOperatorDelete = importChecked(
+        Err, const_cast<FunctionDecl *>(FromDtor->getOperatorDelete()));
+    auto ToThisArg = importChecked(Err, FromDtor->getOperatorDeleteThisArg());
+    if (Err)
+      return std::move(Err);
 
     if (GetImportedOrCreateDecl<CXXDestructorDecl>(
         ToFunction, D, Importer.getToContext(), cast<CXXRecordDecl>(DC),
@@ -3522,14 +3527,14 @@ ExpectedDecl ASTNodeImporter::VisitFieldDecl(FieldDecl *D) {
     }
   }
 
-  QualType ToType = D->getType();
-  TypeSourceInfo *ToTInfo = D->getTypeSourceInfo();
-  Expr *ToBitWidth = D->getBitWidth();
-  SourceLocation ToInnerLocStart = D->getInnerLocStart();
-  Expr *ToInitializer = D->getInClassInitializer();
-  if (Error E = importSeq(ToType, ToTInfo, ToBitWidth, ToInnerLocStart,
-                           ToInitializer))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, D->getType());
+  auto ToTInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToBitWidth = importChecked(Err, D->getBitWidth());
+  auto ToInnerLocStart = importChecked(Err, D->getInnerLocStart());
+  auto ToInitializer = importChecked(Err, D->getInClassInitializer());
+  if (Err)
+    return std::move(Err);
 
   FieldDecl *ToField;
   if (GetImportedOrCreateDecl(ToField, D, Importer.getToContext(), DC,
@@ -3720,13 +3725,13 @@ ExpectedDecl ASTNodeImporter::VisitObjCIvarDecl(ObjCIvarDecl *D) {
     }
   }
 
-  QualType ToType = D->getType();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  Expr *ToBitWidth = D->getBitWidth();
-  SourceLocation ToInnerLocStart = D->getInnerLocStart();
-  if (Error E = importSeq(
-      ToType, ToTypeSourceInfo, ToBitWidth, ToInnerLocStart))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, D->getType());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToBitWidth = importChecked(Err, D->getBitWidth());
+  auto ToInnerLocStart = importChecked(Err, D->getInnerLocStart());
+  if (Err)
+    return std::move(Err);
 
   ObjCIvarDecl *ToIvar;
   if (GetImportedOrCreateDecl(
@@ -3840,13 +3845,13 @@ ExpectedDecl ASTNodeImporter::VisitVarDecl(VarDecl *D) {
     }
   }
 
-  QualType ToType = D->getType();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  SourceLocation ToInnerLocStart = D->getInnerLocStart();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  if (Error E =
-          importSeq(ToType, ToTypeSourceInfo, ToInnerLocStart, ToQualifierLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, D->getType());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToInnerLocStart = importChecked(Err, D->getInnerLocStart());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  if (Err)
+    return std::move(Err);
 
   // Create the imported variable.
   VarDecl *ToVar;
@@ -3889,11 +3894,12 @@ ExpectedDecl ASTNodeImporter::VisitImplicitParamDecl(ImplicitParamDecl *D) {
   // into the function declaration's context afterward.
   DeclContext *DC = Importer.getToContext().getTranslationUnitDecl();
 
-  DeclarationName ToDeclName = D->getDeclName();
-  SourceLocation ToLocation = D->getLocation();
-  QualType ToType = D->getType();
-  if (Error E = importSeq(ToDeclName, ToLocation, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToDeclName = importChecked(Err, D->getDeclName());
+  auto ToLocation = importChecked(Err, D->getLocation());
+  auto ToType = importChecked(Err, D->getType());
+  if (Err)
+    return std::move(Err);
 
   // Create the imported parameter.
   ImplicitParamDecl *ToParm = nullptr;
@@ -3931,14 +3937,14 @@ ExpectedDecl ASTNodeImporter::VisitParmVarDecl(ParmVarDecl *D) {
   // into the function declaration's context afterward.
   DeclContext *DC = Importer.getToContext().getTranslationUnitDecl();
 
-  DeclarationName ToDeclName = D->getDeclName();
-  SourceLocation ToLocation = D->getLocation();
-  SourceLocation ToInnerLocStart = D->getInnerLocStart();
-  QualType ToType = D->getType();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  if (Error E = importSeq(ToDeclName, ToLocation, ToType, ToInnerLocStart,
-                           ToTypeSourceInfo))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToDeclName = importChecked(Err, D->getDeclName());
+  auto ToLocation = importChecked(Err, D->getLocation());
+  auto ToInnerLocStart = importChecked(Err, D->getInnerLocStart());
+  auto ToType = importChecked(Err, D->getType());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  if (Err)
+    return std::move(Err);
 
   ParmVarDecl *ToParm;
   if (GetImportedOrCreateDecl(ToParm, D, Importer.getToContext(), DC,
@@ -4041,11 +4047,13 @@ ExpectedDecl ASTNodeImporter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
     }
   }
 
-  SourceLocation ToEndLoc = D->getEndLoc();
-  QualType ToReturnType = D->getReturnType();
-  TypeSourceInfo *ToReturnTypeSourceInfo = D->getReturnTypeSourceInfo();
-  if (Error E = importSeq(ToEndLoc, ToReturnType, ToReturnTypeSourceInfo))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToEndLoc = importChecked(Err, D->getEndLoc());
+  auto ToReturnType = importChecked(Err, D->getReturnType());
+  auto ToReturnTypeSourceInfo =
+      importChecked(Err, D->getReturnTypeSourceInfo());
+  if (Err)
+    return std::move(Err);
 
   ObjCMethodDecl *ToMethod;
   if (GetImportedOrCreateDecl(
@@ -4106,13 +4114,13 @@ ExpectedDecl ASTNodeImporter::VisitObjCTypeParamDecl(ObjCTypeParamDecl *D) {
   if (ToD)
     return ToD;
 
-  SourceLocation ToVarianceLoc = D->getVarianceLoc();
-  SourceLocation ToLocation = D->getLocation();
-  SourceLocation ToColonLoc = D->getColonLoc();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  if (Error E =
-          importSeq(ToVarianceLoc, ToLocation, ToColonLoc, ToTypeSourceInfo))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToVarianceLoc = importChecked(Err, D->getVarianceLoc());
+  auto ToLocation = importChecked(Err, D->getLocation());
+  auto ToColonLoc = importChecked(Err, D->getColonLoc());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  if (Err)
+    return std::move(Err);
 
   ObjCTypeParamDecl *Result;
   if (GetImportedOrCreateDecl(
@@ -4146,13 +4154,14 @@ ExpectedDecl ASTNodeImporter::VisitObjCCategoryDecl(ObjCCategoryDecl *D) {
     = ToInterface->FindCategoryDeclaration(Name.getAsIdentifierInfo());
   ObjCCategoryDecl *ToCategory = MergeWithCategory;
   if (!ToCategory) {
-    SourceLocation ToAtStartLoc = D->getAtStartLoc();
-    SourceLocation ToCategoryNameLoc = D->getCategoryNameLoc();
-    SourceLocation ToIvarLBraceLoc = D->getIvarLBraceLoc();
-    SourceLocation ToIvarRBraceLoc = D->getIvarRBraceLoc();
-    if (Error E = importSeq(ToAtStartLoc, ToCategoryNameLoc, ToIvarLBraceLoc,
-                            ToIvarRBraceLoc))
-      return std::move(E);
+
+    Error Err = Error::success();
+    auto ToAtStartLoc = importChecked(Err, D->getAtStartLoc());
+    auto ToCategoryNameLoc = importChecked(Err, D->getCategoryNameLoc());
+    auto ToIvarLBraceLoc = importChecked(Err, D->getIvarLBraceLoc());
+    auto ToIvarRBraceLoc = importChecked(Err, D->getIvarRBraceLoc());
+    if (Err)
+      return std::move(Err);
 
     if (GetImportedOrCreateDecl(ToCategory, D, Importer.getToContext(), DC,
                                 ToAtStartLoc, Loc,
@@ -4361,11 +4370,12 @@ ExpectedDecl ASTNodeImporter::VisitUsingDecl(UsingDecl *D) {
   if (ToD)
     return ToD;
 
-  SourceLocation ToLoc = D->getNameInfo().getLoc();
-  SourceLocation ToUsingLoc = D->getUsingLoc();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  if (Error E = importSeq(ToLoc, ToUsingLoc, ToQualifierLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLoc = importChecked(Err, D->getNameInfo().getLoc());
+  auto ToUsingLoc = importChecked(Err, D->getUsingLoc());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  if (Err)
+    return std::move(Err);
 
   DeclarationNameInfo NameInfo(Name, ToLoc);
   if (Error Err = ImportDeclarationNameLoc(D->getNameInfo(), NameInfo))
@@ -4456,15 +4466,15 @@ ExpectedDecl ASTNodeImporter::VisitUsingDirectiveDecl(UsingDirectiveDecl *D) {
   if (!ToComAncestorOrErr)
     return ToComAncestorOrErr.takeError();
 
-  NamespaceDecl *ToNominatedNamespace = D->getNominatedNamespace();
-  SourceLocation ToUsingLoc = D->getUsingLoc();
-  SourceLocation ToNamespaceKeyLocation = D->getNamespaceKeyLocation();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  SourceLocation ToIdentLocation = D->getIdentLocation();
-  if (Error E =
-          importSeq(ToNominatedNamespace, ToUsingLoc, ToNamespaceKeyLocation,
-                     ToQualifierLoc, ToIdentLocation))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToNominatedNamespace = importChecked(Err, D->getNominatedNamespace());
+  auto ToUsingLoc = importChecked(Err, D->getUsingLoc());
+  auto ToNamespaceKeyLocation =
+      importChecked(Err, D->getNamespaceKeyLocation());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  auto ToIdentLocation = importChecked(Err, D->getIdentLocation());
+  if (Err)
+    return std::move(Err);
 
   UsingDirectiveDecl *ToUsingDir;
   if (GetImportedOrCreateDecl(ToUsingDir, D, Importer.getToContext(), DC,
@@ -4492,12 +4502,13 @@ ExpectedDecl ASTNodeImporter::VisitUnresolvedUsingValueDecl(
   if (ToD)
     return ToD;
 
-  SourceLocation ToLoc = D->getNameInfo().getLoc();
-  SourceLocation ToUsingLoc = D->getUsingLoc();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  SourceLocation ToEllipsisLoc = D->getEllipsisLoc();
-  if (Error E = importSeq(ToLoc, ToUsingLoc, ToQualifierLoc, ToEllipsisLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLoc = importChecked(Err, D->getNameInfo().getLoc());
+  auto ToUsingLoc = importChecked(Err, D->getUsingLoc());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  auto ToEllipsisLoc = importChecked(Err, D->getEllipsisLoc());
+  if (Err)
+    return std::move(Err);
 
   DeclarationNameInfo NameInfo(Name, ToLoc);
   if (Error Err = ImportDeclarationNameLoc(D->getNameInfo(), NameInfo))
@@ -4527,13 +4538,13 @@ ExpectedDecl ASTNodeImporter::VisitUnresolvedUsingTypenameDecl(
   if (ToD)
     return ToD;
 
-  SourceLocation ToUsingLoc = D->getUsingLoc();
-  SourceLocation ToTypenameLoc = D->getTypenameLoc();
-  NestedNameSpecifierLoc ToQualifierLoc = D->getQualifierLoc();
-  SourceLocation ToEllipsisLoc = D->getEllipsisLoc();
-  if (Error E =
-          importSeq(ToUsingLoc, ToTypenameLoc, ToQualifierLoc, ToEllipsisLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToUsingLoc = importChecked(Err, D->getUsingLoc());
+  auto ToTypenameLoc = importChecked(Err, D->getTypenameLoc());
+  auto ToQualifierLoc = importChecked(Err, D->getQualifierLoc());
+  auto ToEllipsisLoc = importChecked(Err, D->getEllipsisLoc());
+  if (Err)
+    return std::move(Err);
 
   UnresolvedUsingTypenameDecl *ToUsing;
   if (GetImportedOrCreateDecl(ToUsing, D, Importer.getToContext(), DC,
@@ -4768,11 +4779,12 @@ ASTNodeImporter::VisitObjCCategoryImplDecl(ObjCCategoryImplDecl *D) {
     if (Error Err = ImportDeclContext(D, DC, LexicalDC))
       return std::move(Err);
 
-    SourceLocation ToLocation = D->getLocation();
-    SourceLocation ToAtStartLoc = D->getAtStartLoc();
-    SourceLocation ToCategoryNameLoc = D->getCategoryNameLoc();
-    if (Error E = importSeq(ToLocation, ToAtStartLoc, ToCategoryNameLoc))
-      return std::move(E);
+    Error Err = Error::success();
+    auto ToLocation = importChecked(Err, D->getLocation());
+    auto ToAtStartLoc = importChecked(Err, D->getAtStartLoc());
+    auto ToCategoryNameLoc = importChecked(Err, D->getCategoryNameLoc());
+    if (Err)
+      return std::move(Err);
 
     if (GetImportedOrCreateDecl(
             ToImpl, D, Importer.getToContext(), DC,
@@ -4812,14 +4824,14 @@ ASTNodeImporter::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
     if (Error Err = ImportDeclContext(D, DC, LexicalDC))
       return std::move(Err);
 
-    SourceLocation ToLocation = D->getLocation();
-    SourceLocation ToAtStartLoc = D->getAtStartLoc();
-    SourceLocation ToSuperClassLoc = D->getSuperClassLoc();
-    SourceLocation ToIvarLBraceLoc = D->getIvarLBraceLoc();
-    SourceLocation ToIvarRBraceLoc = D->getIvarRBraceLoc();
-    if (Error E = importSeq(ToLocation, ToAtStartLoc, ToSuperClassLoc,
-                             ToIvarLBraceLoc, ToIvarRBraceLoc))
-      return std::move(E);
+    Error Err = Error::success();
+    auto ToLocation = importChecked(Err, D->getLocation());
+    auto ToAtStartLoc = importChecked(Err, D->getAtStartLoc());
+    auto ToSuperClassLoc = importChecked(Err, D->getSuperClassLoc());
+    auto ToIvarLBraceLoc = importChecked(Err, D->getIvarLBraceLoc());
+    auto ToIvarRBraceLoc = importChecked(Err, D->getIvarRBraceLoc());
+    if (Err)
+      return std::move(Err);
 
     if (GetImportedOrCreateDecl(Impl, D, Importer.getToContext(),
                                 DC, Iface, Super,
@@ -4909,12 +4921,13 @@ ExpectedDecl ASTNodeImporter::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
     }
   }
 
-  QualType ToType = D->getType();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  SourceLocation ToAtLoc = D->getAtLoc();
-  SourceLocation ToLParenLoc = D->getLParenLoc();
-  if (Error E = importSeq(ToType, ToTypeSourceInfo, ToAtLoc, ToLParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, D->getType());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToAtLoc = importChecked(Err, D->getAtLoc());
+  auto ToLParenLoc = importChecked(Err, D->getLParenLoc());
+  if (Err)
+    return std::move(Err);
 
   // Create the new property.
   ObjCPropertyDecl *ToProperty;
@@ -4925,17 +4938,15 @@ ExpectedDecl ASTNodeImporter::VisitObjCPropertyDecl(ObjCPropertyDecl *D) {
           ToTypeSourceInfo, D->getPropertyImplementation()))
     return ToProperty;
 
-  Selector ToGetterName = D->getGetterName();
-  Selector ToSetterName = D->getSetterName();
-  SourceLocation ToGetterNameLoc = D->getGetterNameLoc();
-  SourceLocation ToSetterNameLoc = D->getSetterNameLoc();
-  ObjCMethodDecl *ToGetterMethodDecl = D->getGetterMethodDecl();
-  ObjCMethodDecl *ToSetterMethodDecl = D->getSetterMethodDecl();
-  ObjCIvarDecl *ToPropertyIvarDecl = D->getPropertyIvarDecl();
-  if (Error E = importSeq(ToGetterName, ToSetterName, ToGetterNameLoc,
-                           ToSetterNameLoc, ToGetterMethodDecl,
-                           ToSetterMethodDecl, ToPropertyIvarDecl))
-    return std::move(E);
+  auto ToGetterName = importChecked(Err, D->getGetterName());
+  auto ToSetterName = importChecked(Err, D->getSetterName());
+  auto ToGetterNameLoc = importChecked(Err, D->getGetterNameLoc());
+  auto ToSetterNameLoc = importChecked(Err, D->getSetterNameLoc());
+  auto ToGetterMethodDecl = importChecked(Err, D->getGetterMethodDecl());
+  auto ToSetterMethodDecl = importChecked(Err, D->getSetterMethodDecl());
+  auto ToPropertyIvarDecl = importChecked(Err, D->getPropertyIvarDecl());
+  if (Err)
+    return std::move(Err);
 
   ToProperty->setLexicalDeclContext(LexicalDC);
   LexicalDC->addDeclInternal(ToProperty);
@@ -4972,11 +4983,14 @@ ASTNodeImporter::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D) {
     = InImpl->FindPropertyImplDecl(Property->getIdentifier(),
                                    Property->getQueryKind());
   if (!ToImpl) {
-    SourceLocation ToBeginLoc = D->getBeginLoc();
-    SourceLocation ToLocation = D->getLocation();
-    SourceLocation ToPropertyIvarDeclLoc = D->getPropertyIvarDeclLoc();
-    if (Error E = importSeq(ToBeginLoc, ToLocation, ToPropertyIvarDeclLoc))
-      return std::move(E);
+
+    Error Err = Error::success();
+    auto ToBeginLoc = importChecked(Err, D->getBeginLoc());
+    auto ToLocation = importChecked(Err, D->getLocation());
+    auto ToPropertyIvarDeclLoc =
+        importChecked(Err, D->getPropertyIvarDeclLoc());
+    if (Err)
+      return std::move(Err);
 
     if (GetImportedOrCreateDecl(ToImpl, D, Importer.getToContext(), DC,
                                 ToBeginLoc,
@@ -5054,15 +5068,16 @@ ASTNodeImporter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
 
   // Import the type-constraint
   if (const TypeConstraint *TC = D->getTypeConstraint()) {
-    NestedNameSpecifierLoc ToNNS = TC->getNestedNameSpecifierLoc();
-    DeclarationName ToName = TC->getConceptNameInfo().getName();
-    SourceLocation ToNameLoc = TC->getConceptNameInfo().getLoc();
-    NamedDecl *ToFoundDecl = TC->getFoundDecl();
-    ConceptDecl *ToNamedConcept = TC->getNamedConcept();
-    Expr *ToIDC = TC->getImmediatelyDeclaredConstraint();
-    if (Error E = importSeq(ToNNS, ToName, ToNameLoc, ToFoundDecl,
-                             ToNamedConcept, ToIDC))
-      return std::move(E);
+
+    Error Err = Error::success();
+    auto ToNNS = importChecked(Err, TC->getNestedNameSpecifierLoc());
+    auto ToName = importChecked(Err, TC->getConceptNameInfo().getName());
+    auto ToNameLoc = importChecked(Err, TC->getConceptNameInfo().getLoc());
+    auto ToFoundDecl = importChecked(Err, TC->getFoundDecl());
+    auto ToNamedConcept = importChecked(Err, TC->getNamedConcept());
+    auto ToIDC = importChecked(Err, TC->getImmediatelyDeclaredConstraint());
+    if (Err)
+      return std::move(Err);
 
     TemplateArgumentListInfo ToTAInfo;
     const auto *ASTTemplateArgs = TC->getTemplateArgsAsWritten();
@@ -5084,14 +5099,15 @@ ASTNodeImporter::VisitTemplateTypeParmDecl(TemplateTypeParmDecl *D) {
 
 ExpectedDecl
 ASTNodeImporter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
-  DeclarationName ToDeclName = D->getDeclName();
-  SourceLocation ToLocation = D->getLocation();
-  QualType ToType = D->getType();
-  TypeSourceInfo *ToTypeSourceInfo = D->getTypeSourceInfo();
-  SourceLocation ToInnerLocStart = D->getInnerLocStart();
-  if (Error E = importSeq(ToDeclName, ToLocation, ToType, ToTypeSourceInfo,
-                           ToInnerLocStart))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToDeclName = importChecked(Err, D->getDeclName());
+  auto ToLocation = importChecked(Err, D->getLocation());
+  auto ToType = importChecked(Err, D->getType());
+  auto ToTypeSourceInfo = importChecked(Err, D->getTypeSourceInfo());
+  auto ToInnerLocStart = importChecked(Err, D->getInnerLocStart());
+  if (Err)
+    return std::move(Err);
 
   // FIXME: Import default argument.
 
@@ -5845,11 +5861,13 @@ ExpectedStmt ASTNodeImporter::VisitGCCAsmStmt(GCCAsmStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitDeclStmt(DeclStmt *S) {
-  DeclGroupRef ToDG = S->getDeclGroup();
-  SourceLocation ToBeginLoc = S->getBeginLoc();
-  SourceLocation ToEndLoc = S->getEndLoc();
-  if (Error E = importSeq(ToDG, ToBeginLoc, ToEndLoc))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToDG = importChecked(Err, S->getDeclGroup());
+  auto ToBeginLoc = importChecked(Err, S->getBeginLoc());
+  auto ToEndLoc = importChecked(Err, S->getEndLoc());
+  if (Err)
+    return std::move(Err);
   return new (Importer.getToContext()) DeclStmt(ToDG, ToBeginLoc, ToEndLoc);
 }
 
@@ -5881,16 +5899,16 @@ ExpectedStmt ASTNodeImporter::VisitCompoundStmt(CompoundStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCaseStmt(CaseStmt *S) {
-  auto ToLHS = S->getLHS();
-  auto ToRHS = S->getRHS();
-  auto ToSubStmt = S->getSubStmt();
-  auto ToCaseLoc = S->getCaseLoc();
-  auto ToEllipsisLoc = S->getEllipsisLoc();
-  auto ToColonLoc = S->getColonLoc();
 
-  if (Error E = importSeq(ToLHS, ToRHS, ToSubStmt, ToCaseLoc, ToEllipsisLoc,
-                           ToColonLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLHS = importChecked(Err, S->getLHS());
+  auto ToRHS = importChecked(Err, S->getRHS());
+  auto ToSubStmt = importChecked(Err, S->getSubStmt());
+  auto ToCaseLoc = importChecked(Err, S->getCaseLoc());
+  auto ToEllipsisLoc = importChecked(Err, S->getEllipsisLoc());
+  auto ToColonLoc = importChecked(Err, S->getColonLoc());
+  if (Err)
+    return std::move(Err);
 
   auto *ToStmt = CaseStmt::Create(Importer.getToContext(), ToLHS, ToRHS,
                                   ToCaseLoc, ToEllipsisLoc, ToColonLoc);
@@ -5900,23 +5918,26 @@ ExpectedStmt ASTNodeImporter::VisitCaseStmt(CaseStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitDefaultStmt(DefaultStmt *S) {
-  auto ToDefaultLoc = S->getDefaultLoc();
-  auto ToColonLoc = S->getColonLoc();
-  auto ToSubStmt = S->getSubStmt();
-  if (Error E = importSeq(ToDefaultLoc, ToColonLoc, ToSubStmt))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToDefaultLoc = importChecked(Err, S->getDefaultLoc());
+  auto ToColonLoc = importChecked(Err, S->getColonLoc());
+  auto ToSubStmt = importChecked(Err, S->getSubStmt());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) DefaultStmt(
     ToDefaultLoc, ToColonLoc, ToSubStmt);
 }
 
 ExpectedStmt ASTNodeImporter::VisitLabelStmt(LabelStmt *S) {
-  auto ToIdentLoc = S->getIdentLoc();
-  auto ToLabelDecl = S->getDecl();
-  auto ToSubStmt = S->getSubStmt();
 
-  if (Error E = importSeq(ToIdentLoc, ToLabelDecl, ToSubStmt))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToIdentLoc = importChecked(Err, S->getIdentLoc());
+  auto ToLabelDecl = importChecked(Err, S->getDecl());
+  auto ToSubStmt = importChecked(Err, S->getSubStmt());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) LabelStmt(
       ToIdentLoc, ToLabelDecl, ToSubStmt);
@@ -5939,17 +5960,17 @@ ExpectedStmt ASTNodeImporter::VisitAttributedStmt(AttributedStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitIfStmt(IfStmt *S) {
-  auto ToIfLoc = S->getIfLoc();
-  auto ToInit = S->getInit();
-  auto ToConditionVariable = S->getConditionVariable();
-  auto ToCond = S->getCond();
-  auto ToThen = S->getThen();
-  auto ToElseLoc = S->getElseLoc();
-  auto ToElse = S->getElse();
 
-  if (Error E = importSeq(ToIfLoc, ToInit, ToConditionVariable, ToCond, ToThen,
-                           ToElseLoc, ToElse))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToIfLoc = importChecked(Err, S->getIfLoc());
+  auto ToInit = importChecked(Err, S->getInit());
+  auto ToConditionVariable = importChecked(Err, S->getConditionVariable());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToThen = importChecked(Err, S->getThen());
+  auto ToElseLoc = importChecked(Err, S->getElseLoc());
+  auto ToElse = importChecked(Err, S->getElse());
+  if (Err)
+    return std::move(Err);
 
   return IfStmt::Create(Importer.getToContext(), ToIfLoc, S->isConstexpr(),
                         ToInit, ToConditionVariable, ToCond, ToThen, ToElseLoc,
@@ -5957,15 +5978,15 @@ ExpectedStmt ASTNodeImporter::VisitIfStmt(IfStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitSwitchStmt(SwitchStmt *S) {
-  auto ToInit = S->getInit();
-  auto ToConditionVariable = S->getConditionVariable();
-  auto ToCond = S->getCond();
-  auto ToBody = S->getBody();
-  auto ToSwitchLoc = S->getSwitchLoc();
 
-  if (Error E =
-          importSeq(ToInit, ToConditionVariable, ToCond, ToBody, ToSwitchLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToInit = importChecked(Err, S->getInit());
+  auto ToConditionVariable = importChecked(Err, S->getConditionVariable());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToSwitchLoc = importChecked(Err, S->getSwitchLoc());
+  if (Err)
+    return std::move(Err);
 
   auto *ToStmt = SwitchStmt::Create(Importer.getToContext(), ToInit,
                                     ToConditionVariable, ToCond);
@@ -5990,45 +6011,47 @@ ExpectedStmt ASTNodeImporter::VisitSwitchStmt(SwitchStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitWhileStmt(WhileStmt *S) {
-  auto ToConditionVariable = S->getConditionVariable();
-  auto ToCond = S->getCond();
-  auto ToBody = S->getBody();
-  auto ToWhileLoc = S->getWhileLoc();
 
-  if (Error E = importSeq(ToConditionVariable, ToCond, ToBody, ToWhileLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToConditionVariable = importChecked(Err, S->getConditionVariable());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToWhileLoc = importChecked(Err, S->getWhileLoc());
+  if (Err)
+    return std::move(Err);
 
   return WhileStmt::Create(Importer.getToContext(), ToConditionVariable, ToCond,
                            ToBody, ToWhileLoc);
 }
 
 ExpectedStmt ASTNodeImporter::VisitDoStmt(DoStmt *S) {
-  auto ToBody = S->getBody();
-  auto ToCond = S->getCond();
-  auto ToDoLoc = S->getDoLoc();
-  auto ToWhileLoc = S->getWhileLoc();
-  auto ToRParenLoc = S->getRParenLoc();
 
-  if (Error E = importSeq(ToBody, ToCond, ToDoLoc, ToWhileLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToDoLoc = importChecked(Err, S->getDoLoc());
+  auto ToWhileLoc = importChecked(Err, S->getWhileLoc());
+  auto ToRParenLoc = importChecked(Err, S->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) DoStmt(
       ToBody, ToCond, ToDoLoc, ToWhileLoc, ToRParenLoc);
 }
 
 ExpectedStmt ASTNodeImporter::VisitForStmt(ForStmt *S) {
-  auto ToInit = S->getInit();
-  auto ToCond = S->getCond();
-  auto ToConditionVariable = S->getConditionVariable();
-  auto ToInc = S->getInc();
-  auto ToBody = S->getBody();
-  auto ToForLoc = S->getForLoc();
-  auto ToLParenLoc = S->getLParenLoc();
-  auto ToRParenLoc = S->getRParenLoc();
 
-  if (Error E = importSeq(ToInit, ToCond, ToConditionVariable, ToInc, ToBody,
-                           ToForLoc, ToLParenLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToInit = importChecked(Err, S->getInit());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToConditionVariable = importChecked(Err, S->getConditionVariable());
+  auto ToInc = importChecked(Err, S->getInc());
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToForLoc = importChecked(Err, S->getForLoc());
+  auto ToLParenLoc = importChecked(Err, S->getLParenLoc());
+  auto ToRParenLoc = importChecked(Err, S->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ForStmt(
       Importer.getToContext(),
@@ -6037,24 +6060,26 @@ ExpectedStmt ASTNodeImporter::VisitForStmt(ForStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitGotoStmt(GotoStmt *S) {
-  auto ToLabel = S->getLabel();
-  auto ToGotoLoc = S->getGotoLoc();
-  auto ToLabelLoc = S->getLabelLoc();
 
-  if (Error E = importSeq(ToLabel, ToGotoLoc, ToLabelLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLabel = importChecked(Err, S->getLabel());
+  auto ToGotoLoc = importChecked(Err, S->getGotoLoc());
+  auto ToLabelLoc = importChecked(Err, S->getLabelLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) GotoStmt(
       ToLabel, ToGotoLoc, ToLabelLoc);
 }
 
 ExpectedStmt ASTNodeImporter::VisitIndirectGotoStmt(IndirectGotoStmt *S) {
-  auto ToGotoLoc = S->getGotoLoc();
-  auto ToStarLoc = S->getStarLoc();
-  auto ToTarget = S->getTarget();
 
-  if (Error E = importSeq(ToGotoLoc, ToStarLoc, ToTarget))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToGotoLoc = importChecked(Err, S->getGotoLoc());
+  auto ToStarLoc = importChecked(Err, S->getStarLoc());
+  auto ToTarget = importChecked(Err, S->getTarget());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) IndirectGotoStmt(
       ToGotoLoc, ToStarLoc, ToTarget);
@@ -6075,24 +6100,26 @@ ExpectedStmt ASTNodeImporter::VisitBreakStmt(BreakStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitReturnStmt(ReturnStmt *S) {
-  auto ToReturnLoc = S->getReturnLoc();
-  auto ToRetValue = S->getRetValue();
-  auto ToNRVOCandidate = S->getNRVOCandidate();
 
-  if (Error E = importSeq(ToReturnLoc, ToRetValue, ToNRVOCandidate))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToReturnLoc = importChecked(Err, S->getReturnLoc());
+  auto ToRetValue = importChecked(Err, S->getRetValue());
+  auto ToNRVOCandidate = importChecked(Err, S->getNRVOCandidate());
+  if (Err)
+    return std::move(Err);
 
   return ReturnStmt::Create(Importer.getToContext(), ToReturnLoc, ToRetValue,
                             ToNRVOCandidate);
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXCatchStmt(CXXCatchStmt *S) {
-  auto ToCatchLoc = S->getCatchLoc();
-  auto ToExceptionDecl = S->getExceptionDecl();
-  auto ToHandlerBlock = S->getHandlerBlock();
 
-  if (Error E = importSeq(ToCatchLoc, ToExceptionDecl, ToHandlerBlock))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToCatchLoc = importChecked(Err, S->getCatchLoc());
+  auto ToExceptionDecl = importChecked(Err, S->getExceptionDecl());
+  auto ToHandlerBlock = importChecked(Err, S->getHandlerBlock());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CXXCatchStmt (
       ToCatchLoc, ToExceptionDecl, ToHandlerBlock);
@@ -6121,23 +6148,22 @@ ExpectedStmt ASTNodeImporter::VisitCXXTryStmt(CXXTryStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
-  auto ToInit = S->getInit();
-  auto ToRangeStmt = S->getRangeStmt();
-  auto ToBeginStmt = S->getBeginStmt();
-  auto ToEndStmt = S->getEndStmt();
-  auto ToCond = S->getCond();
-  auto ToInc = S->getInc();
-  auto ToLoopVarStmt = S->getLoopVarStmt();
-  auto ToBody = S->getBody();
-  auto ToForLoc = S->getForLoc();
-  auto ToCoawaitLoc = S->getCoawaitLoc();
-  auto ToColonLoc = S->getColonLoc();
-  auto ToRParenLoc = S->getRParenLoc();
 
-  if (Error E = importSeq(ToInit, ToRangeStmt, ToBeginStmt, ToEndStmt, ToCond,
-                           ToInc, ToLoopVarStmt, ToBody, ToForLoc, ToCoawaitLoc,
-                           ToColonLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToInit = importChecked(Err, S->getInit());
+  auto ToRangeStmt = importChecked(Err, S->getRangeStmt());
+  auto ToBeginStmt = importChecked(Err, S->getBeginStmt());
+  auto ToEndStmt = importChecked(Err, S->getEndStmt());
+  auto ToCond = importChecked(Err, S->getCond());
+  auto ToInc = importChecked(Err, S->getInc());
+  auto ToLoopVarStmt = importChecked(Err, S->getLoopVarStmt());
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToForLoc = importChecked(Err, S->getForLoc());
+  auto ToCoawaitLoc = importChecked(Err, S->getCoawaitLoc());
+  auto ToColonLoc = importChecked(Err, S->getColonLoc());
+  auto ToRParenLoc = importChecked(Err, S->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CXXForRangeStmt(
       ToInit, ToRangeStmt, ToBeginStmt, ToEndStmt, ToCond, ToInc, ToLoopVarStmt,
@@ -6146,15 +6172,14 @@ ExpectedStmt ASTNodeImporter::VisitCXXForRangeStmt(CXXForRangeStmt *S) {
 
 ExpectedStmt
 ASTNodeImporter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
-  auto ToElement = S->getElement();
-  auto ToCollection = S->getCollection();
-  auto ToBody = S->getBody();
-  auto ToForLoc = S->getForLoc();
-  auto ToRParenLoc = S->getRParenLoc();
-
-  if (Error E =
-          importSeq(ToElement, ToCollection, ToBody, ToForLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToElement = importChecked(Err, S->getElement());
+  auto ToCollection = importChecked(Err, S->getCollection());
+  auto ToBody = importChecked(Err, S->getBody());
+  auto ToForLoc = importChecked(Err, S->getForLoc());
+  auto ToRParenLoc = importChecked(Err, S->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ObjCForCollectionStmt(ToElement,
                                                              ToCollection,
@@ -6164,14 +6189,14 @@ ASTNodeImporter::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitObjCAtCatchStmt(ObjCAtCatchStmt *S) {
-  auto ToAtCatchLoc = S->getAtCatchLoc();
-  auto ToRParenLoc = S->getRParenLoc();
-  auto ToCatchParamDecl = S->getCatchParamDecl();
-  auto ToCatchBody = S->getCatchBody();
 
-  if (Error E =
-          importSeq(ToAtCatchLoc, ToRParenLoc, ToCatchParamDecl, ToCatchBody))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToAtCatchLoc = importChecked(Err, S->getAtCatchLoc());
+  auto ToRParenLoc = importChecked(Err, S->getRParenLoc());
+  auto ToCatchParamDecl = importChecked(Err, S->getCatchParamDecl());
+  auto ToCatchBody = importChecked(Err, S->getCatchBody());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ObjCAtCatchStmt (
       ToAtCatchLoc, ToRParenLoc, ToCatchParamDecl, ToCatchBody);
@@ -6189,12 +6214,13 @@ ExpectedStmt ASTNodeImporter::VisitObjCAtFinallyStmt(ObjCAtFinallyStmt *S) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitObjCAtTryStmt(ObjCAtTryStmt *S) {
-  auto ToAtTryLoc = S->getAtTryLoc();
-  auto ToTryBody = S->getTryBody();
-  auto ToFinallyStmt = S->getFinallyStmt();
 
-  if (Error E = importSeq(ToAtTryLoc, ToTryBody, ToFinallyStmt))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToAtTryLoc = importChecked(Err, S->getAtTryLoc());
+  auto ToTryBody = importChecked(Err, S->getTryBody());
+  auto ToFinallyStmt = importChecked(Err, S->getFinallyStmt());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Stmt *, 1> ToCatchStmts(S->getNumCatchStmts());
   for (unsigned CI = 0, CE = S->getNumCatchStmts(); CI != CE; ++CI) {
@@ -6213,11 +6239,13 @@ ExpectedStmt ASTNodeImporter::VisitObjCAtTryStmt(ObjCAtTryStmt *S) {
 
 ExpectedStmt
 ASTNodeImporter::VisitObjCAtSynchronizedStmt(ObjCAtSynchronizedStmt *S) {
-  auto ToAtSynchronizedLoc = S->getAtSynchronizedLoc();
-  auto ToSynchExpr = S->getSynchExpr();
-  auto ToSynchBody = S->getSynchBody();
-  if (Error E = importSeq(ToAtSynchronizedLoc, ToSynchExpr, ToSynchBody))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToAtSynchronizedLoc = importChecked(Err, S->getAtSynchronizedLoc());
+  auto ToSynchExpr = importChecked(Err, S->getSynchExpr());
+  auto ToSynchBody = importChecked(Err, S->getSynchBody());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ObjCAtSynchronizedStmt(
     ToAtSynchronizedLoc, ToSynchExpr, ToSynchBody);
@@ -6256,14 +6284,15 @@ ExpectedStmt ASTNodeImporter::VisitExpr(Expr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitVAArgExpr(VAArgExpr *E) {
-  auto ToBuiltinLoc = E->getBuiltinLoc();
-  auto ToSubExpr = E->getSubExpr();
-  auto ToWrittenTypeInfo = E->getWrittenTypeInfo();
-  auto ToRParenLoc = E->getRParenLoc();
-  auto ToType = E->getType();
-  if (Error E = importSeq(ToBuiltinLoc, ToSubExpr, ToWrittenTypeInfo,
-                           ToRParenLoc, ToType))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToBuiltinLoc = importChecked(Err, E->getBuiltinLoc());
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  auto ToWrittenTypeInfo = importChecked(Err, E->getWrittenTypeInfo());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) VAArgExpr(
       ToBuiltinLoc, ToSubExpr, ToWrittenTypeInfo, ToRParenLoc, ToType,
@@ -6271,15 +6300,16 @@ ExpectedStmt ASTNodeImporter::VisitVAArgExpr(VAArgExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitChooseExpr(ChooseExpr *E) {
-  auto ToCond = E->getCond();
-  auto ToLHS = E->getLHS();
-  auto ToRHS = E->getRHS();
-  auto ToBuiltinLoc = E->getBuiltinLoc();
-  auto ToRParenLoc = E->getRParenLoc();
-  auto ToType = E->getType();
-  if (Error E =
-          importSeq(ToCond, ToLHS, ToRHS, ToBuiltinLoc, ToRParenLoc, ToType))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToCond = importChecked(Err, E->getCond());
+  auto ToLHS = importChecked(Err, E->getLHS());
+  auto ToRHS = importChecked(Err, E->getRHS());
+  auto ToBuiltinLoc = importChecked(Err, E->getBuiltinLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   ExprValueKind VK = E->getValueKind();
   ExprObjectKind OK = E->getObjectKind();
@@ -6309,26 +6339,28 @@ ExpectedStmt ASTNodeImporter::VisitGNUNullExpr(GNUNullExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitPredefinedExpr(PredefinedExpr *E) {
-  auto ToBeginLoc = E->getBeginLoc();
-  auto ToType = E->getType();
-  auto ToFunctionName = E->getFunctionName();
-  if (Error E = importSeq(ToBeginLoc, ToType, ToFunctionName))
-    return std::move(E);
+
+  Error Err = Error::success();
+  auto ToBeginLoc = importChecked(Err, E->getBeginLoc());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToFunctionName = importChecked(Err, E->getFunctionName());
+  if (Err)
+    return std::move(Err);
 
   return PredefinedExpr::Create(Importer.getToContext(), ToBeginLoc, ToType,
                                 E->getIdentKind(), ToFunctionName);
 }
 
 ExpectedStmt ASTNodeImporter::VisitDeclRefExpr(DeclRefExpr *E) {
-  auto ToQualifierLoc = E->getQualifierLoc();
-  auto ToTemplateKeywordLoc = E->getTemplateKeywordLoc();
-  auto ToDecl = E->getDecl();
-  auto ToLocation = E->getLocation();
-  auto ToType = E->getType();
 
-  if (Error E = importSeq(ToQualifierLoc, ToTemplateKeywordLoc, ToDecl,
-                           ToLocation, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToQualifierLoc = importChecked(Err, E->getQualifierLoc());
+  auto ToTemplateKeywordLoc = importChecked(Err, E->getTemplateKeywordLoc());
+  auto ToDecl = importChecked(Err, E->getDecl());
+  auto ToLocation = importChecked(Err, E->getLocation());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   NamedDecl *ToFoundD = nullptr;
   if (E->getDecl() != E->getFoundDecl()) {
@@ -6477,14 +6509,14 @@ ExpectedStmt ASTNodeImporter::VisitStringLiteral(StringLiteral *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
-  auto ToLParenLoc = E->getLParenLoc();
-  auto ToTypeSourceInfo = E->getTypeSourceInfo();
-  auto ToType = E->getType();
-  auto ToInitializer = E->getInitializer();
 
-  if (Error E =
-          importSeq(ToLParenLoc, ToTypeSourceInfo, ToType, ToInitializer))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLParenLoc = importChecked(Err, E->getLParenLoc());
+  auto ToTypeSourceInfo = importChecked(Err, E->getTypeSourceInfo());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToInitializer = importChecked(Err, E->getInitializer());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CompoundLiteralExpr(
         ToLParenLoc, ToTypeSourceInfo, ToType, E->getValueKind(),
@@ -6492,12 +6524,13 @@ ExpectedStmt ASTNodeImporter::VisitCompoundLiteralExpr(CompoundLiteralExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitAtomicExpr(AtomicExpr *E) {
-  auto ToBuiltinLoc = E->getBuiltinLoc();
-  auto ToType = E->getType();
-  auto ToRParenLoc = E->getRParenLoc();
 
-  if (Error E = importSeq(ToBuiltinLoc, ToType, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBuiltinLoc = importChecked(Err, E->getBuiltinLoc());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 6> ToExprs(E->getNumSubExprs());
   if (Error Err = ImportArrayChecked(
@@ -6506,27 +6539,30 @@ ExpectedStmt ASTNodeImporter::VisitAtomicExpr(AtomicExpr *E) {
     return std::move(Err);
 
   return new (Importer.getToContext()) AtomicExpr(
+
       ToBuiltinLoc, ToExprs, ToType, E->getOp(), ToRParenLoc);
 }
 
 ExpectedStmt ASTNodeImporter::VisitAddrLabelExpr(AddrLabelExpr *E) {
-  auto ToAmpAmpLoc = E->getAmpAmpLoc();
-  auto ToLabelLoc = E->getLabelLoc();
-  auto ToLabel = E->getLabel();
-  auto ToType = E->getType();
-  if (Error E = importSeq(ToAmpAmpLoc, ToLabelLoc, ToLabel, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToAmpAmpLoc = importChecked(Err, E->getAmpAmpLoc());
+  auto ToLabelLoc = importChecked(Err, E->getLabelLoc());
+  auto ToLabel = importChecked(Err, E->getLabel());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) AddrLabelExpr(
       ToAmpAmpLoc, ToLabelLoc, ToLabel, ToType);
 }
-
 ExpectedStmt ASTNodeImporter::VisitConstantExpr(ConstantExpr *E) {
-  Expr *ToSubExpr = E->getSubExpr();
-  if (Error E = importSeq(ToSubExpr))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  if (Err)
+    return std::move(Err);
 
   // TODO : Handle APValue::ValueKind that require importing.
+
   APValue::ValueKind Kind = E->getResultAPValueKind();
   if (Kind == APValue::Int || Kind == APValue::Float ||
       Kind == APValue::FixedPoint || Kind == APValue::ComplexFloat ||
@@ -6535,13 +6571,13 @@ ExpectedStmt ASTNodeImporter::VisitConstantExpr(ConstantExpr *E) {
                                 E->getAPValueResult());
   return ConstantExpr::Create(Importer.getToContext(), ToSubExpr);
 }
-
 ExpectedStmt ASTNodeImporter::VisitParenExpr(ParenExpr *E) {
-  auto ToLParen = E->getLParen();
-  auto ToRParen = E->getRParen();
-  auto ToSubExpr = E->getSubExpr();
-  if (Error E = importSeq(ToLParen, ToRParen, ToSubExpr))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLParen = importChecked(Err, E->getLParen());
+  auto ToRParen = importChecked(Err, E->getRParen());
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext())
       ParenExpr(ToLParen, ToRParen, ToSubExpr);
@@ -6565,25 +6601,25 @@ ExpectedStmt ASTNodeImporter::VisitParenListExpr(ParenListExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitStmtExpr(StmtExpr *E) {
-  auto ToSubStmt = E->getSubStmt();
-  auto ToType = E->getType();
-  auto ToLParenLoc = E->getLParenLoc();
-  auto ToRParenLoc = E->getRParenLoc();
-
-  if (Error E = importSeq(ToSubStmt, ToType, ToLParenLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToSubStmt = importChecked(Err, E->getSubStmt());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToLParenLoc = importChecked(Err, E->getLParenLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) StmtExpr(
       ToSubStmt, ToType, ToLParenLoc, ToRParenLoc);
 }
 
 ExpectedStmt ASTNodeImporter::VisitUnaryOperator(UnaryOperator *E) {
-  auto ToSubExpr = E->getSubExpr();
-  auto ToType = E->getType();
-  auto ToOperatorLoc = E->getOperatorLoc();
-
-  if (Error E = importSeq(ToSubExpr, ToType, ToOperatorLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) UnaryOperator(
       ToSubExpr, E->getOpcode(), ToType, E->getValueKind(), E->getObjectKind(),
@@ -6591,13 +6627,14 @@ ExpectedStmt ASTNodeImporter::VisitUnaryOperator(UnaryOperator *E) {
 }
 
 ExpectedStmt
-ASTNodeImporter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
-  auto ToType = E->getType();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToRParenLoc = E->getRParenLoc();
 
-  if (Error E = importSeq(ToType, ToOperatorLoc, ToRParenLoc))
-    return std::move(E);
+ASTNodeImporter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   if (E->isArgumentType()) {
     Expected<TypeSourceInfo *> ToArgumentTypeInfoOrErr =
@@ -6619,13 +6656,13 @@ ASTNodeImporter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitBinaryOperator(BinaryOperator *E) {
-  auto ToLHS = E->getLHS();
-  auto ToRHS = E->getRHS();
-  auto ToType = E->getType();
-  auto ToOperatorLoc = E->getOperatorLoc();
-
-  if (Error E = importSeq(ToLHS, ToRHS, ToType, ToOperatorLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLHS = importChecked(Err, E->getLHS());
+  auto ToRHS = importChecked(Err, E->getRHS());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) BinaryOperator(
       ToLHS, ToRHS, E->getOpcode(), ToType, E->getValueKind(),
@@ -6633,16 +6670,15 @@ ExpectedStmt ASTNodeImporter::VisitBinaryOperator(BinaryOperator *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitConditionalOperator(ConditionalOperator *E) {
-  auto ToCond = E->getCond();
-  auto ToQuestionLoc = E->getQuestionLoc();
-  auto ToLHS = E->getLHS();
-  auto ToColonLoc = E->getColonLoc();
-  auto ToRHS = E->getRHS();
-  auto ToType = E->getType();
-
-  if (Error E =
-          importSeq(ToCond, ToQuestionLoc, ToLHS, ToColonLoc, ToRHS, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToCond = importChecked(Err, E->getCond());
+  auto ToQuestionLoc = importChecked(Err, E->getQuestionLoc());
+  auto ToLHS = importChecked(Err, E->getLHS());
+  auto ToColonLoc = importChecked(Err, E->getColonLoc());
+  auto ToRHS = importChecked(Err, E->getRHS());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ConditionalOperator(
       ToCond, ToQuestionLoc, ToLHS, ToColonLoc, ToRHS, ToType,
@@ -6651,18 +6687,17 @@ ExpectedStmt ASTNodeImporter::VisitConditionalOperator(ConditionalOperator *E) {
 
 ExpectedStmt
 ASTNodeImporter::VisitBinaryConditionalOperator(BinaryConditionalOperator *E) {
-  auto ToCommon = E->getCommon();
-  auto ToOpaqueValue = E->getOpaqueValue();
-  auto ToCond = E->getCond();
-  auto ToTrueExpr = E->getTrueExpr();
-  auto ToFalseExpr = E->getFalseExpr();
-  auto ToQuestionLoc = E->getQuestionLoc();
-  auto ToColonLoc = E->getColonLoc();
-  auto ToType = E->getType();
-
-  if (Error E = importSeq(ToCommon, ToOpaqueValue, ToCond, ToTrueExpr,
-                           ToFalseExpr, ToQuestionLoc, ToColonLoc, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToCommon = importChecked(Err, E->getCommon());
+  auto ToOpaqueValue = importChecked(Err, E->getOpaqueValue());
+  auto ToCond = importChecked(Err, E->getCond());
+  auto ToTrueExpr = importChecked(Err, E->getTrueExpr());
+  auto ToFalseExpr = importChecked(Err, E->getFalseExpr());
+  auto ToQuestionLoc = importChecked(Err, E->getQuestionLoc());
+  auto ToColonLoc = importChecked(Err, E->getColonLoc());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) BinaryConditionalOperator(
       ToCommon, ToOpaqueValue, ToCond, ToTrueExpr, ToFalseExpr,
@@ -6671,15 +6706,15 @@ ASTNodeImporter::VisitBinaryConditionalOperator(BinaryConditionalOperator *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
-  auto ToBeginLoc = E->getBeginLoc();
-  auto ToQueriedTypeSourceInfo = E->getQueriedTypeSourceInfo();
-  auto ToDimensionExpression = E->getDimensionExpression();
-  auto ToEndLoc = E->getEndLoc();
-  auto ToType = E->getType();
-
-  if (Error E = importSeq(ToBeginLoc, ToQueriedTypeSourceInfo,
-                           ToDimensionExpression, ToEndLoc, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBeginLoc = importChecked(Err, E->getBeginLoc());
+  auto ToQueriedTypeSourceInfo =
+      importChecked(Err, E->getQueriedTypeSourceInfo());
+  auto ToDimensionExpression = importChecked(Err, E->getDimensionExpression());
+  auto ToEndLoc = importChecked(Err, E->getEndLoc());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ArrayTypeTraitExpr(
       ToBeginLoc, E->getTrait(), ToQueriedTypeSourceInfo, E->getValue(),
@@ -6687,13 +6722,13 @@ ExpectedStmt ASTNodeImporter::VisitArrayTypeTraitExpr(ArrayTypeTraitExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitExpressionTraitExpr(ExpressionTraitExpr *E) {
-  auto ToBeginLoc = E->getBeginLoc();
-  auto ToQueriedExpression = E->getQueriedExpression();
-  auto ToEndLoc = E->getEndLoc();
-  auto ToType = E->getType();
-
-  if (Error E = importSeq(ToBeginLoc, ToQueriedExpression, ToEndLoc, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBeginLoc = importChecked(Err, E->getBeginLoc());
+  auto ToQueriedExpression = importChecked(Err, E->getQueriedExpression());
+  auto ToEndLoc = importChecked(Err, E->getEndLoc());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ExpressionTraitExpr(
       ToBeginLoc, E->getTrait(), ToQueriedExpression, E->getValue(),
@@ -6701,25 +6736,25 @@ ExpectedStmt ASTNodeImporter::VisitExpressionTraitExpr(ExpressionTraitExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitOpaqueValueExpr(OpaqueValueExpr *E) {
-  auto ToLocation = E->getLocation();
-  auto ToType = E->getType();
-  auto ToSourceExpr = E->getSourceExpr();
-
-  if (Error E = importSeq(ToLocation, ToType, ToSourceExpr))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLocation = importChecked(Err, E->getLocation());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToSourceExpr = importChecked(Err, E->getSourceExpr());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) OpaqueValueExpr(
       ToLocation, ToType, E->getValueKind(), E->getObjectKind(), ToSourceExpr);
 }
 
 ExpectedStmt ASTNodeImporter::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
-  auto ToLHS = E->getLHS();
-  auto ToRHS = E->getRHS();
-  auto ToType = E->getType();
-  auto ToRBracketLoc = E->getRBracketLoc();
-
-  if (Error E = importSeq(ToLHS, ToRHS, ToType, ToRBracketLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLHS = importChecked(Err, E->getLHS());
+  auto ToRHS = importChecked(Err, E->getRHS());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToRBracketLoc = importChecked(Err, E->getRBracketLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ArraySubscriptExpr(
       ToLHS, ToRHS, ToType, E->getValueKind(), E->getObjectKind(),
@@ -6728,16 +6763,16 @@ ExpectedStmt ASTNodeImporter::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
 
 ExpectedStmt
 ASTNodeImporter::VisitCompoundAssignOperator(CompoundAssignOperator *E) {
-  auto ToLHS = E->getLHS();
-  auto ToRHS = E->getRHS();
-  auto ToType = E->getType();
-  auto ToComputationLHSType = E->getComputationLHSType();
-  auto ToComputationResultType = E->getComputationResultType();
-  auto ToOperatorLoc = E->getOperatorLoc();
-
-  if (Error E = importSeq(ToLHS, ToRHS, ToType, ToComputationLHSType,
-                           ToComputationResultType, ToOperatorLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLHS = importChecked(Err, E->getLHS());
+  auto ToRHS = importChecked(Err, E->getRHS());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToComputationLHSType = importChecked(Err, E->getComputationLHSType());
+  auto ToComputationResultType =
+      importChecked(Err, E->getComputationResultType());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CompoundAssignOperator(
       ToLHS, ToRHS, E->getOpcode(), ToType, E->getValueKind(),
@@ -6776,12 +6811,12 @@ ExpectedStmt ASTNodeImporter::VisitImplicitCastExpr(ImplicitCastExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitExplicitCastExpr(ExplicitCastExpr *E) {
-  auto ToType = E->getType();
-  auto ToSubExpr = E->getSubExpr();
-  auto ToTypeInfoAsWritten = E->getTypeInfoAsWritten();
-
-  if (Error E = importSeq(ToType, ToSubExpr, ToTypeInfoAsWritten))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  auto ToTypeInfoAsWritten = importChecked(Err, E->getTypeInfoAsWritten());
+  if (Err)
+    return std::move(Err);
 
   Expected<CXXCastPath> ToBasePathOrErr = ImportCastPath(E);
   if (!ToBasePathOrErr)
@@ -6841,11 +6876,13 @@ ExpectedStmt ASTNodeImporter::VisitOffsetOfExpr(OffsetOfExpr *E) {
     const OffsetOfNode &FromNode = E->getComponent(I);
 
     SourceLocation ToBeginLoc, ToEndLoc;
+
     if (FromNode.getKind() != OffsetOfNode::Base) {
-      ToBeginLoc = FromNode.getBeginLoc();
-      ToEndLoc = FromNode.getEndLoc();
-      if (Error E = importSeq(ToBeginLoc, ToEndLoc))
-        return std::move(E);
+      Error Err = Error::success();
+      ToBeginLoc = importChecked(Err, FromNode.getBeginLoc());
+      ToEndLoc = importChecked(Err, FromNode.getEndLoc());
+      if (Err)
+        return std::move(Err);
     }
 
     switch (FromNode.getKind()) {
@@ -6883,14 +6920,13 @@ ExpectedStmt ASTNodeImporter::VisitOffsetOfExpr(OffsetOfExpr *E) {
     ToExprs[I] = *ToIndexExprOrErr;
   }
 
-  auto ToType = E->getType();
-  auto ToTypeSourceInfo = E->getTypeSourceInfo();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToRParenLoc = E->getRParenLoc();
-
-  if (Error E =
-          importSeq(ToType, ToTypeSourceInfo, ToOperatorLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToTypeSourceInfo = importChecked(Err, E->getTypeSourceInfo());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return OffsetOfExpr::Create(
       Importer.getToContext(), ToType, ToOperatorLoc, ToTypeSourceInfo, ToNodes,
@@ -6898,13 +6934,13 @@ ExpectedStmt ASTNodeImporter::VisitOffsetOfExpr(OffsetOfExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
-  auto ToType = E->getType();
-  auto ToOperand = E->getOperand();
-  auto ToBeginLoc = E->getBeginLoc();
-  auto ToEndLoc = E->getEndLoc();
-
-  if (Error E = importSeq(ToType, ToOperand, ToBeginLoc, ToEndLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperand = importChecked(Err, E->getOperand());
+  auto ToBeginLoc = importChecked(Err, E->getBeginLoc());
+  auto ToEndLoc = importChecked(Err, E->getEndLoc());
+  if (Err)
+    return std::move(Err);
 
   CanThrowResult ToCanThrow;
   if (E->isValueDependent())
@@ -6917,12 +6953,12 @@ ExpectedStmt ASTNodeImporter::VisitCXXNoexceptExpr(CXXNoexceptExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXThrowExpr(CXXThrowExpr *E) {
-  auto ToSubExpr = E->getSubExpr();
-  auto ToType = E->getType();
-  auto ToThrowLoc = E->getThrowLoc();
-
-  if (Error E = importSeq(ToSubExpr, ToType, ToThrowLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToThrowLoc = importChecked(Err, E->getThrowLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CXXThrowExpr(
       ToSubExpr, ToType, ToThrowLoc, E->isThrownVariableInScope());
@@ -6962,12 +6998,12 @@ ExpectedStmt ASTNodeImporter::VisitCXXDefaultArgExpr(CXXDefaultArgExpr *E) {
 
 ExpectedStmt
 ASTNodeImporter::VisitCXXScalarValueInitExpr(CXXScalarValueInitExpr *E) {
-  auto ToType = E->getType();
-  auto ToTypeSourceInfo = E->getTypeSourceInfo();
-  auto ToRParenLoc = E->getRParenLoc();
-
-  if (Error E = importSeq(ToType, ToTypeSourceInfo, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToTypeSourceInfo = importChecked(Err, E->getTypeSourceInfo());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CXXScalarValueInitExpr(
       ToType, ToTypeSourceInfo, ToRParenLoc);
@@ -6989,15 +7025,15 @@ ASTNodeImporter::VisitCXXBindTemporaryExpr(CXXBindTemporaryExpr *E) {
 }
 
 ExpectedStmt
-ASTNodeImporter::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E) {
-  auto ToConstructor = E->getConstructor();
-  auto ToType = E->getType();
-  auto ToTypeSourceInfo = E->getTypeSourceInfo();
-  auto ToParenOrBraceRange = E->getParenOrBraceRange();
 
-  if (Error E = importSeq(ToConstructor, ToType, ToTypeSourceInfo,
-                           ToParenOrBraceRange))
-    return std::move(E);
+ASTNodeImporter::VisitCXXTemporaryObjectExpr(CXXTemporaryObjectExpr *E) {
+  Error Err = Error::success();
+  auto ToConstructor = importChecked(Err, E->getConstructor());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToTypeSourceInfo = importChecked(Err, E->getTypeSourceInfo());
+  auto ToParenOrBraceRange = importChecked(Err, E->getParenOrBraceRange());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 8> ToArgs(E->getNumArgs());
   if (Error Err = ImportContainerChecked(E->arguments(), ToArgs))
@@ -7016,11 +7052,11 @@ ExpectedDecl ASTNodeImporter::VisitLifetimeExtendedTemporaryDecl(
   if (Error Err = ImportDeclContext(D, DC, LexicalDC))
     return std::move(Err);
 
-  auto Temporary = D->getTemporaryExpr();
-  auto ExtendingDecl = D->getExtendingDecl();
-
-  if (Error E = importSeq(Temporary, ExtendingDecl))
-    return std::move(E);
+  Error Err = Error::success();
+  auto Temporary = importChecked(Err, D->getTemporaryExpr());
+  auto ExtendingDecl = importChecked(Err, D->getExtendingDecl());
+  if (Err)
+    return std::move(Err);
   // FIXME: Should ManglingNumber get numbers associated with 'to' context?
 
   LifetimeExtendedTemporaryDecl *To;
@@ -7035,13 +7071,14 @@ ExpectedDecl ASTNodeImporter::VisitLifetimeExtendedTemporaryDecl(
 
 ExpectedStmt
 ASTNodeImporter::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
-  QualType ToType = E->getType();
-  Expr *ToTemporaryExpr =
-      E->getLifetimeExtendedTemporaryDecl() ? nullptr : E->getSubExpr();
-  LifetimeExtendedTemporaryDecl *ToMaterializedDecl = E->getLifetimeExtendedTemporaryDecl();
-
-  if (Error E = importSeq(ToType, ToTemporaryExpr, ToMaterializedDecl))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  Expr *ToTemporaryExpr = importChecked(
+      Err, E->getLifetimeExtendedTemporaryDecl() ? nullptr : E->getSubExpr());
+  auto ToMaterializedDecl =
+      importChecked(Err, E->getLifetimeExtendedTemporaryDecl());
+  if (Err)
+    return std::move(Err);
 
   if (!ToTemporaryExpr)
     ToTemporaryExpr = cast<Expr>(ToMaterializedDecl->getTemporaryExpr());
@@ -7054,25 +7091,25 @@ ASTNodeImporter::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitPackExpansionExpr(PackExpansionExpr *E) {
-  auto ToType = E->getType();
-  auto ToPattern = E->getPattern();
-  auto ToEllipsisLoc = E->getEllipsisLoc();
-
-  if (Error E = importSeq(ToType, ToPattern, ToEllipsisLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToPattern = importChecked(Err, E->getPattern());
+  auto ToEllipsisLoc = importChecked(Err, E->getEllipsisLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) PackExpansionExpr(
       ToType, ToPattern, ToEllipsisLoc, E->getNumExpansions());
 }
 
 ExpectedStmt ASTNodeImporter::VisitSizeOfPackExpr(SizeOfPackExpr *E) {
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToPack = E->getPack();
-  auto ToPackLoc = E->getPackLoc();
-  auto ToRParenLoc = E->getRParenLoc();
-
-  if (Error E = importSeq(ToOperatorLoc, ToPack, ToPackLoc, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToPack = importChecked(Err, E->getPack());
+  auto ToPackLoc = importChecked(Err, E->getPackLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   Optional<unsigned> Length;
   if (!E->isValueDependent())
@@ -7094,21 +7131,19 @@ ExpectedStmt ASTNodeImporter::VisitSizeOfPackExpr(SizeOfPackExpr *E) {
 
 
 ExpectedStmt ASTNodeImporter::VisitCXXNewExpr(CXXNewExpr *E) {
-     auto ToOperatorNew = E->getOperatorNew();
-  auto ToOperatorDelete = E->getOperatorDelete();
-  auto ToTypeIdParens = E->getTypeIdParens();
-  auto ToArraySize = E->getArraySize();
-  auto ToInitializer = E->getInitializer();
-  auto ToType = E->getType();
-  auto ToAllocatedTypeSourceInfo = E->getAllocatedTypeSourceInfo();
-  auto ToSourceRange = E->getSourceRange();
-  auto ToDirectInitRange = E->getDirectInitRange();
-
-  if (Error E = importSeq(ToOperatorNew, ToOperatorDelete, ToTypeIdParens,
-                           ToArraySize, ToInitializer, ToType,
-                           ToAllocatedTypeSourceInfo, ToSourceRange,
-                           ToDirectInitRange))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToOperatorNew = importChecked(Err, E->getOperatorNew());
+  auto ToOperatorDelete = importChecked(Err, E->getOperatorDelete());
+  auto ToTypeIdParens = importChecked(Err, E->getTypeIdParens());
+  auto ToArraySize = importChecked(Err, E->getArraySize());
+  auto ToInitializer = importChecked(Err, E->getInitializer());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToAllocatedTypeSourceInfo =
+      importChecked(Err, E->getAllocatedTypeSourceInfo());
+  auto ToSourceRange = importChecked(Err, E->getSourceRange());
+  auto ToDirectInitRange = importChecked(Err, E->getDirectInitRange());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 4> ToPlacementArgs(E->getNumPlacementArgs());
   if (Error Err =
@@ -7124,13 +7159,13 @@ ExpectedStmt ASTNodeImporter::VisitCXXNewExpr(CXXNewExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXDeleteExpr(CXXDeleteExpr *E) {
-  auto ToType = E->getType();
-  auto ToOperatorDelete = E->getOperatorDelete();
-  auto ToArgument = E->getArgument();
-  auto ToBeginLoc = E->getBeginLoc();
-
-  if (Error E = importSeq(ToType, ToOperatorDelete, ToArgument, ToBeginLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperatorDelete = importChecked(Err, E->getOperatorDelete());
+  auto ToArgument = importChecked(Err, E->getArgument());
+  auto ToBeginLoc = importChecked(Err, E->getBeginLoc());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CXXDeleteExpr(
       ToType, E->isGlobalDelete(), E->isArrayForm(), E->isArrayFormAsWritten(),
@@ -7139,14 +7174,13 @@ ExpectedStmt ASTNodeImporter::VisitCXXDeleteExpr(CXXDeleteExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXConstructExpr(CXXConstructExpr *E) {
-  auto ToType = E->getType();
-  auto ToLocation = E->getLocation();
-  auto ToConstructor = E->getConstructor();
-  auto ToParenOrBraceRange = E->getParenOrBraceRange();
-
-  if (Error E =
-          importSeq(ToType, ToLocation, ToConstructor, ToParenOrBraceRange))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToLocation = importChecked(Err, E->getLocation());
+  auto ToConstructor = importChecked(Err, E->getConstructor());
+  auto ToParenOrBraceRange = importChecked(Err, E->getParenOrBraceRange());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 6> ToArgs(E->getNumArgs());
   if (Error Err = ImportContainerChecked(E->arguments(), ToArgs))
@@ -7175,12 +7209,12 @@ ExpectedStmt ASTNodeImporter::VisitExprWithCleanups(ExprWithCleanups *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
-  auto ToCallee = E->getCallee();
-  auto ToType = E->getType();
-  auto ToRParenLoc = E->getRParenLoc();
-
-  if (Error E = importSeq(ToCallee, ToType, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToCallee = importChecked(Err, E->getCallee());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 4> ToArgs(E->getNumArgs());
   if (Error Err = ImportContainerChecked(E->arguments(), ToArgs))
@@ -7217,25 +7251,18 @@ ExpectedStmt ASTNodeImporter::VisitCXXBoolLiteralExpr(CXXBoolLiteralExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitMemberExpr(MemberExpr *E) {
-  auto ToBase = E->getBase();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToQualifierLoc = E->getQualifierLoc();
-  auto ToTemplateKeywordLoc = E->getTemplateKeywordLoc();
-  auto ToMemberDecl = E->getMemberDecl();
-  auto ToType = E->getType();
-
-  if (Error E = importSeq(ToBase, ToOperatorLoc, ToQualifierLoc,
-                           ToTemplateKeywordLoc, ToMemberDecl, ToType))
-    return std::move(E);
-
-  auto ToDecl = E->getFoundDecl().getDecl();
-  auto ToName = E->getMemberNameInfo().getName();
-  auto ToLoc = E->getMemberNameInfo().getLoc();
-  auto ToLAngleLoc = E->getLAngleLoc();
-  auto ToRAngleLoc = E->getRAngleLoc();
-
-  if (Error E = importSeq(ToDecl, ToName, ToLoc, ToLAngleLoc, ToRAngleLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBase = importChecked(Err, E->getBase());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToQualifierLoc = importChecked(Err, E->getQualifierLoc());
+  auto ToTemplateKeywordLoc = importChecked(Err, E->getTemplateKeywordLoc());
+  auto ToMemberDecl = importChecked(Err, E->getMemberDecl());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToDecl = importChecked(Err, E->getFoundDecl().getDecl());
+  auto ToName = importChecked(Err, E->getMemberNameInfo().getName());
+  auto ToLoc = importChecked(Err, E->getMemberNameInfo().getLoc());
+  if (Err)
+    return std::move(Err);
 
   DeclAccessPair ToFoundDecl =
       DeclAccessPair::make(ToDecl, E->getFoundDecl().getAccess());
@@ -7260,16 +7287,15 @@ ExpectedStmt ASTNodeImporter::VisitMemberExpr(MemberExpr *E) {
 
 ExpectedStmt
 ASTNodeImporter::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E) {
-    auto ToBase = E->getBase();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToQualifierLoc = E->getQualifierLoc();
-  auto ToScopeTypeInfo = E->getScopeTypeInfo();
-  auto ToColonColonLoc = E->getColonColonLoc();
-  auto ToTildeLoc = E->getTildeLoc();
-
-  if (Error E = importSeq(ToBase, ToOperatorLoc, ToQualifierLoc,
-                           ToScopeTypeInfo, ToColonColonLoc, ToTildeLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToBase = importChecked(Err, E->getBase());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToQualifierLoc = importChecked(Err, E->getQualifierLoc());
+  auto ToScopeTypeInfo = importChecked(Err, E->getScopeTypeInfo());
+  auto ToColonColonLoc = importChecked(Err, E->getColonColonLoc());
+  auto ToTildeLoc = importChecked(Err, E->getTildeLoc());
+  if (Err)
+    return std::move(Err);
 
   PseudoDestructorTypeStorage Storage;
   if (IdentifierInfo *FromII = E->getDestroyedTypeIdentifier()) {
@@ -7292,15 +7318,15 @@ ASTNodeImporter::VisitCXXPseudoDestructorExpr(CXXPseudoDestructorExpr *E) {
 
 ExpectedStmt ASTNodeImporter::VisitCXXDependentScopeMemberExpr(
     CXXDependentScopeMemberExpr *E) {
-  auto ToType = E->getType();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToQualifierLoc = E->getQualifierLoc();
-  auto ToTemplateKeywordLoc = E->getTemplateKeywordLoc();
-  auto ToFirstQualifierFoundInScope = E->getFirstQualifierFoundInScope();
-
-  if (Error E = importSeq(ToType, ToOperatorLoc, ToQualifierLoc,
-                           ToTemplateKeywordLoc, ToFirstQualifierFoundInScope))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToQualifierLoc = importChecked(Err, E->getQualifierLoc());
+  auto ToTemplateKeywordLoc = importChecked(Err, E->getTemplateKeywordLoc());
+  auto ToFirstQualifierFoundInScope =
+      importChecked(Err, E->getFirstQualifierFoundInScope());
+  if (Err)
+    return std::move(Err);
 
   Expr *ToBase = nullptr;
   if (!E->isImplicitAccess()) {
@@ -7311,23 +7337,23 @@ ExpectedStmt ASTNodeImporter::VisitCXXDependentScopeMemberExpr(
   }
 
   TemplateArgumentListInfo ToTAInfo, *ResInfo = nullptr;
+
   if (E->hasExplicitTemplateArgs()) {
-    if (Error Err = ImportTemplateArgumentListInfo(
-        E->getLAngleLoc(), E->getRAngleLoc(), E->template_arguments(),
-        ToTAInfo))
+    if (Error Err =
+            ImportTemplateArgumentListInfo(E->getLAngleLoc(), E->getRAngleLoc(),
+                                           E->template_arguments(), ToTAInfo))
       return std::move(Err);
     ResInfo = &ToTAInfo;
   }
-
-  auto ToMember = E->getMember();
-  auto ToMemberLoc = E->getMemberLoc();
-  if (Error E = importSeq(ToMember, ToMemberLoc))
-    return std::move(E);
+  auto ToMember = importChecked(Err, E->getMember());
+  auto ToMemberLoc = importChecked(Err, E->getMemberLoc());
+  if (Err)
+    return std::move(Err);
   DeclarationNameInfo ToMemberNameInfo(ToMember, ToMemberLoc);
 
   // Import additional name location/type info.
-  if (Error Err = ImportDeclarationNameLoc(
-      E->getMemberNameInfo(), ToMemberNameInfo))
+  if (Error Err =
+          ImportDeclarationNameLoc(E->getMemberNameInfo(), ToMemberNameInfo))
     return std::move(Err);
 
   return CXXDependentScopeMemberExpr::Create(
@@ -7338,16 +7364,15 @@ ExpectedStmt ASTNodeImporter::VisitCXXDependentScopeMemberExpr(
 
 ExpectedStmt
 ASTNodeImporter::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E) {
-  auto ToQualifierLoc = E->getQualifierLoc();
-  auto ToTemplateKeywordLoc = E->getTemplateKeywordLoc();
-  auto ToDeclName = E->getDeclName();
-  auto ToNameLoc = E->getNameInfo().getLoc();
-  auto ToLAngleLoc = E->getLAngleLoc();
-  auto ToRAngleLoc = E->getRAngleLoc();
-
-  if (Error E = importSeq(ToQualifierLoc, ToTemplateKeywordLoc, ToDeclName,
-                           ToNameLoc, ToLAngleLoc, ToRAngleLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToQualifierLoc = importChecked(Err, E->getQualifierLoc());
+  auto ToTemplateKeywordLoc = importChecked(Err, E->getTemplateKeywordLoc());
+  auto ToDeclName = importChecked(Err, E->getDeclName());
+  auto ToNameLoc = importChecked(Err, E->getNameInfo().getLoc());
+  auto ToLAngleLoc = importChecked(Err, E->getLAngleLoc());
+  auto ToRAngleLoc = importChecked(Err, E->getRAngleLoc());
+  if (Err)
+    return std::move(Err);
 
   DeclarationNameInfo ToNameInfo(ToDeclName, ToNameLoc);
   if (Error Err = ImportDeclarationNameLoc(E->getNameInfo(), ToNameInfo))
@@ -7369,12 +7394,12 @@ ASTNodeImporter::VisitDependentScopeDeclRefExpr(DependentScopeDeclRefExpr *E) {
 
 ExpectedStmt ASTNodeImporter::VisitCXXUnresolvedConstructExpr(
     CXXUnresolvedConstructExpr *E) {
-  auto ToLParenLoc = E->getLParenLoc();
-  auto ToRParenLoc = E->getRParenLoc();
-  auto ToTypeSourceInfo = E->getTypeSourceInfo();
-
-  if (Error E = importSeq(ToLParenLoc, ToRParenLoc, ToTypeSourceInfo))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLParenLoc = importChecked(Err, E->getLParenLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  auto ToTypeSourceInfo = importChecked(Err, E->getTypeSourceInfo());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 8> ToArgs(E->arg_size());
   if (Error Err =
@@ -7396,10 +7421,11 @@ ASTNodeImporter::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
   if (!ToQualifierLocOrErr)
     return ToQualifierLocOrErr.takeError();
 
-  auto ToName = E->getName();
-  auto ToNameLoc = E->getNameLoc();
-  if (Error E = importSeq(ToName, ToNameLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToName = importChecked(Err, E->getName());
+  auto ToNameLoc = importChecked(Err, E->getNameLoc());
+  if (Err)
+    return std::move(Err);
   DeclarationNameInfo ToNameInfo(ToName, ToNameLoc);
 
   // Import additional name location/type info.
@@ -7438,16 +7464,15 @@ ASTNodeImporter::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
 
 ExpectedStmt
 ASTNodeImporter::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
-  auto ToType = E->getType();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToQualifierLoc = E->getQualifierLoc();
-  auto ToTemplateKeywordLoc = E->getTemplateKeywordLoc();
-  auto ToName = E->getName();
-  auto ToNameLoc = E->getNameLoc();
-
-  if (Error E = importSeq(ToType, ToOperatorLoc, ToQualifierLoc,
-                           ToTemplateKeywordLoc, ToName, ToNameLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToQualifierLoc = importChecked(Err, E->getQualifierLoc());
+  auto ToTemplateKeywordLoc = importChecked(Err, E->getTemplateKeywordLoc());
+  auto ToName = importChecked(Err, E->getName());
+  auto ToNameLoc = importChecked(Err, E->getNameLoc());
+  if (Err)
+    return std::move(Err);
 
   DeclarationNameInfo ToNameInfo(ToName, ToNameLoc);
   // Import additional name location/type info.
@@ -7486,12 +7511,12 @@ ASTNodeImporter::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCallExpr(CallExpr *E) {
-  auto ToCallee = E->getCallee();
-  auto ToType = E->getType();
-  auto ToRParenLoc = E->getRParenLoc();
-
-  if (Error E = importSeq(ToCallee, ToType, ToRParenLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToCallee = importChecked(Err, E->getCallee());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  if (Err)
+    return std::move(Err);
 
   unsigned NumArgs = E->getNumArgs();
   llvm::SmallVector<Expr *, 2> ToArgs(NumArgs);
@@ -7534,12 +7559,12 @@ ExpectedStmt ASTNodeImporter::VisitLambdaExpr(LambdaExpr *E) {
   if (Error Err = ImportContainerChecked(E->capture_inits(), ToCaptureInits))
     return std::move(Err);
 
-  auto ToIntroducerRange = E->getIntroducerRange();
-  auto ToCaptureDefaultLoc = E->getCaptureDefaultLoc();
-  auto ToEndLoc = E->getEndLoc();
-
-  if (Error E = importSeq(ToIntroducerRange, ToCaptureDefaultLoc, ToEndLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToIntroducerRange = importChecked(Err, E->getIntroducerRange());
+  auto ToCaptureDefaultLoc = importChecked(Err, E->getCaptureDefaultLoc());
+  auto ToEndLoc = importChecked(Err, E->getEndLoc());
+  if (Err)
+    return std::move(Err);
 
   return LambdaExpr::Create(
       Importer.getToContext(), ToClass, ToIntroducerRange,
@@ -7550,12 +7575,12 @@ ExpectedStmt ASTNodeImporter::VisitLambdaExpr(LambdaExpr *E) {
 
 
 ExpectedStmt ASTNodeImporter::VisitInitListExpr(InitListExpr *E) {
-  auto ToLBraceLoc = E->getLBraceLoc();
-  auto ToRBraceLoc = E->getRBraceLoc();
-  auto ToType = E->getType();
-
-  if (Error E = importSeq(ToLBraceLoc, ToRBraceLoc, ToType))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLBraceLoc = importChecked(Err, E->getLBraceLoc());
+  auto ToRBraceLoc = importChecked(Err, E->getRBraceLoc());
+  auto ToType = importChecked(Err, E->getType());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<Expr *, 4> ToExprs(E->getNumInits());
   if (Error Err = ImportContainerChecked(E->inits(), ToExprs))
@@ -7610,12 +7635,12 @@ ExpectedStmt ASTNodeImporter::VisitCXXStdInitializerListExpr(
 
 ExpectedStmt ASTNodeImporter::VisitCXXInheritedCtorInitExpr(
     CXXInheritedCtorInitExpr *E) {
-  auto ToLocation = E->getLocation();
-  auto ToType = E->getType();
-  auto ToConstructor = E->getConstructor();
-
-  if (Error E = importSeq(ToLocation, ToType, ToConstructor))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToLocation = importChecked(Err, E->getLocation());
+  auto ToType = importChecked(Err, E->getType());
+  auto ToConstructor = importChecked(Err, E->getConstructor());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) CXXInheritedCtorInitExpr(
       ToLocation, ToType, ToConstructor, E->constructsVBase(),
@@ -7623,12 +7648,12 @@ ExpectedStmt ASTNodeImporter::VisitCXXInheritedCtorInitExpr(
 }
 
 ExpectedStmt ASTNodeImporter::VisitArrayInitLoopExpr(ArrayInitLoopExpr *E) {
-  auto ToType = E->getType();
-  auto ToCommonExpr = E->getCommonExpr();
-  auto ToSubExpr = E->getSubExpr();
-
-  if (Error E = importSeq(ToType, ToCommonExpr, ToSubExpr))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToCommonExpr = importChecked(Err, E->getCommonExpr());
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) ArrayInitLoopExpr(
       ToType, ToCommonExpr, ToSubExpr);
@@ -7659,16 +7684,15 @@ ExpectedStmt ASTNodeImporter::VisitCXXDefaultInitExpr(CXXDefaultInitExpr *E) {
 }
 
 ExpectedStmt ASTNodeImporter::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
-  auto ToType = E->getType();
-  auto ToSubExpr = E->getSubExpr();
-  auto ToTypeInfoAsWritten = E->getTypeInfoAsWritten();
-  auto ToOperatorLoc = E->getOperatorLoc();
-  auto ToRParenLoc = E->getRParenLoc();
-  auto ToAngleBrackets = E->getAngleBrackets();
-
-  if (Error E = importSeq(ToType, ToSubExpr, ToTypeInfoAsWritten,
-                           ToOperatorLoc, ToRParenLoc, ToAngleBrackets))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToSubExpr = importChecked(Err, E->getSubExpr());
+  auto ToTypeInfoAsWritten = importChecked(Err, E->getTypeInfoAsWritten());
+  auto ToOperatorLoc = importChecked(Err, E->getOperatorLoc());
+  auto ToRParenLoc = importChecked(Err, E->getRParenLoc());
+  auto ToAngleBrackets = importChecked(Err, E->getAngleBrackets());
+  if (Err)
+    return std::move(Err);
 
   ExprValueKind VK = E->getValueKind();
   CastKind CK = E->getCastKind();
@@ -7700,25 +7724,25 @@ ExpectedStmt ASTNodeImporter::VisitCXXNamedCastExpr(CXXNamedCastExpr *E) {
 
 ExpectedStmt ASTNodeImporter::VisitSubstNonTypeTemplateParmExpr(
     SubstNonTypeTemplateParmExpr *E) {
-  auto ToType = E->getType();
-  auto ToExprLoc = E->getExprLoc();
-  auto ToParameter = E->getParameter();
-  auto ToReplacement = E->getReplacement();
-
-  if (Error E = importSeq(ToType, ToExprLoc, ToParameter, ToReplacement))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToExprLoc = importChecked(Err, E->getExprLoc());
+  auto ToParameter = importChecked(Err, E->getParameter());
+  auto ToReplacement = importChecked(Err, E->getReplacement());
+  if (Err)
+    return std::move(Err);
 
   return new (Importer.getToContext()) SubstNonTypeTemplateParmExpr(
       ToType, E->getValueKind(), ToExprLoc, ToParameter, ToReplacement);
 }
 
 ExpectedStmt ASTNodeImporter::VisitTypeTraitExpr(TypeTraitExpr *E) {
-  auto ToType = E->getType();
-  auto ToBeginLoc = E->getBeginLoc();
-  auto ToEndLoc = E->getEndLoc();
-
-  if (Error E = importSeq(ToType, ToBeginLoc, ToEndLoc))
-    return std::move(E);
+  Error Err = Error::success();
+  auto ToType = importChecked(Err, E->getType());
+  auto ToBeginLoc = importChecked(Err, E->getBeginLoc());
+  auto ToEndLoc = importChecked(Err, E->getEndLoc());
+  if (Err)
+    return std::move(Err);
 
   SmallVector<TypeSourceInfo *, 4> ToArgs(E->getNumArgs());
   if (Error Err = ImportContainerChecked(E->getArgs(), ToArgs))
