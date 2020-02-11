@@ -84,117 +84,19 @@ public:
 
   // Manually implement a move constructor as we must clear the old allocator's
   // slabs as a matter of correctness.
-  BumpPtrAllocatorImpl(BumpPtrAllocatorImpl &&Old)
-      : CurPtr(Old.CurPtr), End(Old.End), Slabs(std::move(Old.Slabs)),
-        CustomSizedSlabs(std::move(Old.CustomSizedSlabs)),
-        BytesAllocated(Old.BytesAllocated), RedZoneSize(Old.RedZoneSize),
-        Allocator(std::move(Old.Allocator)) {
-    Old.CurPtr = Old.End = nullptr;
-    Old.BytesAllocated = 0;
-    Old.Slabs.clear();
-    Old.CustomSizedSlabs.clear();
-  }
+  BumpPtrAllocatorImpl(BumpPtrAllocatorImpl &&Old);
 
-  ~BumpPtrAllocatorImpl() {
-    DeallocateSlabs(Slabs.begin(), Slabs.end());
-    DeallocateCustomSizedSlabs();
-  }
+  ~BumpPtrAllocatorImpl();
 
-  BumpPtrAllocatorImpl &operator=(BumpPtrAllocatorImpl &&RHS) {
-    DeallocateSlabs(Slabs.begin(), Slabs.end());
-    DeallocateCustomSizedSlabs();
-
-    CurPtr = RHS.CurPtr;
-    End = RHS.End;
-    BytesAllocated = RHS.BytesAllocated;
-    RedZoneSize = RHS.RedZoneSize;
-    Slabs = std::move(RHS.Slabs);
-    CustomSizedSlabs = std::move(RHS.CustomSizedSlabs);
-    Allocator = std::move(RHS.Allocator);
-
-    RHS.CurPtr = RHS.End = nullptr;
-    RHS.BytesAllocated = 0;
-    RHS.Slabs.clear();
-    RHS.CustomSizedSlabs.clear();
-    return *this;
-  }
+  BumpPtrAllocatorImpl &operator=(BumpPtrAllocatorImpl &&RHS);
 
   /// Deallocate all but the current slab and reset the current pointer
   /// to the beginning of it, freeing all memory allocated so far.
-  void Reset() {
-    // Deallocate all but the first slab, and deallocate all custom-sized slabs.
-    DeallocateCustomSizedSlabs();
-    CustomSizedSlabs.clear();
-
-    if (Slabs.empty())
-      return;
-
-    // Reset the state.
-    BytesAllocated = 0;
-    CurPtr = (char *)Slabs.front();
-    End = CurPtr + SlabSize;
-
-    __asan_poison_memory_region(*Slabs.begin(), computeSlabSize(0));
-    DeallocateSlabs(std::next(Slabs.begin()), Slabs.end());
-    Slabs.erase(std::next(Slabs.begin()), Slabs.end());
-  }
+  void Reset();
 
   /// Allocate space at the specified alignment.
   LLVM_ATTRIBUTE_RETURNS_NONNULL LLVM_ATTRIBUTE_RETURNS_NOALIAS void *
-  Allocate(size_t Size, Align Alignment) {
-    // Keep track of how many bytes we've allocated.
-    BytesAllocated += Size;
-
-    size_t Adjustment = offsetToAlignedAddr(CurPtr, Alignment);
-    assert(Adjustment + Size >= Size && "Adjustment + Size must not overflow");
-
-    size_t SizeToAllocate = Size;
-#if LLVM_ADDRESS_SANITIZER_BUILD
-    // Add trailing bytes as a "red zone" under ASan.
-    SizeToAllocate += RedZoneSize;
-#endif
-
-    // Check if we have enough space.
-    if (Adjustment + SizeToAllocate <= size_t(End - CurPtr)) {
-      char *AlignedPtr = CurPtr + Adjustment;
-      CurPtr = AlignedPtr + SizeToAllocate;
-      // Update the allocation point of this memory block in MemorySanitizer.
-      // Without this, MemorySanitizer messages for values originated from here
-      // will point to the allocation of the entire slab.
-      __msan_allocated_memory(AlignedPtr, Size);
-      // Similarly, tell ASan about this space.
-      __asan_unpoison_memory_region(AlignedPtr, Size);
-      return AlignedPtr;
-    }
-
-    // If Size is really big, allocate a separate slab for it.
-    size_t PaddedSize = SizeToAllocate + Alignment.value() - 1;
-    if (PaddedSize > SizeThreshold) {
-      void *NewSlab = Allocator.Allocate(PaddedSize, 0);
-      // We own the new slab and don't want anyone reading anyting other than
-      // pieces returned from this method.  So poison the whole slab.
-      __asan_poison_memory_region(NewSlab, PaddedSize);
-      CustomSizedSlabs.push_back(std::make_pair(NewSlab, PaddedSize));
-
-      uintptr_t AlignedAddr = alignAddr(NewSlab, Alignment);
-      assert(AlignedAddr + Size <= (uintptr_t)NewSlab + PaddedSize);
-      char *AlignedPtr = (char*)AlignedAddr;
-      __msan_allocated_memory(AlignedPtr, Size);
-      __asan_unpoison_memory_region(AlignedPtr, Size);
-      return AlignedPtr;
-    }
-
-    // Otherwise, start a new slab and try again.
-    StartNewSlab();
-    uintptr_t AlignedAddr = alignAddr(CurPtr, Alignment);
-    assert(AlignedAddr + SizeToAllocate <= (uintptr_t)End &&
-           "Unable to allocate memory!");
-    char *AlignedPtr = (char*)AlignedAddr;
-    CurPtr = AlignedPtr + SizeToAllocate;
-    __msan_allocated_memory(AlignedPtr, Size);
-    __asan_unpoison_memory_region(AlignedPtr, Size);
-    return AlignedPtr;
-  }
+  Allocate(size_t Size, Align Alignment);
 
   inline LLVM_ATTRIBUTE_RETURNS_NONNULL LLVM_ATTRIBUTE_RETURNS_NOALIAS void *
   Allocate(size_t Size, size_t Alignment) {
@@ -222,27 +124,7 @@ public:
   /// The returned value is negative iff the object is inside a custom-size
   /// slab.
   /// Returns an empty optional if the pointer is not found in the allocator.
-  llvm::Optional<int64_t> identifyObject(const void *Ptr) {
-    const char *P = static_cast<const char *>(Ptr);
-    int64_t InSlabIdx = 0;
-    for (size_t Idx = 0, E = Slabs.size(); Idx < E; Idx++) {
-      const char *S = static_cast<const char *>(Slabs[Idx]);
-      if (P >= S && P < S + computeSlabSize(Idx))
-        return InSlabIdx + static_cast<int64_t>(P - S);
-      InSlabIdx += static_cast<int64_t>(computeSlabSize(Idx));
-    }
-
-    // Use negative index to denote custom sized slabs.
-    int64_t InCustomSizedSlabIdx = -1;
-    for (size_t Idx = 0, E = CustomSizedSlabs.size(); Idx < E; Idx++) {
-      const char *S = static_cast<const char *>(CustomSizedSlabs[Idx].first);
-      size_t Size = CustomSizedSlabs[Idx].second;
-      if (P >= S && P < S + Size)
-        return InCustomSizedSlabIdx - static_cast<int64_t>(P - S);
-      InCustomSizedSlabIdx -= static_cast<int64_t>(Size);
-    }
-    return None;
-  }
+  llvm::Optional<int64_t> identifyObject(const void *Ptr);
 
   /// A wrapper around identifyObject that additionally asserts that
   /// the object is indeed within the allocator.
@@ -271,14 +153,7 @@ public:
     return Out / alignof(T);
   }
 
-  size_t getTotalMemory() const {
-    size_t TotalMemory = 0;
-    for (auto I = Slabs.begin(), E = Slabs.end(); I != E; ++I)
-      TotalMemory += computeSlabSize(std::distance(Slabs.begin(), I));
-    for (auto &PtrAndSize : CustomSizedSlabs)
-      TotalMemory += PtrAndSize.second;
-    return TotalMemory;
-  }
+  size_t getTotalMemory() const;
 
   size_t getBytesAllocated() const { return BytesAllocated; }
 
@@ -329,40 +204,211 @@ private:
 
   /// Allocate a new slab and move the bump pointers over into the new
   /// slab, modifying CurPtr and End.
-  void StartNewSlab() {
-    size_t AllocatedSlabSize = computeSlabSize(Slabs.size());
-
-    void *NewSlab = Allocator.Allocate(AllocatedSlabSize, 0);
-    // We own the new slab and don't want anyone reading anything other than
-    // pieces returned from this method.  So poison the whole slab.
-    __asan_poison_memory_region(NewSlab, AllocatedSlabSize);
-
-    Slabs.push_back(NewSlab);
-    CurPtr = (char *)(NewSlab);
-    End = ((char *)NewSlab) + AllocatedSlabSize;
-  }
+  void StartNewSlab();
 
   /// Deallocate a sequence of slabs.
   void DeallocateSlabs(SmallVectorImpl<void *>::iterator I,
-                       SmallVectorImpl<void *>::iterator E) {
-    for (; I != E; ++I) {
-      size_t AllocatedSlabSize =
-          computeSlabSize(std::distance(Slabs.begin(), I));
-      Allocator.Deallocate(*I, AllocatedSlabSize);
-    }
-  }
+                       SmallVectorImpl<void *>::iterator E);
 
   /// Deallocate all memory for custom sized slabs.
-  void DeallocateCustomSizedSlabs() {
-    for (auto &PtrAndSize : CustomSizedSlabs) {
-      void *Ptr = PtrAndSize.first;
-      size_t Size = PtrAndSize.second;
-      Allocator.Deallocate(Ptr, Size);
-    }
-  }
+  void DeallocateCustomSizedSlabs();
 
   template <typename T> friend class SpecificBumpPtrAllocator;
 };
+
+extern template class BumpPtrAllocatorImpl<>;
+
+// Manually implement a move constructor as we must clear the old allocator's
+// slabs as a matter of correctness.
+template <typename A, size_t SS, size_t ST, size_t GD>
+BumpPtrAllocatorImpl<A, SS, ST, GD>::BumpPtrAllocatorImpl(
+    BumpPtrAllocatorImpl &&Old)
+    : CurPtr(Old.CurPtr), End(Old.End), Slabs(std::move(Old.Slabs)),
+      CustomSizedSlabs(std::move(Old.CustomSizedSlabs)),
+      BytesAllocated(Old.BytesAllocated), RedZoneSize(Old.RedZoneSize),
+      Allocator(std::move(Old.Allocator)) {
+  Old.CurPtr = Old.End = nullptr;
+  Old.BytesAllocated = 0;
+  Old.Slabs.clear();
+  Old.CustomSizedSlabs.clear();
+}
+
+template <typename A, size_t SS, size_t ST, size_t GD>
+BumpPtrAllocatorImpl<A, SS, ST, GD>::~BumpPtrAllocatorImpl() {
+  DeallocateSlabs(Slabs.begin(), Slabs.end());
+  DeallocateCustomSizedSlabs();
+}
+
+template <typename A, size_t SS, size_t ST, size_t GD>
+BumpPtrAllocatorImpl<A, SS, ST, GD> &
+BumpPtrAllocatorImpl<A, SS, ST, GD>::operator=(BumpPtrAllocatorImpl &&RHS) {
+  DeallocateSlabs(Slabs.begin(), Slabs.end());
+  DeallocateCustomSizedSlabs();
+
+  CurPtr = RHS.CurPtr;
+  End = RHS.End;
+  BytesAllocated = RHS.BytesAllocated;
+  RedZoneSize = RHS.RedZoneSize;
+  Slabs = std::move(RHS.Slabs);
+  CustomSizedSlabs = std::move(RHS.CustomSizedSlabs);
+  Allocator = std::move(RHS.Allocator);
+
+  RHS.CurPtr = RHS.End = nullptr;
+  RHS.BytesAllocated = 0;
+  RHS.Slabs.clear();
+  RHS.CustomSizedSlabs.clear();
+  return *this;
+}
+
+/// Deallocate all but the current slab and reset the current pointer
+/// to the beginning of it, freeing all memory allocated so far.
+template <typename A, size_t SlabSize, size_t ST, size_t GD>
+void BumpPtrAllocatorImpl<A, SlabSize, ST, GD>::Reset() {
+  // Deallocate all but the first slab, and deallocate all custom-sized slabs.
+  DeallocateCustomSizedSlabs();
+  CustomSizedSlabs.clear();
+
+  if (Slabs.empty())
+    return;
+
+  // Reset the state.
+  BytesAllocated = 0;
+  CurPtr = (char *)Slabs.front();
+  End = CurPtr + SlabSize;
+
+  __asan_poison_memory_region(*Slabs.begin(), computeSlabSize(0));
+  DeallocateSlabs(std::next(Slabs.begin()), Slabs.end());
+  Slabs.erase(std::next(Slabs.begin()), Slabs.end());
+}
+
+/// Allocate space at the specified alignment.
+template <typename A, size_t SlabSize, size_t SizeThreshold, size_t GD>
+void *BumpPtrAllocatorImpl<A, SlabSize, SizeThreshold, GD>::Allocate(
+    size_t Size, Align Alignment) {
+  // Keep track of how many bytes we've allocated.
+  BytesAllocated += Size;
+
+  size_t Adjustment = offsetToAlignedAddr(CurPtr, Alignment);
+  assert(Adjustment + Size >= Size && "Adjustment + Size must not overflow");
+
+  size_t SizeToAllocate = Size;
+#if LLVM_ADDRESS_SANITIZER_BUILD
+  // Add trailing bytes as a "red zone" under ASan.
+  SizeToAllocate += RedZoneSize;
+#endif
+
+  // Check if we have enough space.
+  if (Adjustment + SizeToAllocate <= size_t(End - CurPtr)) {
+    char *AlignedPtr = CurPtr + Adjustment;
+    CurPtr = AlignedPtr + SizeToAllocate;
+    // Update the allocation point of this memory block in MemorySanitizer.
+    // Without this, MemorySanitizer messages for values originated from here
+    // will point to the allocation of the entire slab.
+    __msan_allocated_memory(AlignedPtr, Size);
+    // Similarly, tell ASan about this space.
+    __asan_unpoison_memory_region(AlignedPtr, Size);
+    return AlignedPtr;
+  }
+
+  // If Size is really big, allocate a separate slab for it.
+  size_t PaddedSize = SizeToAllocate + Alignment.value() - 1;
+  if (PaddedSize > SizeThreshold) {
+    void *NewSlab = Allocator.Allocate(PaddedSize, 0);
+    // We own the new slab and don't want anyone reading anyting other than
+    // pieces returned from this method.  So poison the whole slab.
+    __asan_poison_memory_region(NewSlab, PaddedSize);
+    CustomSizedSlabs.push_back(std::make_pair(NewSlab, PaddedSize));
+
+    uintptr_t AlignedAddr = alignAddr(NewSlab, Alignment);
+    assert(AlignedAddr + Size <= (uintptr_t)NewSlab + PaddedSize);
+    char *AlignedPtr = (char*)AlignedAddr;
+    __msan_allocated_memory(AlignedPtr, Size);
+    __asan_unpoison_memory_region(AlignedPtr, Size);
+    return AlignedPtr;
+  }
+
+  // Otherwise, start a new slab and try again.
+  StartNewSlab();
+  uintptr_t AlignedAddr = alignAddr(CurPtr, Alignment);
+  assert(AlignedAddr + SizeToAllocate <= (uintptr_t)End &&
+         "Unable to allocate memory!");
+  char *AlignedPtr = (char*)AlignedAddr;
+  CurPtr = AlignedPtr + SizeToAllocate;
+  __msan_allocated_memory(AlignedPtr, Size);
+  __asan_unpoison_memory_region(AlignedPtr, Size);
+  return AlignedPtr;
+}
+
+template <typename A, size_t SS, size_t ST, size_t GD>
+llvm::Optional<int64_t>
+BumpPtrAllocatorImpl<A, SS, ST, GD>::identifyObject(const void *Ptr) {
+  const char *P = static_cast<const char *>(Ptr);
+  int64_t InSlabIdx = 0;
+  for (size_t Idx = 0, E = Slabs.size(); Idx < E; Idx++) {
+    const char *S = static_cast<const char *>(Slabs[Idx]);
+    if (P >= S && P < S + computeSlabSize(Idx))
+      return InSlabIdx + static_cast<int64_t>(P - S);
+    InSlabIdx += static_cast<int64_t>(computeSlabSize(Idx));
+  }
+
+  // Use negative index to denote custom sized slabs.
+  int64_t InCustomSizedSlabIdx = -1;
+  for (size_t Idx = 0, E = CustomSizedSlabs.size(); Idx < E; Idx++) {
+    const char *S = static_cast<const char *>(CustomSizedSlabs[Idx].first);
+    size_t Size = CustomSizedSlabs[Idx].second;
+    if (P >= S && P < S + Size)
+      return InCustomSizedSlabIdx - static_cast<int64_t>(P - S);
+    InCustomSizedSlabIdx -= static_cast<int64_t>(Size);
+  }
+  return None;
+}
+
+template <typename A, size_t SS, size_t ST, size_t GD>
+size_t BumpPtrAllocatorImpl<A, SS, ST, GD>::getTotalMemory() const {
+  size_t TotalMemory = 0;
+  for (auto I = Slabs.begin(), E = Slabs.end(); I != E; ++I)
+    TotalMemory += computeSlabSize(std::distance(Slabs.begin(), I));
+  for (auto &PtrAndSize : CustomSizedSlabs)
+    TotalMemory += PtrAndSize.second;
+  return TotalMemory;
+}
+
+/// Allocate a new slab and move the bump pointers over into the new
+/// slab, modifying CurPtr and End.
+template <typename A, size_t SS, size_t ST, size_t GD>
+void BumpPtrAllocatorImpl<A, SS, ST, GD>::StartNewSlab() {
+  size_t AllocatedSlabSize = computeSlabSize(Slabs.size());
+
+  void *NewSlab = Allocator.Allocate(AllocatedSlabSize, 0);
+  // We own the new slab and don't want anyone reading anything other than
+  // pieces returned from this method.  So poison the whole slab.
+  __asan_poison_memory_region(NewSlab, AllocatedSlabSize);
+
+  Slabs.push_back(NewSlab);
+  CurPtr = (char *)(NewSlab);
+  End = ((char *)NewSlab) + AllocatedSlabSize;
+}
+
+/// Deallocate a sequence of slabs.
+template <typename A, size_t SS, size_t ST, size_t GD>
+void BumpPtrAllocatorImpl<A, SS, ST, GD>::DeallocateSlabs(
+    SmallVectorImpl<void *>::iterator I, SmallVectorImpl<void *>::iterator E) {
+  for (; I != E; ++I) {
+    size_t AllocatedSlabSize =
+        computeSlabSize(std::distance(Slabs.begin(), I));
+    Allocator.Deallocate(*I, AllocatedSlabSize);
+  }
+}
+
+/// Deallocate all memory for custom sized slabs.
+template <typename A, size_t SS, size_t ST, size_t GD>
+void BumpPtrAllocatorImpl<A, SS, ST, GD>::DeallocateCustomSizedSlabs() {
+  for (auto &PtrAndSize : CustomSizedSlabs) {
+    void *Ptr = PtrAndSize.first;
+    size_t Size = PtrAndSize.second;
+    Allocator.Deallocate(Ptr, Size);
+  }
+}
 
 /// The standard BumpPtrAllocator which just uses the default template
 /// parameters.
