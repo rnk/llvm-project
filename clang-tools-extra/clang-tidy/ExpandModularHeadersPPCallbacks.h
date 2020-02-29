@@ -13,6 +13,13 @@
 #include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/DenseSet.h"
 
+namespace llvm {
+namespace vfs {
+class OverlayFileSystem;
+class InMemoryFileSystem;
+}
+}
+
 namespace clang {
 class CompilerInstance;
 
