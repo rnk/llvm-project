@@ -82,5 +82,7 @@ template("tablegen") {
 
     # Let targets depending on this find the generated file.
     public_configs = [ ":$config_name" ]
+
+    pool = "//llvm/utils/TableGen:tablegen"
   }
 }

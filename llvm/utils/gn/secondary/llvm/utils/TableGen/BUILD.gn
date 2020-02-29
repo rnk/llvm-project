@@ -60,3 +60,8 @@ executable("llvm-tblgen") {
     "X86RecognizableInstr.cpp",
   ]
 }
+
+pool("tablegen") {
+  depth = 8
+}
+
