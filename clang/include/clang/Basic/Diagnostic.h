@@ -47,6 +47,7 @@ class LangOptions;
 class Preprocessor;
 class SourceManager;
 class StoredDiagnostic;
+class NestedNameSpecifier;
 
 namespace tok {
 
@@ -1308,6 +1309,15 @@ inline DiagnosticBuilder DiagnosticsEngine::Report(SourceLocation Loc,
 inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                            llvm::Error &&E) {
   DB.AddString(toString(std::move(E)));
+  return DB;
+}
+
+/// Insertion operator for diagnostics.  This allows sending
+/// NestedNameSpecifiers into a diagnostic with <<.
+inline const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
+                                           NestedNameSpecifier *NNS) {
+  DB.AddTaggedVal(reinterpret_cast<intptr_t>(NNS),
+                  DiagnosticsEngine::ak_nestednamespec);
   return DB;
 }
 
