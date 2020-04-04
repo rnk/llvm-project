@@ -19,6 +19,7 @@
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/FileSystem.h"
 #include <cstddef>
 #include <cstdint>
 #include <memory>

@@ -35,6 +35,7 @@
 #define LLVM_CLANG_BASIC_SOURCEMANAGER_H
 
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"

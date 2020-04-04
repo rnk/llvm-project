@@ -14,6 +14,7 @@
 #define LLVM_SUPPORT_ENDIAN_H
 
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/SwapByteOrder.h"
 #include <cassert>
 #include <cstddef>
