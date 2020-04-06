@@ -363,6 +363,24 @@ namespace clang {
     Unspecified = 3,
   };
 
+  /// The kind of a tag type.
+  enum TagTypeKind {
+    /// The "struct" keyword.
+    TTK_Struct,
+
+    /// The "__interface" keyword.
+    TTK_Interface,
+
+    /// The "union" keyword.
+    TTK_Union,
+
+    /// The "class" keyword.
+    TTK_Class,
+
+    /// The "enum" keyword.
+    TTK_Enum
+  };
+
   llvm::StringRef getParameterABISpelling(ParameterABI kind);
 } // end namespace clang
 

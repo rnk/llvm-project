@@ -13,7 +13,8 @@
 #ifndef LLVM_CLANG_AST_DECLARATIONNAME_H
 #define LLVM_CLANG_AST_DECLARATIONNAME_H
 
-#include "clang/AST/Type.h"
+#include "clang/AST/QualType.h"
+#include "clang/AST/TemplateName.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/OperatorKinds.h"

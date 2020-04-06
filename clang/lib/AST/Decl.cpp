@@ -2801,6 +2801,13 @@ bool FunctionDecl::isVariadic() const {
   return false;
 }
 
+SourceLocation FunctionDecl::getEllipsisLoc() const {
+  const auto *FPT = getType()->getAs<FunctionProtoType>();
+  if (FPT && FPT->isVariadic())
+    return FPT->getEllipsisLoc();
+  return SourceLocation();
+}
+
 FunctionDecl::DefaultedFunctionInfo *
 FunctionDecl::DefaultedFunctionInfo::Create(ASTContext &Context,
                                             ArrayRef<DeclAccessPair> Lookups) {
@@ -3367,6 +3374,10 @@ FunctionTypeLoc FunctionDecl::getFunctionTypeLoc() const {
              : FunctionTypeLoc();
 }
 
+QualType FunctionDecl::getReturnType() const {
+  return getType()->castAs<FunctionType>()->getReturnType();
+}
+
 SourceRange FunctionDecl::getReturnTypeSourceRange() const {
   FunctionTypeLoc FTL = getFunctionTypeLoc();
   if (!FTL)
@@ -3399,9 +3410,26 @@ SourceRange FunctionDecl::getParametersSourceRange() const {
   return SourceRange(Begin, End);
 }
 
+QualType FunctionDecl::getDeclaredReturnType() const {
+  auto *TSI = getTypeSourceInfo();
+  QualType T = TSI ? TSI->getType() : getType();
+  return T->castAs<FunctionType>()->getReturnType();
+}
+
+ExceptionSpecificationType FunctionDecl::getExceptionSpecType() const {
+  auto *TSI = getTypeSourceInfo();
+  QualType T = TSI ? TSI->getType() : getType();
+  const auto *FPT = T->getAs<FunctionProtoType>();
+  return FPT ? FPT->getExceptionSpecType() : EST_None;
+}
+
 SourceRange FunctionDecl::getExceptionSpecSourceRange() const {
   FunctionTypeLoc FTL = getFunctionTypeLoc();
   return FTL ? FTL.getExceptionSpecRange() : SourceRange();
+}
+
+QualType FunctionDecl::getCallResultType() const {
+  return getType()->castAs<FunctionType>()->getCallResultType(getASTContext());
 }
 
 /// For an inline function definition in C, or for a gnu_inline function
@@ -4170,6 +4198,10 @@ TagDecl *TagDecl::getDefinition() const {
       return R;
 
   return nullptr;
+}
+
+StringRef TagDecl::getKindName() const {
+  return TypeWithKeyword::getTagTypeKindName(getTagKind());
 }
 
 void TagDecl::setQualifierInfo(NestedNameSpecifierLoc QualifierLoc) {

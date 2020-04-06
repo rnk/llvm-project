@@ -3800,24 +3800,6 @@ public:
   }
 };
 
-/// The kind of a tag type.
-enum TagTypeKind {
-  /// The "struct" keyword.
-  TTK_Struct,
-
-  /// The "__interface" keyword.
-  TTK_Interface,
-
-  /// The "union" keyword.
-  TTK_Union,
-
-  /// The "class" keyword.
-  TTK_Class,
-
-  /// The "enum" keyword.
-  TTK_Enum
-};
-
 /// The elaboration keyword that precedes a qualified type name or
 /// introduces an elaborated-type-specifier.
 enum ElaboratedTypeKeyword {
@@ -4813,33 +4795,6 @@ public:
 
   /// Apply the collected qualifiers to the given type.
   QualType apply(const ASTContext &Context, const Type* T) const;
-};
-
-/// A container of type source information.
-///
-/// A client can read the relevant info using TypeLoc wrappers, e.g:
-/// @code
-/// TypeLoc TL = TypeSourceInfo->getTypeLoc();
-/// TL.getBeginLoc().print(OS, SrcMgr);
-/// @endcode
-class alignas(8) TypeSourceInfo {
-  // Contains a memory block after the class, used for type source information,
-  // allocated by ASTContext.
-  friend class ASTContext;
-
-  QualType Ty;
-
-  TypeSourceInfo(QualType ty) : Ty(ty) {}
-
-public:
-  /// Return the type wrapped by this type source info.
-  QualType getType() const { return Ty; }
-
-  /// Return the TypeLoc wrapper for the type source info.
-  TypeLoc getTypeLoc() const; // implemented in TypeLoc.h
-
-  /// Override the type stored in this TypeSourceInfo. Use with caution!
-  void overrideType(QualType T) { Ty = T; }
 };
 
 // Inline function definitions.

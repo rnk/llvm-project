@@ -20,10 +20,11 @@
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/NestedNameSpecifier.h"
+#include "clang/AST/QualType.h"
 #include "clang/AST/Redeclarable.h"
-#include "clang/AST/Type.h"
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/ExceptionSpecificationType.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/Linkage.h"
@@ -1984,12 +1985,7 @@ public:
   void setRangeEnd(SourceLocation E) { EndRangeLoc = E; }
 
   /// Returns the location of the ellipsis of a variadic function.
-  SourceLocation getEllipsisLoc() const {
-    const auto *FPT = getType()->getAs<FunctionProtoType>();
-    if (FPT && FPT->isVariadic())
-      return FPT->getEllipsisLoc();
-    return SourceLocation();
-  }
+  SourceLocation getEllipsisLoc() const;
 
   SourceRange getSourceRange() const override LLVM_READONLY;
 
@@ -2447,9 +2443,7 @@ public:
   /// (for example if the function type was adjusted by an attribute).
   FunctionTypeLoc getFunctionTypeLoc() const;
 
-  QualType getReturnType() const {
-    return getType()->castAs<FunctionType>()->getReturnType();
-  }
+  QualType getReturnType() const;
 
   /// Attempt to compute an informative source range covering the
   /// function return type. This may omit qualifiers and other information with
@@ -2464,29 +2458,17 @@ public:
 
   /// Get the declared return type, which may differ from the actual return
   /// type if the return type is deduced.
-  QualType getDeclaredReturnType() const {
-    auto *TSI = getTypeSourceInfo();
-    QualType T = TSI ? TSI->getType() : getType();
-    return T->castAs<FunctionType>()->getReturnType();
-  }
+  QualType getDeclaredReturnType() const;
 
   /// Gets the ExceptionSpecificationType as declared.
-  ExceptionSpecificationType getExceptionSpecType() const {
-    auto *TSI = getTypeSourceInfo();
-    QualType T = TSI ? TSI->getType() : getType();
-    const auto *FPT = T->getAs<FunctionProtoType>();
-    return FPT ? FPT->getExceptionSpecType() : EST_None;
-  }
+  ExceptionSpecificationType getExceptionSpecType() const;
 
   /// Attempt to compute an informative source range covering the
   /// function exception specification, if any.
   SourceRange getExceptionSpecSourceRange() const;
 
   /// Determine the type of an expression that calls this function.
-  QualType getCallResultType() const {
-    return getType()->castAs<FunctionType>()->getCallResultType(
-        getASTContext());
-  }
+  QualType getCallResultType() const;
 
   /// Returns the storage class as written in the source. For the
   /// computed linkage of symbol, see getLinkage.
@@ -3396,9 +3378,7 @@ public:
   ///  the struct/union/class/enum.
   TagDecl *getDefinition() const;
 
-  StringRef getKindName() const {
-    return TypeWithKeyword::getTagTypeKindName(getTagKind());
-  }
+  StringRef getKindName() const;
 
   TagKind getTagKind() const {
     return static_cast<TagKind>(TagDeclBits.TagDeclKind);
