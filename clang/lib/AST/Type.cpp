@@ -329,6 +329,13 @@ QualType QualType::getSingleStepDesugaredTypeImpl(QualType type,
   return Context.getQualifiedType(desugar, split.Quals);
 }
 
+SplitQualType SplitQualType::getSingleStepDesugaredType() const {
+  SplitQualType desugar =
+    Ty->getLocallyUnqualifiedSingleStepDesugaredType().split();
+  desugar.Quals.addConsistentQualifiers(Quals);
+  return desugar;
+}
+
 // Check that no type class is polymorphic. LLVM style RTTI should be used
 // instead. If absolutely needed an exception can still be added here by
 // defining the appropriate macro (but please don't do this).
@@ -423,11 +430,26 @@ SplitQualType QualType::getSplitUnqualifiedTypeImpl(QualType type) {
   return SplitQualType(lastTypeWithQuals, quals);
 }
 
-QualType QualType::IgnoreParens(QualType T) {
-  // FIXME: this seems inherently un-qualifiers-safe.
+QualType QualType::IgnoreParens() const {
+  QualType T = *this;
   while (const auto *PT = T->getAs<ParenType>())
     T = PT->getInnerType();
   return T;
+}
+
+bool QualType::isAtLeastAsQualifiedAs(QualType self, QualType other) {
+  Qualifiers OtherQuals = other.getQualifiers();
+
+  // Ignore __unaligned qualifier if this type is a void.
+  if (self.getUnqualifiedType()->isVoidType())
+    OtherQuals.removeUnaligned();
+
+  return self.getQualifiers().compatiblyIncludes(OtherQuals);
+}
+
+bool QualType::isCForbiddenLValueType() const {
+  return ((getTypePtr()->isVoidType() && !hasQualifiers()) ||
+          getTypePtr()->isFunctionType());
 }
 
 /// This will check for a T (which should be a Type which can act as
@@ -2336,16 +2358,22 @@ bool QualType::isNonWeakInMRRWithObjCWeak(const ASTContext &Context) const {
          getObjCLifetime() != Qualifiers::OCL_Weak;
 }
 
-bool QualType::hasNonTrivialToPrimitiveDefaultInitializeCUnion(const RecordDecl *RD) {
-  return RD->hasNonTrivialToPrimitiveDefaultInitializeCUnion();
+bool QualType::hasNonTrivialToPrimitiveDefaultInitializeCUnion() const {
+  if (auto *RD = getTypePtr()->getBaseElementTypeUnsafe()->getAsRecordDecl())
+    return RD->hasNonTrivialToPrimitiveDefaultInitializeCUnion();
+  return false;
 }
 
-bool QualType::hasNonTrivialToPrimitiveDestructCUnion(const RecordDecl *RD) {
-  return RD->hasNonTrivialToPrimitiveDestructCUnion();
+bool QualType::hasNonTrivialToPrimitiveDestructCUnion() const {
+  if (auto *RD = getTypePtr()->getBaseElementTypeUnsafe()->getAsRecordDecl())
+    return RD->hasNonTrivialToPrimitiveDestructCUnion();
+  return false;
 }
 
-bool QualType::hasNonTrivialToPrimitiveCopyCUnion(const RecordDecl *RD) {
-  return RD->hasNonTrivialToPrimitiveCopyCUnion();
+bool QualType::hasNonTrivialToPrimitiveCopyCUnion() const {
+  if (auto *RD = getTypePtr()->getBaseElementTypeUnsafe()->getAsRecordDecl())
+    return RD->hasNonTrivialToPrimitiveCopyCUnion();
+  return false;
 }
 
 QualType::PrimitiveDefaultInitializeKind
@@ -4161,6 +4189,14 @@ QualType::DestructionKind QualType::isDestructedTypeImpl(QualType type) {
   }
 
   return DK_none;
+}
+
+bool QualType::isCanonicalAsParamImpl(const Type *T) {
+  assert(T->isCanonicalUnqualified() && "non-canonical should use fast path");
+  if (T->isVariablyModifiedType() && T->hasSizedVLAType())
+    return false;
+
+  return !isa<FunctionType>(T) && !isa<ArrayType>(T);
 }
 
 CXXRecordDecl *MemberPointerType::getMostRecentCXXRecordDecl() const {
