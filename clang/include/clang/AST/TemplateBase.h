@@ -17,7 +17,7 @@
 #include "clang/AST/DependenceFlags.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/TemplateName.h"
-#include "clang/AST/Type.h"
+#include "clang/AST/QualType.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceLocation.h"
 #include "llvm/ADT/APInt.h"
@@ -684,33 +684,6 @@ struct alignas(void *) ASTTemplateKWAndArgsInfo {
 
 const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,
                                     const TemplateArgument &Arg);
-
-inline TemplateSpecializationType::iterator
-    TemplateSpecializationType::end() const {
-  return getArgs() + getNumArgs();
-}
-
-inline DependentTemplateSpecializationType::iterator
-    DependentTemplateSpecializationType::end() const {
-  return getArgs() + getNumArgs();
-}
-
-inline const TemplateArgument &
-    TemplateSpecializationType::getArg(unsigned Idx) const {
-  assert(Idx < getNumArgs() && "Template argument out of range");
-  return getArgs()[Idx];
-}
-
-inline const TemplateArgument &
-    DependentTemplateSpecializationType::getArg(unsigned Idx) const {
-  assert(Idx < getNumArgs() && "Template argument out of range");
-  return getArgs()[Idx];
-}
-
-inline const TemplateArgument &AutoType::getArg(unsigned Idx) const {
-  assert(Idx < getNumArgs() && "Template argument out of range");
-  return getArgs()[Idx];
-}
 
 } // namespace clang
 

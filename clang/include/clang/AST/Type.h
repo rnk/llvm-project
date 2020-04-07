@@ -20,6 +20,7 @@
 #include "clang/AST/DependenceFlags.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/QualType.h"
+#include "clang/AST/TemplateBase.h"
 #include "clang/AST/TemplateName.h"
 #include "clang/Basic/AddressSpaces.h"
 #include "clang/Basic/AttrKinds.h"
@@ -3517,7 +3518,10 @@ public:
     return AutoTypeBits.NumArgs;
   }
 
-  const TemplateArgument &getArg(unsigned Idx) const; // in TemplateBase.h
+  const TemplateArgument &getArg(unsigned Idx) const {
+    assert(Idx < getNumArgs() && "Template argument out of range");
+    return getArgs()[Idx];
+  }
 
   ArrayRef<TemplateArgument> getTypeConstraintArguments() const {
     return {getArgs(), getNumArgs()};
@@ -3672,7 +3676,7 @@ public:
   using iterator = const TemplateArgument *;
 
   iterator begin() const { return getArgs(); }
-  iterator end() const; // defined inline in TemplateBase.h
+  iterator end() const { return getArgs() + getNumArgs(); }
 
   /// Retrieve the name of the template that we are specializing.
   TemplateName getTemplateName() const { return Template; }
@@ -3689,7 +3693,10 @@ public:
 
   /// Retrieve a specific template argument as a type.
   /// \pre \c isArgType(Arg)
-  const TemplateArgument &getArg(unsigned Idx) const; // in TemplateBase.h
+  const TemplateArgument &getArg(unsigned Idx) const {
+    assert(Idx < getNumArgs() && "Template argument out of range");
+    return getArgs()[Idx];
+  }
 
   ArrayRef<TemplateArgument> template_arguments() const {
     return {getArgs(), getNumArgs()};
@@ -4048,7 +4055,10 @@ public:
     return DependentTemplateSpecializationTypeBits.NumArgs;
   }
 
-  const TemplateArgument &getArg(unsigned Idx) const; // in TemplateBase.h
+  const TemplateArgument &getArg(unsigned Idx) const {
+    assert(Idx < getNumArgs() && "Template argument out of range");
+    return getArgs()[Idx];
+  }
 
   ArrayRef<TemplateArgument> template_arguments() const {
     return {getArgs(), getNumArgs()};
@@ -4057,7 +4067,7 @@ public:
   using iterator = const TemplateArgument *;
 
   iterator begin() const { return getArgs(); }
-  iterator end() const; // inline in TemplateBase.h
+  iterator end() const { return getArgs() + getNumArgs(); }
 
   bool isSugared() const { return false; }
   QualType desugar() const { return QualType(this, 0); }
