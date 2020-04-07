@@ -445,6 +445,8 @@ protected:
 
     unsigned : NumExprBits;
 
+    unsigned LhsIsBase : 1; // True if LHS is the base.
+
     SourceLocation RBracketLoc;
   };
 

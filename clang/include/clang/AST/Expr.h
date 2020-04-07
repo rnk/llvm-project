@@ -20,9 +20,9 @@
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DependenceFlags.h"
 #include "clang/AST/OperationKinds.h"
+#include "clang/AST/QualType.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/TemplateBase.h"
-#include "clang/AST/Type.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/FixedPoint.h"
 #include "clang/Basic/LangOptions.h"
@@ -140,18 +140,7 @@ protected:
 
 public:
   QualType getType() const { return TR; }
-  void setType(QualType t) {
-    // In C++, the type of an expression is always adjusted so that it
-    // will not have reference type (C++ [expr]p6). Use
-    // QualType::getNonReferenceType() to retrieve the non-reference
-    // type. Additionally, inspect Expr::isLvalue to determine whether
-    // an expression that is adjusted in this manner should be
-    // considered an lvalue.
-    assert((t.isNull() || !t->isReferenceType()) &&
-           "Expressions can't have reference type");
-
-    TR = t;
-  }
+  void setType(QualType t);
 
   ExprDependence getDependence() const {
     return static_cast<ExprDependence>(ExprBits.Dependent);
@@ -399,14 +388,7 @@ public:
 
   /// getValueKindForType - Given a formal return or parameter type,
   /// give its value kind.
-  static ExprValueKind getValueKindForType(QualType T) {
-    if (const ReferenceType *RT = T->getAs<ReferenceType>())
-      return (isa<LValueReferenceType>(RT)
-                ? VK_LValue
-                : (RT->getPointeeType()->isFunctionType()
-                     ? VK_LValue : VK_XValue));
-    return VK_RValue;
-  }
+  static ExprValueKind getValueKindForType(QualType T);
 
   /// getValueKind - The value kind that this expression produces.
   ExprValueKind getValueKind() const {
@@ -476,17 +458,10 @@ public:
   bool refersToGlobalRegisterVar() const;
 
   /// Returns whether this expression has a placeholder type.
-  bool hasPlaceholderType() const {
-    return getType()->isPlaceholderType();
-  }
+  bool hasPlaceholderType() const;
 
   /// Returns whether this expression has a specific placeholder type.
-  bool hasPlaceholderType(BuiltinType::Kind K) const {
-    assert(BuiltinType::isPlaceholderTypeKind(K));
-    if (const BuiltinType *BT = dyn_cast<BuiltinType>(getType()))
-      return BT->getKind() == K;
-    return false;
-  }
+  bool hasPlaceholderType(/*BuiltinType::Kind*/ unsigned OpaqueBTK) const;
 
   /// isKnownToHaveBooleanValue - Return true if this is an integer expression
   /// that is known to return 0 or 1.  This happens for _Bool/bool expressions
@@ -2512,17 +2487,13 @@ class ArraySubscriptExpr : public Expr {
   enum { LHS, RHS, END_EXPR };
   Stmt *SubExprs[END_EXPR];
 
-  bool lhsIsBase() const { return getRHS()->getType()->isIntegerType(); }
+  bool lhsIsBase() const { return ArraySubscriptExprBits.LhsIsBase; }
+  void setLhsIsBase();
+  friend class ASTStmtReader;
 
 public:
   ArraySubscriptExpr(Expr *lhs, Expr *rhs, QualType t, ExprValueKind VK,
-                     ExprObjectKind OK, SourceLocation rbracketloc)
-      : Expr(ArraySubscriptExprClass, t, VK, OK) {
-    SubExprs[LHS] = lhs;
-    SubExprs[RHS] = rhs;
-    ArraySubscriptExprBits.RBracketLoc = rbracketloc;
-    setDependence(computeDependence(this));
-  }
+                     ExprObjectKind OK, SourceLocation rbracketloc);
 
   /// Create an empty array subscript expression.
   explicit ArraySubscriptExpr(EmptyShell Shell)
@@ -5033,10 +5004,7 @@ public:
   /// Get the initializer to use for each array element.
   Expr *getSubExpr() const { return cast<Expr>(SubExprs[1]); }
 
-  llvm::APInt getArraySize() const {
-    return cast<ConstantArrayType>(getType()->castAsArrayTypeUnsafe())
-        ->getSize();
-  }
+  llvm::APInt getArraySize() const;
 
   static bool classof(const Stmt *S) {
     return S->getStmtClass() == ArrayInitLoopExprClass;
@@ -5896,9 +5864,7 @@ public:
     return reinterpret_cast<Expr * const *>(SubExprs);
   }
 
-  bool isVolatile() const {
-    return getPtr()->getType()->getPointeeType().isVolatileQualified();
-  }
+  bool isVolatile() const;
 
   bool isCmpXChg() const {
     return getOp() == AO__c11_atomic_compare_exchange_strong ||
@@ -5955,11 +5921,7 @@ public:
 /// still needs to be performed and/or an error diagnostic emitted.
 class TypoExpr : public Expr {
 public:
-  TypoExpr(QualType T) : Expr(TypoExprClass, T, VK_LValue, OK_Ordinary) {
-    assert(T->isDependentType() && "TypoExpr given a non-dependent type");
-    setDependence(ExprDependence::TypeValueInstantiation |
-                  ExprDependence::Error);
-  }
+  TypoExpr(QualType T);
 
   child_range children() {
     return child_range(child_iterator(), child_iterator());

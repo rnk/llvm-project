@@ -369,9 +369,7 @@ public:
   static CoroutineBodyStmt *Create(const ASTContext &C, EmptyShell,
                                    unsigned NumParams);
 
-  bool hasDependentPromiseType() const {
-    return getPromiseDecl()->getType()->isDependentType();
-  }
+  bool hasDependentPromiseType() const;
 
   /// Retrieve the body of the coroutine as written. This will be either
   /// a CompoundStmt or a TryStmt.

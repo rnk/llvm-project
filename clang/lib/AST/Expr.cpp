@@ -36,6 +36,19 @@
 #include <cstring>
 using namespace clang;
 
+void Expr::setType(QualType t) {
+  // In C++, the type of an expression is always adjusted so that it
+  // will not have reference type (C++ [expr]p6). Use
+  // QualType::getNonReferenceType() to retrieve the non-reference
+  // type. Additionally, inspect Expr::isLvalue to determine whether
+  // an expression that is adjusted in this manner should be
+  // considered an lvalue.
+  assert((t.isNull() || !t->isReferenceType()) &&
+         "Expressions can't have reference type");
+
+  TR = t;
+}
+
 const Expr *Expr::getBestDynamicClassTypeExpr() const {
   const Expr *E = this;
   while (true) {
@@ -1535,6 +1548,21 @@ UnaryExprOrTypeTraitExpr::UnaryExprOrTypeTraitExpr(
   setDependence(computeDependence(this));
 }
 
+ArraySubscriptExpr::ArraySubscriptExpr(Expr *lhs, Expr *rhs, QualType t,
+                                       ExprValueKind VK, ExprObjectKind OK,
+                                       SourceLocation rbracketloc)
+    : Expr(ArraySubscriptExprClass, t, VK, OK) {
+  SubExprs[LHS] = lhs;
+  SubExprs[RHS] = rhs;
+  setLhsIsBase();
+  ArraySubscriptExprBits.RBracketLoc = rbracketloc;
+  setDependence(computeDependence(this));
+}
+
+void ArraySubscriptExpr::setLhsIsBase() {
+  ArraySubscriptExprBits.LhsIsBase = getRHS()->getType()->isIntegerType();
+}
+
 MemberExpr::MemberExpr(Expr *Base, bool IsArrow, SourceLocation OperatorLoc,
                        ValueDecl *MemberDecl,
                        const DeclarationNameInfo &NameInfo, QualType T,
@@ -2616,6 +2644,15 @@ bool Expr::isUnusedResultAWarning(const Expr *&WarnE, SourceLocation &Loc,
     return cast<ExprWithCleanups>(this)->getSubExpr()
                ->isUnusedResultAWarning(WarnE, Loc, R1, R2, Ctx);
   }
+}
+
+ExprValueKind Expr::getValueKindForType(QualType T) {
+  if (const ReferenceType *RT = T->getAs<ReferenceType>())
+    return (
+        isa<LValueReferenceType>(RT)
+            ? VK_LValue
+            : (RT->getPointeeType()->isFunctionType() ? VK_LValue : VK_XValue));
+  return VK_RValue;
 }
 
 /// isOBJCGCCandidate - Check if an expression is objc gc'able.
@@ -3860,6 +3897,16 @@ bool Expr::refersToGlobalRegisterVar() const {
   return false;
 }
 
+bool Expr::hasPlaceholderType() const { return getType()->isPlaceholderType(); }
+
+bool Expr::hasPlaceholderType(/*BuiltinType::Kind*/ unsigned OpaqueBTK) const {
+  auto K = static_cast<BuiltinType::Kind>(OpaqueBTK);
+  assert(BuiltinType::isPlaceholderTypeKind(K));
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(getType()))
+    return BT->getKind() == K;
+  return false;
+}
+
 bool Expr::isSameComparisonOperand(const Expr* E1, const Expr* E2) {
   E1 = E1->IgnoreParens();
   E2 = E2->IgnoreParens();
@@ -4310,6 +4357,10 @@ SourceLocation DesignatedInitUpdateExpr::getEndLoc() const {
   return getBase()->getEndLoc();
 }
 
+llvm::APInt ArrayInitLoopExpr::getArraySize() const {
+  return cast<ConstantArrayType>(getType()->castAsArrayTypeUnsafe())->getSize();
+}
+
 ParenListExpr::ParenListExpr(SourceLocation LParenLoc, ArrayRef<Expr *> Exprs,
                              SourceLocation RParenLoc)
     : Expr(ParenListExprClass, QualType(), VK_RValue, OK_Ordinary),
@@ -4515,6 +4566,16 @@ QualType AtomicExpr::getValueType() const {
   if (auto AT = T->getAs<AtomicType>())
     return AT->getValueType();
   return T;
+}
+
+bool AtomicExpr::isVolatile() const {
+  return getPtr()->getType()->getPointeeType().isVolatileQualified();
+}
+
+TypoExpr::TypoExpr(QualType T)
+    : Expr(TypoExprClass, T, VK_LValue, OK_Ordinary) {
+  assert(T->isDependentType() && "TypoExpr given a non-dependent type");
+  setDependence(ExprDependence::TypeValueInstantiation | ExprDependence::Error);
 }
 
 QualType OMPArraySectionExpr::getBaseOriginalType(const Expr *Base) {

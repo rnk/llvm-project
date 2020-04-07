@@ -125,3 +125,7 @@ CoroutineBodyStmt::CoroutineBodyStmt(CoroutineBodyStmt::CtorArgs const &Args)
   std::copy(Args.ParamMoves.begin(), Args.ParamMoves.end(),
             const_cast<Stmt **>(getParamMoves().data()));
 }
+
+bool CoroutineBodyStmt::hasDependentPromiseType() const {
+  return getPromiseDecl()->getType()->isDependentType();
+}

@@ -900,6 +900,7 @@ void ASTStmtReader::VisitArraySubscriptExpr(ArraySubscriptExpr *E) {
   E->setLHS(Record.readSubExpr());
   E->setRHS(Record.readSubExpr());
   E->setRBracketLoc(readSourceLocation());
+  E->setLhsIsBase();
 }
 
 void ASTStmtReader::VisitOMPArraySectionExpr(OMPArraySectionExpr *E) {
