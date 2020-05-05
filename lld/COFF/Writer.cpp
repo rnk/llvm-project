@@ -17,7 +17,6 @@
 #include "Symbols.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
-#include "lld/Common/Threads.h"
 #include "lld/Common/Timer.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -1785,7 +1784,7 @@ void Writer::writeSections() {
     // ADD instructions).
     if (sec->header.Characteristics & IMAGE_SCN_CNT_CODE)
       memset(secBuf, 0xCC, sec->getRawSize());
-    parallelForEach(sec->chunks, [&](Chunk *c) {
+    parallel::for_each(sec->chunks, [&](Chunk *c) {
       c->writeTo(secBuf + c->getRVA() - sec->getRVA());
     });
   }
@@ -1856,14 +1855,14 @@ void Writer::sortExceptionTable() {
   uint8_t *end = bufAddr(lastPdata) + lastPdata->getSize();
   if (config->machine == AMD64) {
     struct Entry { ulittle32_t begin, end, unwind; };
-    parallelSort(
+    parallel::sort(
         MutableArrayRef<Entry>((Entry *)begin, (Entry *)end),
         [](const Entry &a, const Entry &b) { return a.begin < b.begin; });
     return;
   }
   if (config->machine == ARMNT || config->machine == ARM64) {
     struct Entry { ulittle32_t begin, unwind; };
-    parallelSort(
+    parallel::sort(
         MutableArrayRef<Entry>((Entry *)begin, (Entry *)end),
         [](const Entry &a, const Entry &b) { return a.begin < b.begin; });
     return;

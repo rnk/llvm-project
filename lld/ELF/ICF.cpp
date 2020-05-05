@@ -80,10 +80,10 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "Writer.h"
-#include "lld/Common/Threads.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/BinaryFormat/ELF.h"
 #include "llvm/Object/ELF.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/TimeProfiler.h"
 #include "llvm/Support/xxhash.h"
 #include <algorithm>
@@ -419,11 +419,11 @@ void ICF<ELFT>::forEachClass(llvm::function_ref<void(size_t, size_t)> fn) {
   boundaries[0] = 0;
   boundaries[numShards] = sections.size();
 
-  parallelForEachN(1, numShards, [&](size_t i) {
+  parallel::for_each_n(1, numShards, [&](size_t i) {
     boundaries[i] = findBoundary((i - 1) * step, sections.size());
   });
 
-  parallelForEachN(1, numShards + 1, [&](size_t i) {
+  parallel::for_each_n(1, numShards + 1, [&](size_t i) {
     if (boundaries[i - 1] < boundaries[i])
       forEachClassRange(boundaries[i - 1], boundaries[i], fn);
   });
@@ -467,12 +467,11 @@ template <class ELFT> void ICF<ELFT>::run() {
   }
 
   // Initially, we use hash values to partition sections.
-  parallelForEach(sections, [&](InputSection *s) {
-    s->eqClass[0] = xxHash64(s->data());
-  });
+  parallel::for_each(
+      sections, [&](InputSection *s) { s->eqClass[0] = xxHash64(s->data()); });
 
   for (unsigned cnt = 0; cnt != 2; ++cnt) {
-    parallelForEach(sections, [&](InputSection *s) {
+    parallel::for_each(sections, [&](InputSection *s) {
       if (s->areRelocsRela)
         combineRelocHashes<ELFT>(cnt, s, s->template relas<ELFT>());
       else

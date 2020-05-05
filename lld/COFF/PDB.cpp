@@ -16,7 +16,6 @@
 #include "TypeMerger.h"
 #include "Writer.h"
 #include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Threads.h"
 #include "lld/Common/Timer.h"
 #include "llvm/DebugInfo/CodeView/DebugFrameDataSubsection.h"
 #include "llvm/DebugInfo/CodeView/DebugSubsectionRecord.h"
@@ -57,6 +56,7 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <memory>
@@ -1339,7 +1339,7 @@ void PDBLinker::addObjectsToPDB() {
   if (!publics.empty()) {
     publicSymbols = publics.size();
     // Sort the public symbols and add them to the stream.
-    parallelSort(publics, [](const PublicSym32 &l, const PublicSym32 &r) {
+    parallel::sort(publics, [](const PublicSym32 &l, const PublicSym32 &r) {
       return l.Name < r.Name;
     });
     for (const PublicSym32 &pub : publics)

@@ -22,17 +22,6 @@
 namespace llvm {
 
 namespace parallel {
-struct sequential_execution_policy {};
-struct parallel_execution_policy {};
-
-template <typename T>
-struct is_execution_policy
-    : public std::integral_constant<
-          bool, llvm::is_one_of<T, sequential_execution_policy,
-                                parallel_execution_policy>::value> {};
-
-constexpr sequential_execution_policy seq{};
-constexpr parallel_execution_policy par{};
 
 // Strategy for the default executor used by the parallel routines provided by
 // this file. It defaults to using all hardware threads and should be
@@ -169,59 +158,54 @@ void parallel_for_each_n(IndexTy Begin, IndexTy End, FuncTy Fn) {
 
 #endif
 
-template <typename Iter>
-using DefComparator =
-    std::less<typename std::iterator_traits<Iter>::value_type>;
-
 } // namespace detail
 
-// sequential algorithm implementations.
-template <class Policy, class RandomAccessIterator,
-          class Comparator = detail::DefComparator<RandomAccessIterator>>
-void sort(Policy policy, RandomAccessIterator Start, RandomAccessIterator End,
+template <class RandomAccessIterator,
+          class Comparator = std::less<
+              typename std::iterator_traits<RandomAccessIterator>::value_type>>
+void sort(RandomAccessIterator Start, RandomAccessIterator End,
           const Comparator &Comp = Comparator()) {
-  static_assert(is_execution_policy<Policy>::value,
-                "Invalid execution policy!");
+#if LLVM_ENABLE_THREADS
+  if (strategy.ThreadsRequested != 1) {
+    detail::parallel_sort(Start, End, Comp);
+    return;
+  }
+#endif
   llvm::sort(Start, End, Comp);
 }
 
-template <class Policy, class IterTy, class FuncTy>
-void for_each(Policy policy, IterTy Begin, IterTy End, FuncTy Fn) {
-  static_assert(is_execution_policy<Policy>::value,
-                "Invalid execution policy!");
+template <class IterTy, class FuncTy>
+void for_each(IterTy Begin, IterTy End, FuncTy Fn) {
+#if LLVM_ENABLE_THREADS
+  if (strategy.ThreadsRequested != 1) {
+    detail::parallel_for_each(Begin, End, Fn);
+    return;
+  }
+#endif
   std::for_each(Begin, End, Fn);
 }
 
-template <class Policy, class IndexTy, class FuncTy>
-void for_each_n(Policy policy, IndexTy Begin, IndexTy End, FuncTy Fn) {
-  static_assert(is_execution_policy<Policy>::value,
-                "Invalid execution policy!");
-  for (IndexTy I = Begin; I != End; ++I)
+template <class FuncTy> void for_each_n(size_t Begin, size_t End, FuncTy Fn) {
+#if LLVM_ENABLE_THREADS
+  if (strategy.ThreadsRequested != 1) {
+    detail::parallel_for_each_n(Begin, End, Fn);
+    return;
+  }
+#endif
+  for (size_t I = Begin; I != End; ++I)
     Fn(I);
 }
 
-// Parallel algorithm implementations, only available when LLVM_ENABLE_THREADS
-// is true.
-#if LLVM_ENABLE_THREADS
-template <class RandomAccessIterator,
-          class Comparator = detail::DefComparator<RandomAccessIterator>>
-void sort(parallel_execution_policy policy, RandomAccessIterator Start,
-          RandomAccessIterator End, const Comparator &Comp = Comparator()) {
-  detail::parallel_sort(Start, End, Comp);
+// Range wrappers.
+template <class RangeTy,
+          class Comparator = std::less<decltype(*std::begin(RangeTy()))>>
+void sort(RangeTy &&R, const Comparator &Comp = Comparator()) {
+  llvm::parallel::sort(std::begin(R), std::end(R), Comp);
 }
 
-template <class IterTy, class FuncTy>
-void for_each(parallel_execution_policy policy, IterTy Begin, IterTy End,
-              FuncTy Fn) {
-  detail::parallel_for_each(Begin, End, Fn);
+template <class RangeTy, class FuncTy> void for_each(RangeTy &&R, FuncTy Fn) {
+  llvm::parallel::for_each(std::begin(R), std::end(R), Fn);
 }
-
-template <class IndexTy, class FuncTy>
-void for_each_n(parallel_execution_policy policy, IndexTy Begin, IndexTy End,
-                FuncTy Fn) {
-  detail::parallel_for_each_n(Begin, End, Fn);
-}
-#endif
 
 } // namespace parallel
 } // namespace llvm

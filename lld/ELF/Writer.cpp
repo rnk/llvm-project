@@ -22,9 +22,9 @@
 #include "lld/Common/Filesystem.h"
 #include "lld/Common/Memory.h"
 #include "lld/Common/Strings.h"
-#include "lld/Common/Threads.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringSwitch.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/RandomNumberGenerator.h"
 #include "llvm/Support/SHA1.h"
 #include "llvm/Support/TimeProfiler.h"
@@ -1749,7 +1749,7 @@ template <class ELFT> void Writer<ELFT>::finalizeAddressDependentContent() {
 // the end of the section are relaxed.
 static void fixSymbolsAfterShrinking() {
   for (InputFile *File : objectFiles) {
-    parallelForEach(File->getSymbols(), [&](Symbol *Sym) {
+    parallel::for_each(File->getSymbols(), [&](Symbol *Sym) {
       auto *def = dyn_cast<Defined>(Sym);
       if (!def)
         return;
@@ -1808,7 +1808,7 @@ template <class ELFT> void Writer<ELFT>::optimizeBasicBlockJumps() {
     // Delete all fall through jump instructions.  Also, check if two
     // consecutive jump instructions can be flipped so that a fall
     // through jmp instruction can be deleted.
-    parallelForEachN(0, sections.size(), [&](size_t i) {
+    parallel::for_each_n(0, sections.size(), [&](size_t i) {
       InputSection *next = i + 1 < sections.size() ? sections[i + 1] : nullptr;
       InputSection &is = *sections[i];
       result[i] =
@@ -2905,7 +2905,7 @@ computeHash(llvm::MutableArrayRef<uint8_t> hashBuf,
   std::vector<uint8_t> hashes(chunks.size() * hashBuf.size());
 
   // Compute hash values.
-  parallelForEachN(0, chunks.size(), [&](size_t i) {
+  parallel::for_each_n(0, chunks.size(), [&](size_t i) {
     hashFn(hashes.data() + i * hashBuf.size(), chunks[i]);
   });
 

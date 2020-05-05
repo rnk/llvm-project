@@ -19,7 +19,6 @@
 #include "lld/Common/Memory.h"
 #include "lld/Common/Reproduce.h"
 #include "lld/Common/Strings.h"
-#include "lld/Common/Threads.h"
 #include "lld/Common/Version.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Object/Wasm.h"
@@ -27,6 +26,7 @@
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/TarWriter.h"
@@ -679,7 +679,7 @@ static void wrapSymbols(ArrayRef<WrappedSymbol> wrapped) {
   }
 
   // Update pointers in input files.
-  parallelForEach(symtab->objectFiles, [&](InputFile *file) {
+  parallel::for_each(symtab->objectFiles, [&](InputFile *file) {
     MutableArrayRef<Symbol *> syms = file->getMutableSymbols();
     for (size_t i = 0, e = syms.size(); i != e; ++i)
       if (Symbol *s = map.lookup(syms[i]))

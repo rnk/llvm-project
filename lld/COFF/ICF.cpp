@@ -21,7 +21,6 @@
 #include "Chunks.h"
 #include "Symbols.h"
 #include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Threads.h"
 #include "lld/Common/Timer.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/Support/Debug.h"
@@ -230,10 +229,10 @@ void ICF::forEachClass(std::function<void(size_t, size_t)> fn) {
   size_t boundaries[numShards + 1];
   boundaries[0] = 0;
   boundaries[numShards] = chunks.size();
-  parallelForEachN(1, numShards, [&](size_t i) {
+  parallel::for_each_n(1, numShards, [&](size_t i) {
     boundaries[i] = findBoundary((i - 1) * step, chunks.size());
   });
-  parallelForEachN(1, numShards + 1, [&](size_t i) {
+  parallel::for_each_n(1, numShards + 1, [&](size_t i) {
     if (boundaries[i - 1] < boundaries[i]) {
       forEachClassRange(boundaries[i - 1], boundaries[i], fn);
     }
@@ -266,14 +265,14 @@ void ICF::run(ArrayRef<Chunk *> vec) {
         sc->eqClass[0] = nextId++;
 
   // Initially, we use hash values to partition sections.
-  parallelForEach(chunks, [&](SectionChunk *sc) {
+  parallel::for_each(chunks, [&](SectionChunk *sc) {
     sc->eqClass[0] = xxHash64(sc->getContents());
   });
 
   // Combine the hashes of the sections referenced by each section into its
   // hash.
   for (unsigned cnt = 0; cnt != 2; ++cnt) {
-    parallelForEach(chunks, [&](SectionChunk *sc) {
+    parallel::for_each(chunks, [&](SectionChunk *sc) {
       uint32_t hash = sc->eqClass[cnt % 2];
       for (Symbol *b : sc->symbols())
         if (auto *sym = dyn_cast_or_null<DefinedRegular>(b))

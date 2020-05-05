@@ -20,7 +20,6 @@
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
 #include "lld/Common/Strings.h"
-#include "lld/Common/Threads.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -31,6 +30,7 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/LEB128.h"
+#include "llvm/Support/Parallel.h"
 
 #include <cstdarg>
 #include <map>
@@ -189,7 +189,7 @@ void Writer::writeHeader() {
 
 void Writer::writeSections() {
   uint8_t *buf = buffer->getBufferStart();
-  parallelForEach(outputSections, [buf](OutputSection *s) {
+  parallel::for_each(outputSections, [buf](OutputSection *s) {
     assert(s->isNeeded());
     s->writeTo(buf);
   });

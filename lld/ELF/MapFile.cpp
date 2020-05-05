@@ -26,9 +26,9 @@
 #include "Symbols.h"
 #include "SyntheticSections.h"
 #include "lld/Common/Strings.h"
-#include "lld/Common/Threads.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -84,7 +84,7 @@ static SymbolMapTy getSectionSyms(ArrayRef<Defined *> syms) {
 static DenseMap<Symbol *, std::string>
 getSymbolStrings(ArrayRef<Defined *> syms) {
   std::vector<std::string> str(syms.size());
-  parallelForEachN(0, syms.size(), [&](size_t i) {
+  parallel::for_each_n(0, syms.size(), [&](size_t i) {
     raw_string_ostream os(str[i]);
     OutputSection *osec = syms[i]->getOutputSection();
     uint64_t vma = syms[i]->getVA();

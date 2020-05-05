@@ -23,7 +23,7 @@
 #include "Symbols.h"
 #include "Writer.h"
 #include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Threads.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -74,7 +74,7 @@ static SymbolMapTy getSectionSyms(ArrayRef<DefinedRegular *> syms) {
 static DenseMap<DefinedRegular *, std::string>
 getSymbolStrings(ArrayRef<DefinedRegular *> syms) {
   std::vector<std::string> str(syms.size());
-  parallelForEachN((size_t)0, syms.size(), [&](size_t i) {
+  parallel::for_each_n((size_t)0, syms.size(), [&](size_t i) {
     raw_string_ostream os(str[i]);
     writeHeader(os, syms[i]->getRVA(), 0, 0);
     os << indent16 << toString(*syms[i]);

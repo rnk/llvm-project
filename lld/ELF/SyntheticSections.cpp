@@ -26,7 +26,6 @@
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
 #include "lld/Common/Strings.h"
-#include "lld/Common/Threads.h"
 #include "lld/Common/Version.h"
 #include "llvm/ADT/SetOperations.h"
 #include "llvm/ADT/StringExtras.h"
@@ -37,6 +36,7 @@
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/LEB128.h"
 #include "llvm/Support/MD5.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/TimeProfiler.h"
 #include <cstdlib>
 #include <thread>
@@ -2758,7 +2758,7 @@ createSymbols(ArrayRef<std::vector<GdbIndexSection::NameAttrEntry>> nameAttrs,
 
   // Instantiate GdbSymbols while uniqufying them by name.
   std::vector<std::vector<GdbSymbol>> symbols(numShards);
-  parallelForEachN(0, concurrency, [&](size_t threadId) {
+  parallel::for_each_n(0, concurrency, [&](size_t threadId) {
     uint32_t i = 0;
     for (ArrayRef<NameAttrEntry> entries : nameAttrs) {
       for (const NameAttrEntry &ent : entries) {
@@ -2821,7 +2821,7 @@ template <class ELFT> GdbIndexSection *GdbIndexSection::create() {
   std::vector<GdbChunk> chunks(sections.size());
   std::vector<std::vector<NameAttrEntry>> nameAttrs(sections.size());
 
-  parallelForEachN(0, sections.size(), [&](size_t i) {
+  parallel::for_each_n(0, sections.size(), [&](size_t i) {
     // To keep memory usage low, we don't want to keep cached DWARFContext, so
     // avoid getDwarf() here.
     ObjFile<ELFT> *file = sections[i]->getFile<ELFT>();
@@ -2895,7 +2895,7 @@ void GdbIndexSection::writeTo(uint8_t *buf) {
 
   // Write the string pool.
   hdr->constantPoolOff = buf - start;
-  parallelForEach(symbols, [&](GdbSymbol &sym) {
+  parallel::for_each(symbols, [&](GdbSymbol &sym) {
     memcpy(buf + sym.nameOff, sym.name.data(), sym.name.size());
   });
 
@@ -3199,7 +3199,7 @@ void MergeNoTailSection::finalizeContents() {
                        numShards));
 
   // Add section pieces to the builders.
-  parallelForEachN(0, concurrency, [&](size_t threadId) {
+  parallel::for_each_n(0, concurrency, [&](size_t threadId) {
     for (MergeInputSection *sec : sections) {
       for (size_t i = 0, e = sec->pieces.size(); i != e; ++i) {
         if (!sec->pieces[i].live)
@@ -3224,7 +3224,7 @@ void MergeNoTailSection::finalizeContents() {
 
   // So far, section pieces have offsets from beginning of shards, but
   // we want offsets from beginning of the whole section. Fix them.
-  parallelForEach(sections, [&](MergeInputSection *sec) {
+  parallel::for_each(sections, [&](MergeInputSection *sec) {
     for (size_t i = 0, e = sec->pieces.size(); i != e; ++i)
       if (sec->pieces[i].live)
         sec->pieces[i].outputOff +=
@@ -3245,7 +3245,7 @@ template <class ELFT> void splitSections() {
   llvm::TimeTraceScope timeScope("Split sections");
   // splitIntoPieces needs to be called on each MergeInputSection
   // before calling finalizeContents().
-  parallelForEach(inputSections, [](InputSectionBase *sec) {
+  parallel::for_each(inputSections, [](InputSectionBase *sec) {
     if (auto *s = dyn_cast<MergeInputSection>(sec))
       s->splitIntoPieces();
     else if (auto *eh = dyn_cast<EhInputSection>(sec))

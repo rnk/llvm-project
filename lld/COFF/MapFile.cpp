@@ -32,8 +32,8 @@
 #include "Symbols.h"
 #include "Writer.h"
 #include "lld/Common/ErrorHandler.h"
-#include "lld/Common/Threads.h"
 #include "lld/Common/Timer.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -76,7 +76,7 @@ static void sortUniqueSymbols(std::vector<Defined *> &syms) {
     v[i] = SortEntry(syms[i], i);
 
   // Remove duplicate symbol pointers
-  parallelSort(v, std::less<SortEntry>());
+  parallel::sort(v, std::less<SortEntry>());
   auto end = std::unique(v.begin(), v.end(),
                          [](const SortEntry &a, const SortEntry &b) {
                            return a.first == b.first;
@@ -84,7 +84,7 @@ static void sortUniqueSymbols(std::vector<Defined *> &syms) {
   v.erase(end, v.end());
 
   // Sort by RVA then original order
-  parallelSort(v, [](const SortEntry &a, const SortEntry &b) {
+  parallel::sort(v, [](const SortEntry &a, const SortEntry &b) {
     // Add config->imageBase to avoid comparing "negative" RVAs.
     // This can happen with symbols of Absolute kind
     uint64_t rvaa = config->imageBase + a.first->getRVA();
@@ -144,7 +144,7 @@ static void getSymbols(std::vector<Defined *> &syms,
 static DenseMap<Defined *, std::string>
 getSymbolStrings(ArrayRef<Defined *> syms) {
   std::vector<std::string> str(syms.size());
-  parallelForEachN((size_t)0, syms.size(), [&](size_t i) {
+  parallel::for_each_n((size_t)0, syms.size(), [&](size_t i) {
     raw_string_ostream os(str[i]);
     Defined *sym = syms[i];
 
