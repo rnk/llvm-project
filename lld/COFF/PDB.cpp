@@ -69,6 +69,7 @@ static Timer totalPdbLinkTimer("PDB Emission (Cumulative)", Timer::root());
 
 static Timer addObjectsTimer("Add Objects", totalPdbLinkTimer);
 static Timer typeMergingTimer("Type Merging", addObjectsTimer);
+static Timer ghashTimer("Up front ghashing", addObjectsTimer);
 static Timer symbolMergingTimer("Symbol Merging", addObjectsTimer);
 static Timer publicsLayoutTimer("Publics Stream Layout", totalPdbLinkTimer);
 static Timer tpiStreamLayoutTimer("TPI Stream Layout", totalPdbLinkTimer);
@@ -964,6 +965,12 @@ void PDBLinker::addObjectsToPDB() {
   for_each(ObjFile::instances,
            [&](ObjFile *obj) { createModuleDBI(builder, obj); });
 
+  // Load or calculate global type hashes in parallel.
+  if (config->debugGHashes) {
+    ScopedTimer timeGHash(ghashTimer);
+    tMerger.identifyUniqueTypeIndices();
+  }
+
   // Merge OBJs that do not have debug types
   for_each(ObjFile::instances, [&](ObjFile *obj) {
     if (obj->debugTypesObj)
@@ -974,13 +981,13 @@ void PDBLinker::addObjectsToPDB() {
   });
 
   // Merge dependencies
-  TpiSource::forEachSource([&](TpiSource *source) {
+  for_each(TpiSource::instances, [&](TpiSource *source) {
     if (source->isDependency())
       addDebug(source);
   });
 
   // Merge regular and dependent OBJs
-  TpiSource::forEachSource([&](TpiSource *source) {
+  for_each(TpiSource::instances, [&](TpiSource *source) {
     if (!source->isDependency())
       addDebug(source);
   });
