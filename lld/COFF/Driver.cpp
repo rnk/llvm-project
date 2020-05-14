@@ -85,12 +85,12 @@ bool link(ArrayRef<const char *> args, bool canExitEarly, raw_ostream &stdoutOS,
   if (canExitEarly)
     exitLld(errorCount() ? 1 : 0);
 
+  TpiSource::clear();
   freeArena();
   ObjFile::instances.clear();
   ImportFile::instances.clear();
   BitcodeFile::instances.clear();
   memset(MergeChunk::instances, 0, sizeof(MergeChunk::instances));
-  TpiSource::clear();
 
   return !errorCount();
 }

@@ -52,12 +52,19 @@ CHECK-NOT: LF_PRECOMP
 CHECK-NOT: LF_ENDPRECOMP
 
 
+Re-run with ghash. Eventually, perhaps this will be the default.
+
+RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /debug /debug:ghash /pdb:%t.pdb /out:%t.exe /opt:ref /opt:icf /summary | FileCheck %s -check-prefix SUMMARY
+RUN: llvm-pdbutil dump -types %t.pdb | FileCheck %s
+
+
 SUMMARY:                                     Summary
 SUMMARY-NEXT: --------------------------------------------------------------------------------
 SUMMARY-NEXT:               3 Input OBJ files (expanded from all cmd-line inputs)
 SUMMARY-NEXT:               0 PDB type server dependencies
 SUMMARY-NEXT:               1 Precomp OBJ dependencies
-SUMMARY-NEXT:            1044 Merged TPI records
+SUMMARY-NEXT:            874 Merged TPI records
+SUMMARY-NEXT:            170 Merged IPI records
 SUMMARY-NEXT:               5 Output PDB strings
 SUMMARY-NEXT:             167 Global symbol records
 SUMMARY-NEXT:              20 Module symbol records
