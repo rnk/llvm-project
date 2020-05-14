@@ -14,6 +14,7 @@
 
 namespace llvm {
 namespace codeview {
+struct GloballyHashedType;
 class PrecompRecord;
 class TypeServer2Record;
 } // namespace codeview
@@ -32,10 +33,14 @@ class TypeMerger;
 
 class TpiSource {
 public:
-  enum TpiKind { Regular, PCH, UsingPCH, PDB, UsingPDB };
+  enum TpiKind : uint8_t { Regular, PCH, UsingPCH, PDB, UsingPDB };
 
   TpiSource(TpiKind k, ObjFile *f);
   virtual ~TpiSource();
+
+  /// Load global hashes, either by hashing types directly, or by loading them
+  /// from LLVM's .debug$H section.
+  virtual void loadGHashes();
 
   /// Produce a mapping from the type and item indices used in the object
   /// file to those in the destination PDB.
@@ -50,11 +55,12 @@ public:
   /// caller-provided ObjectIndexMap.
   virtual llvm::Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
                                                          CVIndexMap *indexMap);
+
   /// Is this a dependent file that needs to be processed first, before other
   /// OBJs?
   virtual bool isDependency() const { return false; }
 
-  static void forEachSource(llvm::function_ref<void(TpiSource *)> fn);
+  static std::vector<TpiSource *> instances;
 
   static uint32_t countTypeServerPDBs();
   static uint32_t countPrecompObjs();
@@ -63,7 +69,10 @@ public:
   static void clear();
 
   const TpiKind kind;
+  bool ownedGHashes = true;
+  uint32_t tpiSrcIdx = 0;
   ObjFile *file;
+  llvm::ArrayRef<llvm::codeview::GloballyHashedType> ghashes;
 };
 
 TpiSource *makeTpiSource(ObjFile *file);

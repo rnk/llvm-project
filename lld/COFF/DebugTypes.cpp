@@ -52,6 +52,8 @@ public:
     tsIndexMap.isTypeServerMap = true;
   }
 
+  void loadGHashes() override;
+
   Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
                                            CVIndexMap *indexMap) override;
   bool isDependency() const override { return true; }
@@ -111,6 +113,8 @@ public:
   UsePrecompSource(ObjFile *f, PrecompRecord precomp)
       : TpiSource(UsingPCH, f), precompDependency(precomp) {}
 
+  void loadGHashes() override;
+
   Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
                                            CVIndexMap *indexMap) override;
 
@@ -120,10 +124,11 @@ public:
 };
 } // namespace
 
-static std::vector<TpiSource *> gc;
+std::vector<TpiSource *> TpiSource::instances;
 
-TpiSource::TpiSource(TpiKind k, ObjFile *f) : kind(k), file(f) {
-  gc.push_back(this);
+TpiSource::TpiSource(TpiKind k, ObjFile *f)
+    : kind(k), tpiSrcIdx(instances.size()), file(f) {
+  instances.push_back(this);
 }
 
 // Vtable key method.
@@ -149,10 +154,6 @@ TpiSource *lld::coff::makePrecompSource(ObjFile *file) {
 TpiSource *lld::coff::makeUsePrecompSource(ObjFile *file,
                                            PrecompRecord precomp) {
   return make<UsePrecompSource>(file, precomp);
-}
-
-void TpiSource::forEachSource(llvm::function_ref<void(TpiSource *)> fn) {
-  for_each(gc, fn);
 }
 
 std::map<codeview::GUID, TypeServerSource *> TypeServerSource::mappings;
@@ -195,6 +196,28 @@ getHashesFromDebugH(ArrayRef<uint8_t> debugH) {
   return {reinterpret_cast<const GloballyHashedType *>(debugH.data()), count};
 }
 
+static void hashCVTypeArray(TpiSource *src, const CVTypeArray &types) {
+  // BumpPtrAllocator is not thread-safe, so use `new`.
+  std::vector<GloballyHashedType> hashVec =
+      GloballyHashedType::hashTypes(types);
+  GloballyHashedType *hashes = new GloballyHashedType[hashVec.size()];
+  std::copy(hashVec.begin(), hashVec.end(), hashes);
+  src->ghashes = makeArrayRef(hashes, hashVec.size());
+  src->ownedGHashes = true;
+}
+
+void TpiSource::loadGHashes() {
+  if (Optional<ArrayRef<uint8_t>> debugH = getDebugH(file)) {
+    ghashes = getHashesFromDebugH(*debugH);
+    ownedGHashes = false;
+  } else {
+    CVTypeArray types;
+    BinaryStreamReader reader(file->debugTypes, support::little);
+    cantFail(reader.readArray(types, reader.getLength()));
+    hashCVTypeArray(this, types);
+  }
+}
+
 // Merge .debug$T for a generic object file.
 Expected<const CVIndexMap *> TpiSource::mergeDebugT(TypeMerger *m,
                                                     CVIndexMap *indexMap) {
@@ -203,17 +226,8 @@ Expected<const CVIndexMap *> TpiSource::mergeDebugT(TypeMerger *m,
   cantFail(reader.readArray(types, reader.getLength()));
 
   if (config->debugGHashes) {
-    ArrayRef<GloballyHashedType> hashes;
-    std::vector<GloballyHashedType> ownedHashes;
-    if (Optional<ArrayRef<uint8_t>> debugH = getDebugH(file))
-      hashes = getHashesFromDebugH(*debugH);
-    else {
-      ownedHashes = GloballyHashedType::hashTypes(types);
-      hashes = ownedHashes;
-    }
-
     if (auto err = mergeTypeAndIdRecords(m->globalIDTable, m->globalTypeTable,
-                                         indexMap->tpiMap, types, hashes,
+                                         indexMap->tpiMap, types, ghashes,
                                          file->pchSignature))
       fatal("codeview::mergeTypeAndIdRecords failed: " +
             toString(std::move(err)));
@@ -248,6 +262,19 @@ Expected<const CVIndexMap *> TpiSource::mergeDebugT(TypeMerger *m,
   return indexMap;
 }
 
+// PDBs do not actually store global hashes, so when merging a type server
+// PDB we have to synthesize global hashes.  To do this, we first synthesize
+// global hashes for the TPI stream, since it is independent, then we
+// synthesize hashes for the IPI stream, using the hashes for the TPI stream
+// as inputs.
+void TypeServerSource::loadGHashes() {
+  pdb::PDBFile &pdbFile = pdbInputFile->session->getPDBFile();
+  Expected<pdb::TpiStream &> expectedTpi = pdbFile.getPDBTpiStream();
+  if (auto e = expectedTpi.takeError())
+    fatal("Type server does not have TPI stream: " + toString(std::move(e)));
+  hashCVTypeArray(this, expectedTpi->typeArray());
+}
+
 // Merge types from a type server PDB.
 Expected<const CVIndexMap *> TypeServerSource::mergeDebugT(TypeMerger *m,
                                                            CVIndexMap *) {
@@ -264,23 +291,17 @@ Expected<const CVIndexMap *> TypeServerSource::mergeDebugT(TypeMerger *m,
   }
 
   if (config->debugGHashes) {
-    // PDBs do not actually store global hashes, so when merging a type server
-    // PDB we have to synthesize global hashes.  To do this, we first synthesize
-    // global hashes for the TPI stream, since it is independent, then we
-    // synthesize hashes for the IPI stream, using the hashes for the TPI stream
-    // as inputs.
-    auto tpiHashes = GloballyHashedType::hashTypes(expectedTpi->typeArray());
     Optional<uint32_t> endPrecomp;
     // Merge TPI first, because the IPI stream will reference type indices.
     if (auto err =
             mergeTypeRecords(m->globalTypeTable, tsIndexMap.tpiMap,
-                             expectedTpi->typeArray(), tpiHashes, endPrecomp))
+                             expectedTpi->typeArray(), ghashes, endPrecomp))
       fatal("codeview::mergeTypeRecords failed: " + toString(std::move(err)));
 
     // Merge IPI.
     if (maybeIpi) {
       auto ipiHashes =
-          GloballyHashedType::hashIds(maybeIpi->typeArray(), tpiHashes);
+          GloballyHashedType::hashIds(maybeIpi->typeArray(), ghashes);
       if (auto err = mergeIdRecords(m->globalIDTable, tsIndexMap.tpiMap,
                                     tsIndexMap.ipiMap, maybeIpi->typeArray(),
                                     ipiHashes))
@@ -436,6 +457,10 @@ mergeInPrecompHeaderObj(ObjFile *file, CVIndexMap *indexMap,
   return indexMap;
 }
 
+void UsePrecompSource::loadGHashes() {
+  report_fatal_error("NYI, can base impl be used directly?");
+}
+
 Expected<const CVIndexMap *>
 UsePrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   // This object was compiled with /Yu, so process the corresponding
@@ -445,16 +470,6 @@ UsePrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   auto e = mergeInPrecompHeaderObj(file, indexMap, precompDependency);
   if (!e)
     return e.takeError();
-
-  // Drop LF_PRECOMP record from the input stream, as it has been replaced
-  // with the precompiled headers Type stream in the mergeInPrecompHeaderObj()
-  // call above. Note that we can't just call Types.drop_front(), as we
-  // explicitly want to rebase the stream.
-  CVTypeArray types;
-  BinaryStreamReader reader(file->debugTypes, support::little);
-  cantFail(reader.readArray(types, reader.getLength()));
-  auto firstType = types.begin();
-  file->debugTypes = file->debugTypes.drop_front(firstType->RecordData.size());
 
   return TpiSource::mergeDebugT(m, indexMap);
 }
@@ -476,7 +491,12 @@ uint32_t TpiSource::countPrecompObjs() {
 }
 
 void TpiSource::clear() {
-  gc.clear();
+  // Clean up any owned ghash allocations.
+  for (TpiSource *src : TpiSource::instances) {
+    if (src->ownedGHashes)
+      delete[] src->ghashes.data();
+  }
+  TpiSource::instances.clear();
   TypeServerSource::mappings.clear();
   PrecompSource::mappings.clear();
 }

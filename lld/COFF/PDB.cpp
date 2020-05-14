@@ -52,6 +52,7 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <memory>
@@ -983,6 +984,12 @@ void PDBLinker::addObjectsToPDB() {
   for_each(ObjFile::instances,
            [&](ObjFile *obj) { createModuleDBI(builder, obj); });
 
+  // Load or calculate global type hashes in parallel.
+  if (config->debugGHashes) {
+    parallelForEach(TpiSource::instances,
+                    [&](TpiSource *source) { source->loadGHashes(); });
+  }
+
   // Merge OBJs that do not have debug types
   for_each(ObjFile::instances, [&](ObjFile *obj) {
     if (obj->debugTypesObj)
@@ -993,13 +1000,13 @@ void PDBLinker::addObjectsToPDB() {
   });
 
   // Merge dependencies
-  TpiSource::forEachSource([&](TpiSource *source) {
+  for_each(TpiSource::instances, [&](TpiSource *source) {
     if (source->isDependency())
       addDebug(source);
   });
 
   // Merge regular and dependent OBJs
-  TpiSource::forEachSource([&](TpiSource *source) {
+  for_each(TpiSource::instances, [&](TpiSource *source) {
     if (!source->isDependency())
       addDebug(source);
   });
