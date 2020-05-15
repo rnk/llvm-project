@@ -17,6 +17,7 @@ namespace codeview {
 struct GloballyHashedType;
 class PrecompRecord;
 class TypeServer2Record;
+class TypeIndex;
 } // namespace codeview
 namespace pdb {
 class NativeSession;
@@ -73,6 +74,11 @@ public:
   uint32_t tpiSrcIdx = 0;
   ObjFile *file;
   llvm::ArrayRef<llvm::codeview::GloballyHashedType> ghashes;
+
+  /// A list of all "unique" type indices which must be merged into the final
+  /// PDB. GHash type deduplication produces this list, and it should be
+  /// considerably smaller than the input.
+  llvm::ArrayRef<llvm::codeview::TypeIndex> typesToMerge;
 };
 
 TpiSource *makeTpiSource(ObjFile *file);

@@ -52,7 +52,6 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
-#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <memory>
@@ -70,6 +69,7 @@ static Timer totalPdbLinkTimer("PDB Emission (Cumulative)", Timer::root());
 
 static Timer addObjectsTimer("Add Objects", totalPdbLinkTimer);
 static Timer typeMergingTimer("Type Merging", addObjectsTimer);
+static Timer ghashTimer("Up front ghashing", addObjectsTimer);
 static Timer symbolMergingTimer("Symbol Merging", addObjectsTimer);
 static Timer publicsLayoutTimer("Publics Stream Layout", totalPdbLinkTimer);
 static Timer tpiStreamLayoutTimer("TPI Stream Layout", totalPdbLinkTimer);
@@ -986,8 +986,8 @@ void PDBLinker::addObjectsToPDB() {
 
   // Load or calculate global type hashes in parallel.
   if (config->debugGHashes) {
-    parallelForEach(TpiSource::instances,
-                    [&](TpiSource *source) { source->loadGHashes(); });
+    ScopedTimer timeGHash(ghashTimer);
+    tMerger.identifyUniqueTypeIndices();
   }
 
   // Merge OBJs that do not have debug types

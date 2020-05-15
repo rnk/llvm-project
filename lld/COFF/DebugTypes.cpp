@@ -21,7 +21,10 @@
 #include "llvm/DebugInfo/PDB/Native/NativeSession.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
+#include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
+#include <atomic>
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -499,4 +502,100 @@ void TpiSource::clear() {
   TpiSource::instances.clear();
   TypeServerSource::mappings.clear();
   PrecompSource::mappings.clear();
+}
+
+std::vector<uint64_t> TypeIndexCell::finalGHashesByIndex;
+
+namespace {
+/// A ghash table cell for deduplicating types from TpiSources.
+class GHashInCell {
+  uint64_t data = 0;
+
+public:
+  GHashInCell() = default;
+  GHashInCell(uint32_t tpiSrcIdx, uint32_t ghashIdx)
+      : data((uint64_t(tpiSrcIdx + 1) << 32ULL) | ghashIdx) {}
+
+  explicit GHashInCell(uint64_t data) : data(data) {}
+
+  // The empty cell is all zeros.
+  bool isEmpty() const { return data == 0ULL; }
+
+  uint32_t getTpiSrcIdx() const { return ((uint32_t)(data >> 32U)) - 1; }
+  uint32_t getGHashIdx() const { return (uint32_t)data; }
+
+  uint64_t getGHash() const {
+    // FIXME: GloballyHashedType should expose this.
+    return *reinterpret_cast<const uint64_t *>(
+        &TpiSource::instances[getTpiSrcIdx()]->ghashes[getGHashIdx()]);
+  }
+
+  friend inline bool operator<(const GHashInCell &l, const GHashInCell &r) {
+    return l.data < r.data;
+  }
+};
+} // namespace
+
+void TypeMerger::identifyUniqueTypeIndices() {
+  parallelForEach(TpiSource::instances,
+                  [&](TpiSource *source) { source->loadGHashes(); });
+
+  // Estimate the size of hash table needed to deduplicate ghashes. This *must*
+  // be larger than the number of unique types, or hash table insertion may not
+  // be able to find a vacant slot. Summing the input types guarantees this, but
+  // it is a gross overestimate. Less memory could be used with a concurrent
+  // rehashing implementation.
+  size_t tableSize = 0;
+  for (TpiSource *source : TpiSource::instances)
+    tableSize += source->ghashes.size();
+
+  GHashTable<GHashInCell> inTable;
+  inTable.init(tableSize);
+
+  // Insert ghashes in parallel. It is important to detect duplicates with the
+  // least amount of work possible, so that the least amount of time can be
+  // spent on them.
+  parallelForEachN(0, TpiSource::instances.size(), [&](size_t tpiSrcIdx) {
+    TpiSource *source = TpiSource::instances[tpiSrcIdx];
+    uint32_t ghashSize = source->ghashes.size();
+    for (uint32_t ghashIdx = 0; ghashIdx < ghashSize; ghashIdx++)
+      inTable.insert(GHashInCell(tpiSrcIdx, ghashIdx));
+  });
+
+  // Collect all non-empty cells and sort them. This will implicitly assign
+  // destination type indices, and arrange the input types into buckets formed
+  // by types from the same TpiSource.
+  std::vector<GHashInCell> entries;
+  for (const GHashInCell &cell : makeArrayRef(inTable.table, tableSize)) {
+    if (!cell.isEmpty())
+      entries.push_back(cell);
+  }
+  parallelSort(entries, std::less<GHashInCell>());
+  if (config->verbose) {
+    log(formatv("ghash table load factor: {0:p} (size {1} / capacity {2})\n",
+                double(entries.size()) / tableSize, entries.size(), tableSize));
+  }
+
+  // Put a list of all unique type indices on each tpi source. Type merging
+  // will skip indices not on this list.
+  TypeIndexCell::finalGHashesByIndex.reserve(entries.size());
+  std::vector<TypeIndex> uniqueTypes;
+  for (auto i = entries.begin(), e = entries.end(); i != e;) {
+    uint32_t tpiSrcIdx = i->getTpiSrcIdx();
+    for (; i != e && i->getTpiSrcIdx() == tpiSrcIdx; ++i) {
+      uniqueTypes.push_back(TypeIndex::fromArrayIndex(i->getGHashIdx()));
+      TypeIndexCell::finalGHashesByIndex.push_back(i->getGHash());
+    }
+    TpiSource *source = TpiSource::instances[tpiSrcIdx];
+    TypeIndex *tiMem = bAlloc.Allocate<TypeIndex>(uniqueTypes.size());
+    std::copy(uniqueTypes.begin(), uniqueTypes.end(), tiMem);
+    source->typesToMerge = makeArrayRef(tiMem, uniqueTypes.size());
+    uniqueTypes.clear();
+  }
+
+  // Use a load factor of 2.
+  finalGHashMap.init(entries.size() * 2);
+  parallelForEachN(0, entries.size(), [&](size_t dstIdx) {
+    finalGHashMap.insert(TypeIndexCell(TypeIndex::fromArrayIndex(dstIdx)));
+  });
 }
