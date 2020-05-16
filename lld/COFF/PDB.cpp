@@ -113,11 +113,11 @@ public:
   /// externally.
   void addDebug(TpiSource *source);
 
-  const CVIndexMap *mergeTypeRecords(TpiSource *source, CVIndexMap *localMap);
+  CVIndexMap *mergeTypeRecords(TpiSource *source, CVIndexMap *localMap);
 
-  void addDebugSymbols(ObjFile *file, const CVIndexMap *indexMap);
+  void addDebugSymbols(ObjFile *file, CVIndexMap *indexMap);
 
-  void mergeSymbolRecords(ObjFile *file, const CVIndexMap &indexMap,
+  void mergeSymbolRecords(ObjFile *file, CVIndexMap &indexMap,
                           std::vector<ulittle32_t *> &stringTableRefs,
                           BinaryStreamRef symData);
 
@@ -157,7 +157,7 @@ class DebugSHandler {
   ObjFile &file;
 
   /// The result of merging type indices.
-  const CVIndexMap *indexMap;
+  CVIndexMap *indexMap;
 
   /// The DEBUG_S_STRINGTABLE subsection.  These strings are referred to by
   /// index from other records in the .debug$S section.  All of these strings
@@ -191,7 +191,7 @@ class DebugSHandler {
   std::vector<ulittle32_t *> stringTableReferences;
 
 public:
-  DebugSHandler(PDBLinker &linker, ObjFile &file, const CVIndexMap *indexMap)
+  DebugSHandler(PDBLinker &linker, ObjFile &file, CVIndexMap *indexMap)
       : linker(linker), file(file), indexMap(indexMap) {}
 
   void handleDebugS(lld::coff::SectionChunk &debugS);
@@ -256,44 +256,18 @@ static void addTypeInfo(pdb::TpiStreamBuilder &tpiBuilder,
   });
 }
 
-static bool remapTypeIndex(TypeIndex &ti, ArrayRef<TypeIndex> typeIndexMap) {
-  if (ti.isSimple())
-    return true;
-  if (ti.toArrayIndex() >= typeIndexMap.size())
-    return false;
-  ti = typeIndexMap[ti.toArrayIndex()];
-  return true;
-}
-
-static void remapTypesInSymbolRecord(ObjFile *file, SymbolKind symKind,
-                                     MutableArrayRef<uint8_t> recordBytes,
-                                     const CVIndexMap &indexMap,
-                                     ArrayRef<TiReference> typeRefs) {
-  MutableArrayRef<uint8_t> contents =
-      recordBytes.drop_front(sizeof(RecordPrefix));
-  for (const TiReference &ref : typeRefs) {
-    unsigned byteSize = ref.Count * sizeof(TypeIndex);
-    if (contents.size() < ref.Offset + byteSize)
-      fatal("symbol record too short");
-
-    // This can be an item index or a type index. Choose the appropriate map.
-    ArrayRef<TypeIndex> typeOrItemMap = indexMap.tpiMap;
-    bool isItemIndex = ref.Kind == TiRefKind::IndexRef;
-    if (isItemIndex && indexMap.isTypeServerMap)
-      typeOrItemMap = indexMap.ipiMap;
-
-    MutableArrayRef<TypeIndex> tIs(
-        reinterpret_cast<TypeIndex *>(contents.data() + ref.Offset), ref.Count);
-    for (TypeIndex &ti : tIs) {
-      if (!remapTypeIndex(ti, typeOrItemMap)) {
-        log("ignoring symbol record of kind 0x" + utohexstr(symKind) + " in " +
-            file->getName() + " with bad " + (isItemIndex ? "item" : "type") +
-            " index 0x" + utohexstr(ti.getIndex()));
-        ti = TypeIndex(SimpleTypeKind::NotTranslated);
-        continue;
-      }
-    }
-  }
+static void addGHashTypeInfo(pdb::PDBFileBuilder &builder) {
+  // Start the TPI or IPI stream header.
+  builder.getTpiBuilder().setVersionHeader(pdb::PdbTpiV80);
+  builder.getIpiBuilder().setVersionHeader(pdb::PdbTpiV80);
+  for_each(TpiSource::instances, [&](TpiSource *source) {
+    builder.getTpiBuilder().addTypeRecords(source->mergedTpi.recs,
+                                           source->mergedTpi.recSizes,
+                                           source->mergedTpi.recHashes);
+    builder.getIpiBuilder().addTypeRecords(source->mergedIpi.recs,
+                                           source->mergedIpi.recSizes,
+                                           source->mergedIpi.recHashes);
+  });
 }
 
 static void
@@ -336,7 +310,7 @@ static SymbolKind symbolKind(ArrayRef<uint8_t> recordData) {
 
 /// MSVC translates S_PROC_ID_END to S_END, and S_[LG]PROC32_ID to S_[LG]PROC32
 static void translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
-                               TypeCollection &idTable) {
+                               TypeMerger &tMerger) {
   RecordPrefix *prefix = reinterpret_cast<RecordPrefix *>(recordData.data());
 
   SymbolKind kind = symbolKind(recordData);
@@ -366,10 +340,16 @@ static void translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
     // Note that LF_FUNC_ID and LF_MEMFUNC_ID have the same record layout, and
     // in both cases we just need the second type index.
     if (!ti->isSimple() && !ti->isNoneType()) {
-      CVType funcIdData = idTable.getType(*ti);
-      ArrayRef<uint8_t> tiBuf = funcIdData.data().slice(8, 4);
-      assert(tiBuf.size() == 4 && "corrupt LF_[MEM]FUNC_ID record");
-      *ti = *reinterpret_cast<const TypeIndex *>(tiBuf.data());
+      if (config->debugGHashes) {
+        // TODO: We should be able to implement this through the ghash map, or
+        // by building a map from LF_[MEM]FUNC_ID to source FunctionType.
+        *ti = TypeIndex(0);
+      } else {
+        CVType funcIdData = tMerger.getIDTable().getType(*ti);
+        ArrayRef<uint8_t> tiBuf = funcIdData.data().slice(8, 4);
+        assert(tiBuf.size() == 4 && "corrupt LF_[MEM]FUNC_ID record");
+        *ti = *reinterpret_cast<const TypeIndex *>(tiBuf.data());
+      }
     }
 
     kind = (kind == SymbolKind::S_GPROC32_ID) ? SymbolKind::S_GPROC32
@@ -511,7 +491,7 @@ static void addGlobalSymbol(pdb::GSIStreamBuilder &builder, uint16_t modIndex,
   }
 }
 
-void PDBLinker::mergeSymbolRecords(ObjFile *file, const CVIndexMap &indexMap,
+void PDBLinker::mergeSymbolRecords(ObjFile *file, CVIndexMap &indexMap,
                                    std::vector<ulittle32_t *> &stringTableRefs,
                                    BinaryStreamRef symData) {
   ArrayRef<uint8_t> symsBuffer;
@@ -567,22 +547,16 @@ void PDBLinker::mergeSymbolRecords(ObjFile *file, const CVIndexMap &indexMap,
               const_cast<uint8_t *>(sym.data().data()), sym.length());
         }
 
-        // Discover type index references in the record. Skip it if we don't
-        // know where they are.
-        SmallVector<TiReference, 32> typeRefs;
-        if (!discoverTypeIndicesInSymbol(sym, typeRefs)) {
-          log("ignoring unknown symbol record with kind 0x" +
-              utohexstr(sym.kind()));
+        // Re-map all the type index references.
+        if (!tMerger.remapTypesInSymbolRecord(recordBytes, file, indexMap)) {
+          log("error remapping types in symbol of kind 0x" +
+              utohexstr(sym.kind()) + ", ignoring");
           return Error::success();
         }
 
-        // Re-map all the type index references.
-        remapTypesInSymbolRecord(file, sym.kind(), recordBytes, indexMap,
-                                 typeRefs);
-
         // An object file may have S_xxx_ID symbols, but these get converted to
         // "real" symbols in a PDB.
-        translateIdSymbols(recordBytes, tMerger.getIDTable());
+        translateIdSymbols(recordBytes, tMerger);
         sym = CVSymbol(recordBytes);
 
         // If this record refers to an offset in the object file's string table,
@@ -774,9 +748,10 @@ DebugSHandler::mergeInlineeLines(DebugChecksumsSubsection *newChecksums) {
     uint32_t fileID = line.Header->FileID;
     uint32_t sourceLine = line.Header->SourceLineNum;
 
-    ArrayRef<TypeIndex> typeOrItemMap =
+    MutableArrayRef<TypeIndex> typeOrItemMap =
         indexMap->isTypeServerMap ? indexMap->ipiMap : indexMap->tpiMap;
-    if (!remapTypeIndex(inlinee, typeOrItemMap)) {
+    if (!file.debugTypesObj->remapTypeIndex(&linker.tMerger, inlinee,
+                                            typeOrItemMap)) {
       log("ignoring inlinee line record in " + file.getName() +
           " with bad inlinee index 0x" + utohexstr(inlinee.getIndex()));
       continue;
@@ -863,14 +838,14 @@ static void warnUnusable(InputFile *f, Error e) {
     warn(msg);
 }
 
-const CVIndexMap *PDBLinker::mergeTypeRecords(TpiSource *source,
-                                              CVIndexMap *localMap) {
+CVIndexMap *PDBLinker::mergeTypeRecords(TpiSource *source,
+                                        CVIndexMap *localMap) {
   ScopedTimer t(typeMergingTimer);
   // Before we can process symbol substreams from .debug$S, we need to process
   // type information, file checksums, and the string table.  Add type info to
   // the PDB first, so that we can get the map from object file type and item
   // indices to PDB type and item indices.
-  Expected<const CVIndexMap *> r = source->mergeDebugT(&tMerger, localMap);
+  Expected<CVIndexMap *> r = source->mergeDebugT(&tMerger, localMap);
 
   // If the .debug$T sections fail to merge, assume there is no debug info.
   if (!r) {
@@ -880,7 +855,7 @@ const CVIndexMap *PDBLinker::mergeTypeRecords(TpiSource *source,
   return *r;
 }
 
-void PDBLinker::addDebugSymbols(ObjFile *file, const CVIndexMap *indexMap) {
+void PDBLinker::addDebugSymbols(ObjFile *file, CVIndexMap *indexMap) {
   ScopedTimer t(symbolMergingTimer);
   pdb::DbiStreamBuilder &dbiBuilder = builder.getDbiBuilder();
   DebugSHandler dsh(*this, *file, indexMap);
@@ -946,7 +921,7 @@ static void createModuleDBI(pdb::PDBFileBuilder &builder, ObjFile *file) {
 
 void PDBLinker::addDebug(TpiSource *source) {
   CVIndexMap localMap;
-  const CVIndexMap *indexMap = mergeTypeRecords(source, &localMap);
+  CVIndexMap *indexMap = mergeTypeRecords(source, &localMap);
 
   if (source->kind == TpiSource::PDB)
     return; // No symbols in TypeServer PDBs
@@ -1016,8 +991,13 @@ void PDBLinker::addObjectsToPDB() {
 
   // Construct TPI and IPI stream contents.
   ScopedTimer t2(tpiStreamLayoutTimer);
-  addTypeInfo(builder.getTpiBuilder(), tMerger.getTypeTable());
-  addTypeInfo(builder.getIpiBuilder(), tMerger.getIDTable());
+  // Collect all the merged types.
+  if (config->debugGHashes) {
+    addGHashTypeInfo(builder);
+  } else {
+    addTypeInfo(builder.getTpiBuilder(), tMerger.getTypeTable());
+    addTypeInfo(builder.getIpiBuilder(), tMerger.getIDTable());
+  }
   t2.stop();
 }
 

@@ -13,11 +13,13 @@
 #include "TypeMerger.h"
 #include "lld/Common/ErrorHandler.h"
 #include "lld/Common/Memory.h"
+#include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/DebugInfo/CodeView/TypeRecordHelpers.h"
 #include "llvm/DebugInfo/CodeView/TypeStreamMerger.h"
 #include "llvm/DebugInfo/PDB/GenericError.h"
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
+#include "llvm/DebugInfo/PDB/Native/TpiHashing.h"
 #include "llvm/DebugInfo/PDB/Native/NativeSession.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
@@ -56,7 +58,7 @@ public:
 
   void loadGHashes() override;
 
-  Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
+  Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
                                            CVIndexMap *indexMap) override;
   bool isDependency() const override { return true; }
 
@@ -74,7 +76,7 @@ public:
   UseTypeServerSource(ObjFile *f, TypeServer2Record ts)
       : TpiSource(UsingPDB, f), typeServerDependency(ts) {}
 
-  Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
+  Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
                                            CVIndexMap *indexMap) override;
 
   // Information about the PDB type server dependency, that needs to be loaded
@@ -99,7 +101,7 @@ public:
     precompIndexMap.isPrecompiledTypeMap = true;
   }
 
-  Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
+  Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
                                            CVIndexMap *indexMap) override;
   bool isDependency() const override { return true; }
 
@@ -117,7 +119,7 @@ public:
 
   void loadGHashes() override;
 
-  Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
+  Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
                                            CVIndexMap *indexMap) override;
 
   // Information about the Precomp OBJ dependency, that needs to be loaded in
@@ -189,28 +191,38 @@ static Optional<ArrayRef<uint8_t>> getDebugH(ObjFile *file) {
   return contents;
 }
 
-static ArrayRef<GloballyHashedType>
-getHashesFromDebugH(ArrayRef<uint8_t> debugH) {
+static ArrayRef<uint64_t> getHashesFromDebugH(ArrayRef<uint8_t> debugH) {
   assert(canUseDebugH(debugH));
-
   debugH = debugH.drop_front(sizeof(object::debug_h_header));
-  uint32_t count = debugH.size() / sizeof(GloballyHashedType);
-  return {reinterpret_cast<const GloballyHashedType *>(debugH.data()), count};
+  uint32_t count = debugH.size() / sizeof(uint64_t);
+  // FIXME: Endian concerns.
+  return {reinterpret_cast<const uint64_t *>(debugH.data()), count};
 }
 
 static void hashCVTypeArray(TpiSource *src, const CVTypeArray &types) {
   // BumpPtrAllocator is not thread-safe, so use `new`.
   std::vector<GloballyHashedType> hashVec =
       GloballyHashedType::hashTypes(types);
-  GloballyHashedType *hashes = new GloballyHashedType[hashVec.size()];
-  std::copy(hashVec.begin(), hashVec.end(), hashes);
-  src->ghashes = makeArrayRef(hashes, hashVec.size());
+  uint64_t *hashes = new uint64_t[hashVec.size()];
+  // FIXME: Endian concerns.
+  memcpy(hashes, hashVec.data(), hashVec.size() * sizeof(uint64_t));
+  src->tpiGHashes = makeArrayRef(hashes, hashVec.size());
   src->ownedGHashes = true;
+}
+
+// Wrapper on forEachCodeViewRecord with less error handling.
+static void forEachTypeChecked(ArrayRef<uint8_t> types,
+                               function_ref<void(const CVType &)> fn) {
+  checkError(
+      forEachCodeViewRecord<CVType>(types, [fn](const CVType &ty) -> Error {
+        fn(ty);
+        return Error::success();
+      }));
 }
 
 void TpiSource::loadGHashes() {
   if (Optional<ArrayRef<uint8_t>> debugH = getDebugH(file)) {
-    ghashes = getHashesFromDebugH(*debugH);
+    tpiGHashes = getHashesFromDebugH(*debugH);
     ownedGHashes = false;
   } else {
     CVTypeArray types;
@@ -222,30 +234,141 @@ void TpiSource::loadGHashes() {
   // Check which type records are item records or type records.
   // TODO: Get help from compiler to make this faster.
   uint32_t index = 0;
-  isItemIndex.resize(ghashes.size());
-  auto types = file->debugTypes;
-  auto e = forEachCodeViewRecord<CVType>(types, [&](const CVType &ty) -> Error {
+  isItemIndex.resize(tpiGHashes.size());
+  forEachTypeChecked(file->debugTypes, [&](const CVType &ty) {
     if (isIdRecord(ty.kind()))
       isItemIndex.set(index);
     ++index;
-    return Error::success();
   });
-  checkError(std::move(e));
+}
+
+bool TpiSource::remapTypeIndex(TypeMerger *m, TypeIndex &ti,
+                               MutableArrayRef<TypeIndex> typeIndexMap) {
+  if (ti.isSimple())
+    return true;
+  if (ti.toArrayIndex() >= typeIndexMap.size())
+    return false;
+  TypeIndex &dstTi = typeIndexMap[ti.toArrayIndex()];
+  if (config->debugGHashes && dstTi.isNoneType()) {
+    // Lazily populate the object to PDB index map with a ghash lookup.
+    // FIXME: This will race when multiple sources use the same map (type
+    // servers).
+    // FIXME: Check ipiGHashes? Probably only for type servers.
+    auto *ghashPtr = &tpiGHashes[ti.toArrayIndex()];
+    uint64_t ghash = *reinterpret_cast<const uint64_t *>(ghashPtr);
+    auto maybeCell = m->finalGHashMap.lookup(ghash);
+    assert(maybeCell && "unmapped ghash");
+    dstTi = maybeCell->ti.removeDecoration();
+  }
+  ti = dstTi;
+  return true;
+}
+
+void TpiSource::remapRecord(TypeMerger *m, MutableArrayRef<uint8_t> rec,
+                            CVIndexMap &indexMap,
+                            ArrayRef<TiReference> typeRefs) {
+  MutableArrayRef<uint8_t> contents = rec.drop_front(sizeof(RecordPrefix));
+  for (const TiReference &ref : typeRefs) {
+    unsigned byteSize = ref.Count * sizeof(TypeIndex);
+    if (contents.size() < ref.Offset + byteSize)
+      fatal("symbol record too short");
+
+    // This can be an item index or a type index. Choose the appropriate map.
+    MutableArrayRef<TypeIndex> typeOrItemMap = indexMap.tpiMap;
+    bool isItemIndex = ref.Kind == TiRefKind::IndexRef;
+    if (isItemIndex && indexMap.isTypeServerMap)
+      typeOrItemMap = indexMap.ipiMap;
+
+    MutableArrayRef<TypeIndex> indices(
+        reinterpret_cast<TypeIndex *>(contents.data() + ref.Offset), ref.Count);
+    for (TypeIndex &ti : indices) {
+      if (!remapTypeIndex(m, ti, typeOrItemMap)) {
+        uint16_t kind =
+            reinterpret_cast<const RecordPrefix *>(rec.data())->RecordKind;
+        log("failed to remap type index in record of kind 0x" +
+            utohexstr(kind) + " in " + file->getName() + " with bad " +
+            (isItemIndex ? "item" : "type") + " index 0x" +
+            utohexstr(ti.getIndex()));
+        ti = TypeIndex(SimpleTypeKind::NotTranslated);
+        continue;
+      }
+    }
+  }
+}
+
+void TypeMerger::remapTypesInTypeRecord(MutableArrayRef<uint8_t> rec,
+                                        ObjFile *file, CVIndexMap &indexMap) {
+  // TODO: Handle errors similar to symbols.
+  SmallVector<TiReference, 32> typeRefs;
+  discoverTypeIndices(CVType(rec), typeRefs);
+  file->debugTypesObj->remapRecord(this, rec, indexMap, typeRefs);
+}
+
+bool TypeMerger::remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec,
+                                          ObjFile *file, CVIndexMap &indexMap) {
+  // Discover type index references in the record. Skip it if we don't
+  // know where they are.
+  SmallVector<TiReference, 32> typeRefs;
+  if (!discoverTypeIndicesInSymbol(rec, typeRefs))
+    return false;
+  file->debugTypesObj->remapRecord(this, rec, indexMap, typeRefs);
+  return true;
 }
 
 // Merge .debug$T for a generic object file.
-Expected<const CVIndexMap *> TpiSource::mergeDebugT(TypeMerger *m,
-                                                    CVIndexMap *indexMap) {
+Expected<CVIndexMap *> TpiSource::mergeDebugT(TypeMerger *m,
+                                              CVIndexMap *indexMap) {
   CVTypeArray types;
   BinaryStreamReader reader(file->debugTypes, support::little);
   cantFail(reader.readArray(types, reader.getLength()));
 
   if (config->debugGHashes) {
-    if (auto err = mergeTypeAndIdRecords(m->globalIDTable, m->globalTypeTable,
-                                         indexMap->tpiMap, types, ghashes,
-                                         file->pchSignature))
-      fatal("codeview::mergeTypeAndIdRecords failed: " +
-            toString(std::move(err)));
+    // Zero initialize the type index map. It will be filled in lazily.
+    // FIXME: Will this race for PDBs?
+    if (indexMap->tpiMap.empty())
+      indexMap->tpiMap.resize(tpiGHashes.size());
+    if (indexMap->ipiMap.empty())
+      indexMap->ipiMap.resize(ipiGHashes.size());
+
+    // Accumulate all the unique types into one buffer in mergedTypes.
+    TypeIndex index(TypeIndex::FirstNonSimpleIndex);
+    llvm::sort(uniqueTypes);
+    auto nextUniqueIndex = uniqueTypes.begin();
+    assert(mergedTpi.recs.empty());
+    assert(mergedIpi.recs.empty());
+    forEachTypeChecked(file->debugTypes, [&](const CVType &ty) {
+      if (nextUniqueIndex != uniqueTypes.end() && *nextUniqueIndex == index) {
+        // Decide if the merged type goes into TPI or IPI.
+        bool isItem = isIdRecord(ty.kind());
+        MergedInfo &merged = isItem ? mergedIpi : mergedTpi;
+
+        // Copy the type into our mutable buffer.
+        assert(ty.length() <= codeview::MaxRecordLength);
+        size_t offset = merged.recs.size();
+        size_t newSize = alignTo(ty.length(), 4);
+        merged.recs.resize(offset + newSize);
+        auto newRec = makeMutableArrayRef(&merged.recs[offset], newSize);
+        memcpy(newRec.data(), ty.data().data(), newSize);
+
+        // Fix up the record prefix and padding bytes if it required resizing.
+        if (newSize != ty.length()) {
+          reinterpret_cast<RecordPrefix *>(newRec.data())->RecordLen =
+              newSize - 2;
+          for (size_t i = ty.length(); i < newSize; ++i)
+            newRec[i] = LF_PAD0 + (newSize - i);
+        }
+
+        // Remap the type indices in the new record.
+        m->remapTypesInTypeRecord(newRec, file, *indexMap);
+        uint32_t pdbHash = check(pdb::hashTypeRecord(CVType(newRec)));
+        merged.recSizes.push_back(static_cast<uint16_t>(newSize));
+        merged.recHashes.push_back(pdbHash);
+        ++nextUniqueIndex;
+      }
+      ++index;
+    });
+    assert(nextUniqueIndex == uniqueTypes.end() &&
+           "failed to merge all desired records");
   } else {
     if (auto err =
             mergeTypeAndIdRecords(m->idTable, m->typeTable, indexMap->tpiMap,
@@ -288,13 +411,13 @@ void TypeServerSource::loadGHashes() {
   if (auto e = expectedTpi.takeError())
     fatal("Type server does not have TPI stream: " + toString(std::move(e)));
   hashCVTypeArray(this, expectedTpi->typeArray());
-  isItemIndex.resize(ghashes.size());
+  isItemIndex.resize(tpiGHashes.size());
 
   // FIXME: hash IPI.
 }
 
 // Merge types from a type server PDB.
-Expected<const CVIndexMap *> TypeServerSource::mergeDebugT(TypeMerger *m,
+Expected<CVIndexMap *> TypeServerSource::mergeDebugT(TypeMerger *m,
                                                            CVIndexMap *) {
   pdb::PDBFile &pdbFile = pdbInputFile->session->getPDBFile();
   Expected<pdb::TpiStream &> expectedTpi = pdbFile.getPDBTpiStream();
@@ -309,22 +432,7 @@ Expected<const CVIndexMap *> TypeServerSource::mergeDebugT(TypeMerger *m,
   }
 
   if (config->debugGHashes) {
-    Optional<uint32_t> endPrecomp;
-    // Merge TPI first, because the IPI stream will reference type indices.
-    if (auto err =
-            mergeTypeRecords(m->globalTypeTable, tsIndexMap.tpiMap,
-                             expectedTpi->typeArray(), ghashes, endPrecomp))
-      fatal("codeview::mergeTypeRecords failed: " + toString(std::move(err)));
-
-    // Merge IPI.
-    if (maybeIpi) {
-      auto ipiHashes =
-          GloballyHashedType::hashIds(maybeIpi->typeArray(), ghashes);
-      if (auto err = mergeIdRecords(m->globalIDTable, tsIndexMap.tpiMap,
-                                    tsIndexMap.ipiMap, maybeIpi->typeArray(),
-                                    ipiHashes))
-        fatal("codeview::mergeIdRecords failed: " + toString(std::move(err)));
-    }
+    llvm_unreachable("NYI");
   } else {
     // Merge TPI first, because the IPI stream will reference type indices.
     if (auto err = mergeTypeRecords(m->typeTable, tsIndexMap.tpiMap,
@@ -356,7 +464,7 @@ Expected<const CVIndexMap *> TypeServerSource::mergeDebugT(TypeMerger *m,
   return &tsIndexMap;
 }
 
-Expected<const CVIndexMap *>
+Expected<CVIndexMap *>
 UseTypeServerSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   const codeview::GUID &tsId = typeServerDependency.getGuid();
   StringRef tsPath = typeServerDependency.getName();
@@ -416,7 +524,7 @@ static PrecompSource *findObjByName(StringRef fileNameOnly) {
   return nullptr;
 }
 
-Expected<const CVIndexMap *> findPrecompMap(ObjFile *file, PrecompRecord &pr) {
+Expected<CVIndexMap *> findPrecompMap(ObjFile *file, PrecompRecord &pr) {
   // Cross-compile warning: given that Clang doesn't generate LF_PRECOMP
   // records, we assume the OBJ comes from a Windows build of cl.exe. Thusly,
   // the paths embedded in the OBJs are in the Windows format.
@@ -453,14 +561,14 @@ Expected<const CVIndexMap *> findPrecompMap(ObjFile *file, PrecompRecord &pr) {
 /// Merges a precompiled headers TPI map into the current TPI map. The
 /// precompiled headers object will also be loaded and remapped in the
 /// process.
-static Expected<const CVIndexMap *>
+static Expected<CVIndexMap *>
 mergeInPrecompHeaderObj(ObjFile *file, CVIndexMap *indexMap,
                         PrecompRecord &precomp) {
   auto e = findPrecompMap(file, precomp);
   if (!e)
     return e.takeError();
 
-  const CVIndexMap *precompIndexMap = *e;
+  CVIndexMap *precompIndexMap = *e;
   assert(precompIndexMap->isPrecompiledTypeMap);
 
   if (precompIndexMap->tpiMap.empty())
@@ -479,7 +587,7 @@ void UsePrecompSource::loadGHashes() {
   report_fatal_error("NYI, can base impl be used directly?");
 }
 
-Expected<const CVIndexMap *>
+Expected<CVIndexMap *>
 UsePrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   // This object was compiled with /Yu, so process the corresponding
   // precompiled headers object (/Yc) first. Some type indices in the current
@@ -492,7 +600,7 @@ UsePrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   return TpiSource::mergeDebugT(m, indexMap);
 }
 
-Expected<const CVIndexMap *> PrecompSource::mergeDebugT(TypeMerger *m,
+Expected<CVIndexMap *> PrecompSource::mergeDebugT(TypeMerger *m,
                                                         CVIndexMap *) {
   // Note that we're not using the provided CVIndexMap. Instead, we use our
   // local one. Precompiled headers objects need to save the index map for
@@ -512,7 +620,7 @@ void TpiSource::clear() {
   // Clean up any owned ghash allocations.
   for (TpiSource *src : TpiSource::instances) {
     if (src->ownedGHashes)
-      delete[] src->ghashes.data();
+      delete[] src->tpiGHashes.data();
   }
   TpiSource::instances.clear();
   TypeServerSource::mappings.clear();
@@ -555,7 +663,7 @@ public:
   uint64_t getGHash() const {
     // FIXME: GloballyHashedType should expose this.
     return *reinterpret_cast<const uint64_t *>(
-        &TpiSource::instances[getTpiSrcIdx()]->ghashes[getGHashIdx()]);
+        &TpiSource::instances[getTpiSrcIdx()]->tpiGHashes[getGHashIdx()]);
   }
 
   friend inline bool operator<(const GHashInCell &l, const GHashInCell &r) {
@@ -563,6 +671,50 @@ public:
   }
 };
 } // namespace
+
+template <typename Cell> inline void GHashTable<Cell>::insert(Cell newCell) {
+  assert(!newCell.isEmpty() && "cannot insert empty cell value");
+  uint64_t ghash = newCell.getGHash();
+
+  // FIXME: The low bytes of SHA1 have low entropy for short records, which
+  // type records are. Swap the byte order for better entropy. A better ghash
+  // won't need this.
+  size_t startIdx = ByteSwap_64(ghash) % tableSize;
+
+  // Do a linear probe starting at startIdx.
+  size_t idx = startIdx;
+  while (true) {
+    // Run a compare and swap loop. There are four cases:
+    // - cell is empty: CAS into place and return
+    // - cell has matching key, earlier priority: do nothing, return
+    // - cell has matching key, later priority: CAS into place and return
+    // - cell has non-matching key: hash collision, probe next cell
+    auto *cellPtr = reinterpret_cast<std::atomic<Cell> *>(&table[idx]);
+    Cell oldCell(cellPtr->load());
+    while (oldCell.isEmpty() || oldCell.getGHash() == ghash) {
+      // Check if there is an existing ghash entry with a higher priority
+      // (earlier ordering). If so, this is a duplicate, we are done.
+      if (!oldCell.isEmpty() && oldCell < newCell)
+        return;
+      // Either the cell is empty, or our value is higher priority. Try to
+      // compare and swap. If it succeeds, we are done.
+      if (cellPtr->compare_exchange_weak(oldCell, newCell))
+        return;
+      // If the CAS failed, check this cell again.
+    }
+
+    // Advance the probe. Wrap around to the beginning if we run off the end.
+    ++idx;
+    idx = idx == tableSize ? 0 : idx;
+    if (idx == startIdx) {
+      // If this becomes an issue, we could mark failure and rehash from the
+      // beginning with a bigger table. There is no difference between rehashing
+      // internally and starting over.
+      report_fatal_error("ghash table is full");
+    }
+  }
+  llvm_unreachable("left infloop");
+}
 
 void TypeMerger::identifyUniqueTypeIndices() {
   parallelForEach(TpiSource::instances,
@@ -575,7 +727,7 @@ void TypeMerger::identifyUniqueTypeIndices() {
   // rehashing implementation.
   size_t tableSize = 0;
   for (TpiSource *source : TpiSource::instances)
-    tableSize += source->ghashes.size();
+    tableSize += source->tpiGHashes.size();
 
   GHashTable<GHashInCell> inTable;
   inTable.init(tableSize);
@@ -585,10 +737,11 @@ void TypeMerger::identifyUniqueTypeIndices() {
   // spent on them.
   parallelForEachN(0, TpiSource::instances.size(), [&](size_t tpiSrcIdx) {
     TpiSource *source = TpiSource::instances[tpiSrcIdx];
-    uint32_t ghashSize = source->ghashes.size();
-    for (uint32_t ghashIdx = 0; ghashIdx < ghashSize; ghashIdx++)
-      inTable.insert(
-          GHashInCell(source->isItemIndex.test(ghashIdx), tpiSrcIdx, ghashIdx));
+    uint32_t ghashSize = source->tpiGHashes.size();
+    for (uint32_t ghashIdx = 0; ghashIdx < ghashSize; ghashIdx++) {
+      bool isItem = source->isItemIndex.test(ghashIdx);
+      inTable.insert(GHashInCell(isItem, tpiSrcIdx, ghashIdx));
+    }
   });
 
   // Collect all non-empty cells and sort them. This will implicitly assign
@@ -600,10 +753,8 @@ void TypeMerger::identifyUniqueTypeIndices() {
       entries.push_back(cell);
   }
   parallelSort(entries, std::less<GHashInCell>());
-  if (config->verbose) {
-    log(formatv("ghash table load factor: {0:p} (size {1} / capacity {2})\n",
-                double(entries.size()) / tableSize, entries.size(), tableSize));
-  }
+  log(formatv("ghash table load factor: {0:p} (size {1} / capacity {2})\n",
+              double(entries.size()) / tableSize, entries.size(), tableSize));
 
   // Find out how many type and item indices there are.
   auto mid =
@@ -613,26 +764,27 @@ void TypeMerger::identifyUniqueTypeIndices() {
          "midpoint is not midpoint");
   uint32_t numTypes = std::distance(entries.begin(), mid);
   uint32_t numItems = std::distance(mid, entries.end());
+  log("Tpi record count: " + Twine(numTypes));
+  log("Ipi record count: " + Twine(numItems));
   TypeIndexCell::typeGHashes.reserve(numTypes);
   TypeIndexCell::itemGHashes.reserve(numItems);
-  llvm::errs() << "numTypes " << numTypes << " numItems " << numItems << '\n';
 
   // Put a list of all unique type indices on each tpi source. Type merging
   // will skip indices not on this list.
   // TODO: Parallelize using same technique as ICF sharding.
-  for (auto i = entries.begin(), e = entries.end(); i != e; ++i) {
-    uint32_t tpiSrcIdx = i->getTpiSrcIdx();
+  for (const GHashInCell &cell : entries) {
+    uint32_t tpiSrcIdx = cell.getTpiSrcIdx();
     TpiSource *source = TpiSource::instances[tpiSrcIdx];
     // FIXME: Carry item index-ness for type server PDBs.
-    source->uniqueTypes.push_back(TypeIndex::fromArrayIndex(i->getGHashIdx()));
+    source->uniqueTypes.push_back(
+        TypeIndex::fromArrayIndex(cell.getGHashIdx()));
     auto &dstGHashVec =
-        i->isItem() ? TypeIndexCell::itemGHashes : TypeIndexCell::typeGHashes;
-    dstGHashVec.push_back(i->getGHash());
+        cell.isItem() ? TypeIndexCell::itemGHashes : TypeIndexCell::typeGHashes;
+    dstGHashVec.push_back(cell.getGHash());
   }
 
   // Build a map from ghash to final PDB type index. There are two type index
-  // spaces: types and items. Decorate the index to indicate which space the
-  // index is in.
+  // spaces: types and items.
   finalGHashMap.init(entries.size() * 2);
   parallelForEachN(0, entries.size(), [&](size_t entryIdx) {
     bool isItem = entryIdx >= numTypes;

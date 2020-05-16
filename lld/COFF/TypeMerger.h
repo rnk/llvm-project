@@ -18,16 +18,21 @@
 namespace lld {
 namespace coff {
 
-/// A simplified hash table customized for global type hashing.
+/// A concurrent hash table for global type hashing. It is based on this paper:
+/// Concurrent Hash Tables: Fast and General(?)!
+/// https://dl.acm.org/doi/10.1145/3309206
 ///
 /// This hash table is meant to be used in two phases:
 /// 1. concurrent insertion
 /// 2. concurrent lookup
-/// It does not support deletion or rehashing. It uses linear probing for better
-/// cache locality.
+/// It does not support deletion or rehashing. It uses linear probing.
+///
+/// The paper describes storing a key-value pair in two machine words, but that
+/// is not necessary for our use case, since generally we map ghashes to indices
+/// that can be used to recover their key.
 ///
 /// The Cell type must support the following API:
-///   // Get the ghash for this cell
+///   // Get the ghash key for this cell.
 ///   uint64_t getGHash();
 ///   // Must return true if members are zero, since table is initialized with
 ///   // memset.
@@ -82,20 +87,17 @@ struct alignas(uint32_t) TypeIndexCell {
 class TypeMerger {
 public:
   TypeMerger(llvm::BumpPtrAllocator &alloc)
-      : typeTable(alloc), idTable(alloc), globalTypeTable(alloc),
-        globalIDTable(alloc) {}
+      : typeTable(alloc), idTable(alloc) {}
 
   /// Get the type table or the global type table if /DEBUG:GHASH is enabled.
   inline llvm::codeview::TypeCollection &getTypeTable() {
-    if (config->debugGHashes)
-      return globalTypeTable;
+    assert(!config->debugGHashes);
     return typeTable;
   }
 
   /// Get the ID table or the global ID table if /DEBUG:GHASH is enabled.
   inline llvm::codeview::TypeCollection &getIDTable() {
-    if (config->debugGHashes)
-      return globalIDTable;
+    assert(!config->debugGHashes);
     return idTable;
   }
 
@@ -103,13 +105,11 @@ public:
   /// indices in each TpiSource.
   void identifyUniqueTypeIndices();
 
-  /// Lookup the final type index to use in the PDB by global hash. Must be
-  /// called after identifyUniqueTypeIndices.
-  llvm::codeview::TypeIndex lookupPdbTypeIndexForGHash(uint64_t ghash) {
-    auto maybeCell = finalGHashMap.lookup(ghash);
-    assert(maybeCell && "unmapped ghash");
-    return maybeCell->ti;
-  }
+  bool remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec, ObjFile *file,
+                                CVIndexMap &indexMap);
+
+  void remapTypesInTypeRecord(MutableArrayRef<uint8_t> rec, ObjFile *file,
+                              CVIndexMap &indexMap);
 
   /// A map from ghash to final type index.
   GHashTable<TypeIndexCell> finalGHashMap;
@@ -119,12 +119,6 @@ public:
 
   /// Item records that will go into the PDB IPI stream.
   llvm::codeview::MergingTypeTableBuilder idTable;
-
-  /// Type records that will go into the PDB TPI stream (for /DEBUG:GHASH)
-  llvm::codeview::GlobalTypeTableBuilder globalTypeTable;
-
-  /// Item records that will go into the PDB IPI stream (for /DEBUG:GHASH)
-  llvm::codeview::GlobalTypeTableBuilder globalIDTable;
 
   // When showSummary is enabled, these are histograms of TPI and IPI records
   // keyed by type index.
@@ -140,43 +134,6 @@ struct CVIndexMap {
   bool isTypeServerMap = false;
   bool isPrecompiledTypeMap = false;
 };
-
-template <typename Cell> inline void GHashTable<Cell>::insert(Cell newCell) {
-  uint64_t ghash = newCell.getGHash();
-
-  // FIXME: The low bytes of SHA1 have low entropy for short records, which
-  // type records are. Swap the byte order for better entropy. A better ghash
-  // won't need this.
-  size_t startIdx = ByteSwap_64(ghash) % tableSize;
-
-  // Do a linear probe starting at startIdx.
-  size_t idx = startIdx;
-  while (true) {
-    auto *cellPtr = reinterpret_cast<std::atomic<Cell> *>(&table[idx]);
-    Cell oldCell(cellPtr->load());
-
-    // If we found an empty cell or an existing cell with the same key and
-    // lower priority (higher value), CAS this tell into place. If the CAS
-    // fails, reload this cell and check again.
-    if (oldCell.isEmpty() ||
-        (oldCell.getGHash() == ghash && newCell < oldCell)) {
-      if (cellPtr->compare_exchange_strong(oldCell, newCell))
-        return;
-      continue;
-    }
-
-    // Advance the probe. Wrap around to the beginning if we run off the end.
-    ++idx;
-    idx = idx == tableSize ? 0 : idx;
-    if (idx == startIdx) {
-      // If this becomes an issue, we could mark failure and rehash from the
-      // beginning with a bigger table. There is no difference between rehashing
-      // internally and starting over.
-      report_fatal_error("ghash table is full");
-    }
-  }
-  llvm_unreachable("left infloop");
-}
 
 template <typename Cell>
 inline Optional<Cell> GHashTable<Cell>::lookup(uint64_t ghash) {

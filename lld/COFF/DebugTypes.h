@@ -12,13 +12,14 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "lld/Common/LLVM.h"
 
 namespace llvm {
 namespace codeview {
-struct GloballyHashedType;
 class PrecompRecord;
 class TypeServer2Record;
 class TypeIndex;
+struct TiReference;
 } // namespace codeview
 namespace pdb {
 class NativeSession;
@@ -55,8 +56,15 @@ public:
   /// If the object does not use a type server PDB (compiled with /Z7), we merge
   /// all the type and item records from the .debug$S stream and fill in the
   /// caller-provided ObjectIndexMap.
-  virtual llvm::Expected<const CVIndexMap *> mergeDebugT(TypeMerger *m,
-                                                         CVIndexMap *indexMap);
+  virtual Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
+                                                   CVIndexMap *indexMap);
+
+  bool remapTypeIndex(TypeMerger *m, llvm::codeview::TypeIndex &ti,
+                      MutableArrayRef<llvm::codeview::TypeIndex> typeIndexMap);
+
+  void remapRecord(TypeMerger *m, MutableArrayRef<uint8_t> rec,
+                   CVIndexMap &indexMap,
+                   ArrayRef<llvm::codeview::TiReference> typeRefs);
 
   /// Is this a dependent file that needs to be processed first, before other
   /// OBJs?
@@ -74,7 +82,12 @@ public:
   bool ownedGHashes = true;
   uint32_t tpiSrcIdx = 0;
   ObjFile *file;
-  llvm::ArrayRef<llvm::codeview::GloballyHashedType> ghashes;
+
+  /// GHashes for TPI and IPI records. ipiGHashes will be empty, except for PDB
+  /// type server sources. In object files (precompiled or regular), all types
+  /// are in one stream, .debug$T.
+  ArrayRef<uint64_t> tpiGHashes;
+  ArrayRef<uint64_t> ipiGHashes;
 
   /// Indicates if a type record is an item index or a type index.
   llvm::BitVector isItemIndex;
@@ -83,6 +96,15 @@ public:
   /// PDB. GHash type deduplication produces this list, and it should be
   /// considerably smaller than the input.
   std::vector<llvm::codeview::TypeIndex> uniqueTypes;
+
+  struct MergedInfo {
+    std::vector<uint8_t> recs;
+    std::vector<uint16_t> recSizes;
+    std::vector<uint32_t> recHashes;
+  };
+
+  MergedInfo mergedTpi;
+  MergedInfo mergedIpi;
 };
 
 TpiSource *makeTpiSource(ObjFile *file);

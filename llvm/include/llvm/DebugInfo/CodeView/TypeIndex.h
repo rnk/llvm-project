@@ -128,6 +128,10 @@ public:
                      (IsItem ? DecoratedItemIdMask : 0));
   }
 
+  TypeIndex removeDecoration() {
+    return TypeIndex(Index & ~DecoratedItemIdMask);
+  }
+
   SimpleTypeKind getSimpleKind() const {
     assert(isSimple());
     return static_cast<SimpleTypeKind>(Index & SimpleKindMask);
