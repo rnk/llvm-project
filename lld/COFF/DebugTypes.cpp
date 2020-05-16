@@ -24,7 +24,6 @@
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
-#include <atomic>
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -224,11 +223,14 @@ void TpiSource::loadGHashes() {
   // TODO: Get help from compiler to make this faster.
   uint32_t index = 0;
   isItemIndex.resize(ghashes.size());
-  check(forEachCodeViewRecord<CVType>(file->debugTypes, [&](const CVType &ty) {
+  auto types = file->debugTypes;
+  auto e = forEachCodeViewRecord<CVType>(types, [&](const CVType &ty) -> Error {
     if (isIdRecord(ty.kind()))
       isItemIndex.set(index);
     ++index;
-  }));
+    return Error::success();
+  });
+  checkError(std::move(e));
 }
 
 // Merge .debug$T for a generic object file.
@@ -286,6 +288,9 @@ void TypeServerSource::loadGHashes() {
   if (auto e = expectedTpi.takeError())
     fatal("Type server does not have TPI stream: " + toString(std::move(e)));
   hashCVTypeArray(this, expectedTpi->typeArray());
+  isItemIndex.resize(ghashes.size());
+
+  // FIXME: hash IPI.
 }
 
 // Merge types from a type server PDB.
@@ -514,7 +519,8 @@ void TpiSource::clear() {
   PrecompSource::mappings.clear();
 }
 
-std::vector<uint64_t> TypeIndexCell::finalGHashesByIndex;
+std::vector<uint64_t> TypeIndexCell::typeGHashes;
+std::vector<uint64_t> TypeIndexCell::itemGHashes;
 
 namespace {
 /// A ghash table cell for deduplicating types from TpiSources.
@@ -524,12 +530,12 @@ class GHashInCell {
 public:
   GHashInCell() = default;
 
-  // Construct data most to least significant:
+  // Construct data most to least significant so that sorting works well:
   // - isItem
   // - tpiSrcIdx
   // - ghashIdx
-  GHashInCell(uint32_t tpiSrcIdx, bool isItem, uint32_t ghashIdx)
-      : data((uint64_t(tpiSrcIdx + 1) << 33ULL) | (uint64_t(isItem) << 32U) |
+  GHashInCell(bool isItem, uint32_t tpiSrcIdx, uint32_t ghashIdx)
+      : data((uint64_t(isItem) << 63U) | (uint64_t(tpiSrcIdx + 1) << 32ULL) |
              ghashIdx) {
     assert(tpiSrcIdx == getTpiSrcIdx() && "too many sources of TPI");
   }
@@ -539,8 +545,10 @@ public:
   // The empty cell is all zeros.
   bool isEmpty() const { return data == 0ULL; }
 
-  uint32_t getTpiSrcIdx() const { return (uint32_t)(data >> 33U) - 1; }
-  bool isItem() const { return data & (1ULL << 32U); }
+  uint32_t getTpiSrcIdx() const {
+    return ((uint32_t)(data >> 32U) & 0x7FFFFFFF) - 1;
+  }
+  bool isItem() const { return data & (1ULL << 63U); }
   uint32_t getGHashIdx() const { return (uint32_t)data; }
 
   uint64_t getGHash() const {
@@ -579,7 +587,7 @@ void TypeMerger::identifyUniqueTypeIndices() {
     uint32_t ghashSize = source->ghashes.size();
     for (uint32_t ghashIdx = 0; ghashIdx < ghashSize; ghashIdx++)
       inTable.insert(
-          GHashInCell(tpiSrcIdx, source->isItemIndex.test(ghashIdx) ghashIdx));
+          GHashInCell(source->isItemIndex.test(ghashIdx), tpiSrcIdx, ghashIdx));
   });
 
   // Collect all non-empty cells and sort them. This will implicitly assign
@@ -596,30 +604,39 @@ void TypeMerger::identifyUniqueTypeIndices() {
                 double(entries.size()) / tableSize, entries.size(), tableSize));
   }
 
-#if 0
+  // Find out how many type and item indices there are.
+  auto mid =
+      std::lower_bound(entries.begin(), entries.end(), GHashInCell(true, 0, 0));
+  assert((mid == entries.end() || mid->isItem()) &&
+         (mid == entries.begin() || !std::prev(mid)->isItem()) &&
+         "midpoint is not midpoint");
+  uint32_t numTypes = std::distance(entries.begin(), mid);
+  uint32_t numItems = std::distance(mid, entries.end());
+  TypeIndexCell::typeGHashes.reserve(numTypes);
+  TypeIndexCell::itemGHashes.reserve(numItems);
+  llvm::errs() << "numTypes " << numTypes << " numItems " << numItems << '\n';
+
   // Put a list of all unique type indices on each tpi source. Type merging
   // will skip indices not on this list.
-  TypeIndexCell::finalGHashesByIndex.reserve(entries.size());
-  std::vector<TypeIndex> uniqueTypes;
-  std::vector<TypeIndex> uniqueItems;
-  for (auto i = entries.begin(), e = entries.end(); i != e;) {
+  // TODO: Parallelize using same technique as ICF sharding.
+  for (auto i = entries.begin(), e = entries.end(); i != e; ++i) {
     uint32_t tpiSrcIdx = i->getTpiSrcIdx();
-    for (; i != e && i->getTpiSrcIdx() == tpiSrcIdx; ++i) {
-      auto &dstVec = i->isItemIndex() ? uniqueTypes : uniqueItems;
-      dstVec.push_back(TypeIndex::fromArrayIndex(i->getGHashIdx()));
-      TypeIndexCell::finalGHashesByIndex.push_back(i->getGHash());
-    }
     TpiSource *source = TpiSource::instances[tpiSrcIdx];
-    TypeIndex *tiMem = bAlloc.Allocate<TypeIndex>(uniqueTypes.size());
-    std::copy(uniqueTypes.begin(), uniqueTypes.end(), tiMem);
-    source->typesToMerge = makeArrayRef(tiMem, uniqueTypes.size());
-    uniqueTypes.clear();
+    // FIXME: Carry item index-ness for type server PDBs.
+    source->uniqueTypes.push_back(TypeIndex::fromArrayIndex(i->getGHashIdx()));
+    auto &dstGHashVec =
+        i->isItem() ? TypeIndexCell::itemGHashes : TypeIndexCell::typeGHashes;
+    dstGHashVec.push_back(i->getGHash());
   }
-#endif
 
-  // Use a load factor of 2.
+  // Build a map from ghash to final PDB type index. There are two type index
+  // spaces: types and items. Decorate the index to indicate which space the
+  // index is in.
   finalGHashMap.init(entries.size() * 2);
-  parallelForEachN(0, entries.size(), [&](size_t dstIdx) {
-    finalGHashMap.insert(TypeIndexCell(TypeIndex::fromArrayIndex(dstIdx)));
+  parallelForEachN(0, entries.size(), [&](size_t entryIdx) {
+    bool isItem = entryIdx >= numTypes;
+    TypeIndex ti = TypeIndex::fromDecoratedArrayIndex(
+        isItem, isItem ? entryIdx - numTypes : entryIdx);
+    finalGHashMap.insert(TypeIndexCell(ti));
   });
 }

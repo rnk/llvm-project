@@ -13,6 +13,7 @@
 #include "llvm/DebugInfo/CodeView/GlobalTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/MergingTypeTableBuilder.h"
 #include "llvm/Support/Allocator.h"
+#include <atomic>
 
 namespace lld {
 namespace coff {
@@ -44,6 +45,7 @@ struct GHashTable {
   void init(size_t newTableSize) {
     // TODO: Use huge pages or other fancier memory allocations.
     table = new Cell[newTableSize];
+    memset(table, 0, newTableSize * sizeof(Cell));
     tableSize = newTableSize;
   }
 
@@ -62,7 +64,10 @@ struct alignas(uint32_t) TypeIndexCell {
 
   bool isEmpty() const { return ti.getIndex() == 0; }
 
-  uint64_t getGHash() const { return finalGHashesByIndex[ti.toArrayIndex()]; }
+  uint64_t getGHash() const {
+    uint32_t idx = ti.toArrayIndex();
+    return ti.isDecoratedItemId() ? itemGHashes[idx] : typeGHashes[idx];
+  }
 
   friend inline bool operator<(const TypeIndexCell &l, const TypeIndexCell &r) {
     return l.ti < r.ti;
@@ -70,7 +75,8 @@ struct alignas(uint32_t) TypeIndexCell {
 
   /// This is the global list of ghashes used by this cell during hash table
   /// insertion.
-  static std::vector<uint64_t> finalGHashesByIndex;
+  static std::vector<uint64_t> itemGHashes;
+  static std::vector<uint64_t> typeGHashes;
 };
 
 class TypeMerger {

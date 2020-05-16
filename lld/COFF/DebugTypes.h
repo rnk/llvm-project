@@ -77,12 +77,12 @@ public:
   llvm::ArrayRef<llvm::codeview::GloballyHashedType> ghashes;
 
   /// Indicates if a type record is an item index or a type index.
-  llvm::BitVector isGHashForItem;
+  llvm::BitVector isItemIndex;
 
   /// A list of all "unique" type indices which must be merged into the final
   /// PDB. GHash type deduplication produces this list, and it should be
   /// considerably smaller than the input.
-  llvm::ArrayRef<llvm::codeview::TypeIndex> typesToMerge;
+  std::vector<llvm::codeview::TypeIndex> uniqueTypes;
 };
 
 TpiSource *makeTpiSource(ObjFile *file);
