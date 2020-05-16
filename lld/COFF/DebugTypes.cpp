@@ -537,7 +537,8 @@ public:
   GHashInCell(bool isItem, uint32_t tpiSrcIdx, uint32_t ghashIdx)
       : data((uint64_t(isItem) << 63U) | (uint64_t(tpiSrcIdx + 1) << 32ULL) |
              ghashIdx) {
-    assert(tpiSrcIdx == getTpiSrcIdx() && "too many sources of TPI");
+    assert(tpiSrcIdx == getTpiSrcIdx() && "round trip failure");
+    assert(ghashIdx == getGHashIdx() && "round trip failure");
   }
 
   explicit GHashInCell(uint64_t data) : data(data) {}
