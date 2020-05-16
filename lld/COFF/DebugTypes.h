@@ -9,6 +9,7 @@
 #ifndef LLD_COFF_DEBUGTYPES_H
 #define LLD_COFF_DEBUGTYPES_H
 
+#include "llvm/ADT/BitVector.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 
@@ -74,6 +75,9 @@ public:
   uint32_t tpiSrcIdx = 0;
   ObjFile *file;
   llvm::ArrayRef<llvm::codeview::GloballyHashedType> ghashes;
+
+  /// Indicates if a type record is an item index or a type index.
+  llvm::BitVector isGHashForItem;
 
   /// A list of all "unique" type indices which must be merged into the final
   /// PDB. GHash type deduplication produces this list, and it should be

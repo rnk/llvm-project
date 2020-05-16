@@ -219,6 +219,16 @@ void TpiSource::loadGHashes() {
     cantFail(reader.readArray(types, reader.getLength()));
     hashCVTypeArray(this, types);
   }
+
+  // Check which type records are item records or type records.
+  // TODO: Get help from compiler to make this faster.
+  uint32_t index = 0;
+  isItemIndex.resize(ghashes.size());
+  check(forEachCodeViewRecord<CVType>(file->debugTypes, [&](const CVType &ty) {
+    if (isIdRecord(ty.kind()))
+      isItemIndex.set(index);
+    ++index;
+  }));
 }
 
 // Merge .debug$T for a generic object file.
@@ -513,15 +523,24 @@ class GHashInCell {
 
 public:
   GHashInCell() = default;
-  GHashInCell(uint32_t tpiSrcIdx, uint32_t ghashIdx)
-      : data((uint64_t(tpiSrcIdx + 1) << 32ULL) | ghashIdx) {}
+
+  // Construct data most to least significant:
+  // - isItem
+  // - tpiSrcIdx
+  // - ghashIdx
+  GHashInCell(uint32_t tpiSrcIdx, bool isItem, uint32_t ghashIdx)
+      : data((uint64_t(tpiSrcIdx + 1) << 33ULL) | (uint64_t(isItem) << 32U) |
+             ghashIdx) {
+    assert(tpiSrcIdx == getTpiSrcIdx() && "too many sources of TPI");
+  }
 
   explicit GHashInCell(uint64_t data) : data(data) {}
 
   // The empty cell is all zeros.
   bool isEmpty() const { return data == 0ULL; }
 
-  uint32_t getTpiSrcIdx() const { return ((uint32_t)(data >> 32U)) - 1; }
+  uint32_t getTpiSrcIdx() const { return (uint32_t)(data >> 33U) - 1; }
+  bool isItem() const { return data & (1ULL << 32U); }
   uint32_t getGHashIdx() const { return (uint32_t)data; }
 
   uint64_t getGHash() const {
@@ -559,7 +578,8 @@ void TypeMerger::identifyUniqueTypeIndices() {
     TpiSource *source = TpiSource::instances[tpiSrcIdx];
     uint32_t ghashSize = source->ghashes.size();
     for (uint32_t ghashIdx = 0; ghashIdx < ghashSize; ghashIdx++)
-      inTable.insert(GHashInCell(tpiSrcIdx, ghashIdx));
+      inTable.insert(
+          GHashInCell(tpiSrcIdx, source->isItemIndex.test(ghashIdx) ghashIdx));
   });
 
   // Collect all non-empty cells and sort them. This will implicitly assign
@@ -576,14 +596,17 @@ void TypeMerger::identifyUniqueTypeIndices() {
                 double(entries.size()) / tableSize, entries.size(), tableSize));
   }
 
+#if 0
   // Put a list of all unique type indices on each tpi source. Type merging
   // will skip indices not on this list.
   TypeIndexCell::finalGHashesByIndex.reserve(entries.size());
   std::vector<TypeIndex> uniqueTypes;
+  std::vector<TypeIndex> uniqueItems;
   for (auto i = entries.begin(), e = entries.end(); i != e;) {
     uint32_t tpiSrcIdx = i->getTpiSrcIdx();
     for (; i != e && i->getTpiSrcIdx() == tpiSrcIdx; ++i) {
-      uniqueTypes.push_back(TypeIndex::fromArrayIndex(i->getGHashIdx()));
+      auto &dstVec = i->isItemIndex() ? uniqueTypes : uniqueItems;
+      dstVec.push_back(TypeIndex::fromArrayIndex(i->getGHashIdx()));
       TypeIndexCell::finalGHashesByIndex.push_back(i->getGHash());
     }
     TpiSource *source = TpiSource::instances[tpiSrcIdx];
@@ -592,6 +615,7 @@ void TypeMerger::identifyUniqueTypeIndices() {
     source->typesToMerge = makeArrayRef(tiMem, uniqueTypes.size());
     uniqueTypes.clear();
   }
+#endif
 
   // Use a load factor of 2.
   finalGHashMap.init(entries.size() * 2);
