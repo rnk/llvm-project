@@ -548,7 +548,8 @@ void PDBLinker::mergeSymbolRecords(ObjFile *file, CVIndexMap &indexMap,
         }
 
         // Re-map all the type index references.
-        if (!tMerger.remapTypesInSymbolRecord(recordBytes, file, indexMap)) {
+        if (!file->debugTypesObj->remapTypesInSymbolRecord(
+                recordBytes, &tMerger, indexMap)) {
           log("error remapping types in symbol of kind 0x" +
               utohexstr(sym.kind()) + ", ignoring");
           return Error::success();
@@ -1038,8 +1039,8 @@ void PDBLinker::printStats() {
         "Input OBJ files (expanded from all cmd-line inputs)");
   print(TpiSource::countTypeServerPDBs(), "PDB type server dependencies");
   print(TpiSource::countPrecompObjs(), "Precomp OBJ dependencies");
-  print(tMerger.getTypeTable().size() + tMerger.getIDTable().size(),
-        "Merged TPI records");
+  print(builder.getTpiBuilder().getRecordCount(), "Merged TPI records");
+  print(builder.getIpiBuilder().getRecordCount(), "Merged IPI records");
   print(pdbStrTab.size(), "Output PDB strings");
   print(globalSymbols, "Global symbol records");
   print(moduleSymbols, "Module symbol records");
@@ -1091,8 +1092,11 @@ void PDBLinker::printStats() {
     }
   };
 
-  printLargeInputTypeRecs("TPI", tMerger.tpiCounts, tMerger.getTypeTable());
-  printLargeInputTypeRecs("IPI", tMerger.ipiCounts, tMerger.getIDTable());
+  if (!config->debugGHashes) {
+    // FIXME: Reimplement for ghash.
+    printLargeInputTypeRecs("TPI", tMerger.tpiCounts, tMerger.getTypeTable());
+    printLargeInputTypeRecs("IPI", tMerger.ipiCounts, tMerger.getIDTable());
+  }
 
   message(buffer);
 }

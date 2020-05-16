@@ -59,7 +59,7 @@ public:
 
   Error finalizeMsfLayout();
 
-  uint32_t getRecordCount() const { return TypeHashes.size(); }
+  uint32_t getRecordCount() const { return TypeRecordCount; }
 
   Error commit(const msf::MSFLayout &Layout, WritableBinaryStreamRef Buffer);
 

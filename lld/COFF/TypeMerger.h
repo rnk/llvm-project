@@ -10,13 +10,15 @@
 #define LLD_COFF_TYPEMERGER_H
 
 #include "Config.h"
-#include "llvm/DebugInfo/CodeView/GlobalTypeTableBuilder.h"
 #include "llvm/DebugInfo/CodeView/MergingTypeTableBuilder.h"
+#include "llvm/DebugInfo/CodeView/TypeHashing.h"
 #include "llvm/Support/Allocator.h"
 #include <atomic>
 
 namespace lld {
 namespace coff {
+
+using llvm::codeview::GloballyHashedType;
 
 /// A concurrent hash table for global type hashing. It is based on this paper:
 /// Concurrent Hash Tables: Fast and General(?)!
@@ -56,7 +58,7 @@ struct GHashTable {
 
   void insert(Cell newCell);
 
-  Optional<Cell> lookup(uint64_t ghash);
+  Optional<Cell> lookup(GloballyHashedType ghash);
 };
 
 /// A ghash table cell mapping to final PDB type indices. Needed during type
@@ -69,7 +71,7 @@ struct alignas(uint32_t) TypeIndexCell {
 
   bool isEmpty() const { return ti.getIndex() == 0; }
 
-  uint64_t getGHash() const {
+  GloballyHashedType getGHash() const {
     uint32_t idx = ti.toArrayIndex();
     return ti.isDecoratedItemId() ? itemGHashes[idx] : typeGHashes[idx];
   }
@@ -80,8 +82,8 @@ struct alignas(uint32_t) TypeIndexCell {
 
   /// This is the global list of ghashes used by this cell during hash table
   /// insertion.
-  static std::vector<uint64_t> itemGHashes;
-  static std::vector<uint64_t> typeGHashes;
+  static std::vector<GloballyHashedType> itemGHashes;
+  static std::vector<GloballyHashedType> typeGHashes;
 };
 
 class TypeMerger {
@@ -104,12 +106,6 @@ public:
   /// Use global hashes to eliminate duplicate types and identify unique type
   /// indices in each TpiSource.
   void identifyUniqueTypeIndices();
-
-  bool remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec, ObjFile *file,
-                                CVIndexMap &indexMap);
-
-  void remapTypesInTypeRecord(MutableArrayRef<uint8_t> rec, ObjFile *file,
-                              CVIndexMap &indexMap);
 
   /// A map from ghash to final type index.
   GHashTable<TypeIndexCell> finalGHashMap;
@@ -134,27 +130,6 @@ struct CVIndexMap {
   bool isTypeServerMap = false;
   bool isPrecompiledTypeMap = false;
 };
-
-template <typename Cell>
-inline Optional<Cell> GHashTable<Cell>::lookup(uint64_t ghash) {
-  size_t startIdx = ByteSwap_64(ghash) % tableSize;
-  size_t idx = startIdx;
-  while (true) {
-    // We should be able to use no atomics or relaxed atomics at this point.
-    Cell cell = table[idx];
-    if (cell.isEmpty())
-      return None; // Empty
-    else if (ghash == cell.getGHash())
-      return cell;
-
-    // Advance the probe. Wrap around to the beginning if we run off the end.
-    ++idx;
-    idx = idx == tableSize ? 0 : idx;
-    if (idx == startIdx)
-      report_fatal_error("ghash table is full");
-  }
-  llvm_unreachable("left infloop");
-}
 
 } // namespace coff
 } // namespace lld

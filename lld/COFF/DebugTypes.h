@@ -9,16 +9,18 @@
 #ifndef LLD_COFF_DEBUGTYPES_H
 #define LLD_COFF_DEBUGTYPES_H
 
+#include "lld/Common/LLVM.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "lld/Common/LLVM.h"
 
 namespace llvm {
 namespace codeview {
 class PrecompRecord;
 class TypeServer2Record;
 class TypeIndex;
+struct GloballyHashedType;
 struct TiReference;
 } // namespace codeview
 namespace pdb {
@@ -28,6 +30,9 @@ class NativeSession;
 
 namespace lld {
 namespace coff {
+
+using llvm::codeview::GloballyHashedType;
+using llvm::codeview::TypeIndex;
 
 class ObjFile;
 class PDBInputFile;
@@ -57,14 +62,25 @@ public:
   /// all the type and item records from the .debug$S stream and fill in the
   /// caller-provided ObjectIndexMap.
   virtual Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
-                                                   CVIndexMap *indexMap);
+                                             CVIndexMap *indexMap);
 
-  bool remapTypeIndex(TypeMerger *m, llvm::codeview::TypeIndex &ti,
-                      MutableArrayRef<llvm::codeview::TypeIndex> typeIndexMap);
+  bool remapTypeIndex(TypeMerger *m, TypeIndex &ti,
+                      MutableArrayRef<TypeIndex> typeIndexMap);
 
+protected:
   void remapRecord(TypeMerger *m, MutableArrayRef<uint8_t> rec,
                    CVIndexMap &indexMap,
                    ArrayRef<llvm::codeview::TiReference> typeRefs);
+
+  void mergeTypeRecord(llvm::codeview::CVType ty, TypeIndex index,
+                       TypeMerger *m, CVIndexMap *indexMap);
+
+public:
+  bool remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec, TypeMerger *m,
+                                CVIndexMap &indexMap);
+
+  void remapTypesInTypeRecord(MutableArrayRef<uint8_t> rec, TypeMerger *m,
+                              CVIndexMap &indexMap);
 
   /// Is this a dependent file that needs to be processed first, before other
   /// OBJs?
@@ -83,11 +99,9 @@ public:
   uint32_t tpiSrcIdx = 0;
   ObjFile *file;
 
-  /// GHashes for TPI and IPI records. ipiGHashes will be empty, except for PDB
-  /// type server sources. In object files (precompiled or regular), all types
-  /// are in one stream, .debug$T.
-  ArrayRef<uint64_t> tpiGHashes;
-  ArrayRef<uint64_t> ipiGHashes;
+  /// GHashes for TPI and IPI records.
+  ArrayRef<GloballyHashedType> tpiGHashes;
+  ArrayRef<GloballyHashedType> ipiGHashes;
 
   /// Indicates if a type record is an item index or a type index.
   llvm::BitVector isItemIndex;
@@ -95,7 +109,7 @@ public:
   /// A list of all "unique" type indices which must be merged into the final
   /// PDB. GHash type deduplication produces this list, and it should be
   /// considerably smaller than the input.
-  std::vector<llvm::codeview::TypeIndex> uniqueTypes;
+  std::vector<TypeIndex> uniqueTypes;
 
   struct MergedInfo {
     std::vector<uint8_t> recs;
