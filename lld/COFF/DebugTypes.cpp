@@ -79,6 +79,7 @@ public:
 
   CVIndexMap tsIndexMap;
 
+  // FIXME: Re-parent over to TypeServerIpiSource?
   std::vector<GloballyHashedType> ownedIpiGHashes;
 
   static std::map<codeview::GUID, TypeServerSource *> mappings;
@@ -343,7 +344,7 @@ void TpiSource::remapTypesInTypeRecord(MutableArrayRef<uint8_t> rec,
 }
 
 bool TpiSource::remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec,
-                                          TypeMerger *m, CVIndexMap &indexMap) {
+                                         TypeMerger *m, CVIndexMap &indexMap) {
   // Discover type index references in the record. Skip it if we don't
   // know where they are.
   SmallVector<TiReference, 32> typeRefs;
@@ -707,8 +708,7 @@ UsePrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   return TpiSource::mergeDebugT(m, indexMap);
 }
 
-Expected<CVIndexMap *> PrecompSource::mergeDebugT(TypeMerger *m,
-                                                        CVIndexMap *) {
+Expected<CVIndexMap *> PrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *) {
   // Note that we're not using the provided CVIndexMap. Instead, we use our
   // local one. Precompiled headers objects need to save the index map for
   // further reference by other objects which use the precompiled headers.
