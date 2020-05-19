@@ -101,7 +101,6 @@ public:
 
   /// GHashes for TPI and IPI records.
   ArrayRef<GloballyHashedType> tpiGHashes;
-  ArrayRef<GloballyHashedType> ipiGHashes;
 
   /// Indicates if a type record is an item index or a type index.
   llvm::BitVector isItemIndex;

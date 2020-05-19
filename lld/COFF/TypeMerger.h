@@ -29,13 +29,15 @@ using llvm::codeview::GloballyHashedType;
 /// 2. concurrent lookup
 /// It does not support deletion or rehashing. It uses linear probing.
 ///
-/// The paper describes storing a key-value pair in two machine words, but that
-/// is not necessary for our use case, since generally we map ghashes to indices
-/// that can be used to recover their key.
+/// The paper describes storing a key-value pair in two machine words.
+/// Generally, the values stored in this map are type indices, and we can use
+/// those values to recover the ghash key from a side table. This allows us to
+/// shrink the table entries further at the cost of some loads, and sidesteps
+/// the need for a 128 bit atomic compare-and-swap operation.
 ///
 /// The Cell type must support the following API:
 ///   // Get the ghash key for this cell.
-///   uint64_t getGHash();
+///   GloballyHashedType getGHash();
 ///   // Must return true if members are zero, since table is initialized with
 ///   // memset.
 ///   bool isEmpty();
