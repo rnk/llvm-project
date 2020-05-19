@@ -25,6 +25,7 @@ struct TiReference;
 } // namespace codeview
 namespace pdb {
 class NativeSession;
+class TpiStream;
 }
 } // namespace llvm
 
@@ -75,6 +76,14 @@ protected:
   void mergeTypeRecord(llvm::codeview::CVType ty, TypeIndex index,
                        TypeMerger *m, CVIndexMap *indexMap);
 
+  void mergeUniqueTypeRecords(const llvm::codeview::CVTypeArray &types,
+                              TypeMerger *m, CVIndexMap *indexMap);
+
+  // Eagerly fill in type server index maps. They will be used concurrently, so
+  // they cannot be filled lazily.
+  void fillMapFromGHashes(TypeMerger *m,
+                          llvm::SmallVectorImpl<TypeIndex> &indexMap);
+
 public:
   bool remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec, TypeMerger *m,
                                 CVIndexMap &indexMap);
@@ -100,7 +109,7 @@ public:
   ObjFile *file;
 
   /// GHashes for TPI and IPI records.
-  ArrayRef<GloballyHashedType> tpiGHashes;
+  ArrayRef<GloballyHashedType> ghashes;
 
   /// Indicates if a type record is an item index or a type index.
   llvm::BitVector isItemIndex;
