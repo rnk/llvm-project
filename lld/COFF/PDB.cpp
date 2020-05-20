@@ -52,6 +52,7 @@
 #include "llvm/Support/Errc.h"
 #include "llvm/Support/FormatAdapters.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include <memory>
@@ -125,6 +126,10 @@ public:
   void addSections(ArrayRef<OutputSection *> outputSections,
                    ArrayRef<uint8_t> sectionTable);
 
+  /// Add a single global from a particular module.
+  void addGlobalSymbol(const CVSymbol &sym, uint16_t modIndex,
+                       unsigned symOffset);
+
   /// Write the PDB to disk and store the Guid generated for it in *Guid.
   void commit(codeview::GUID *guid);
 
@@ -144,8 +149,10 @@ private:
 
   llvm::SmallString<128> nativePath;
 
+  /// Global symbols to add, indexed by tpiSrcIdx.
+  std::vector<std::vector<CVSymbol>> globalsByModule;
+
   // For statistics
-  uint64_t globalSymbols = 0;
   uint64_t moduleSymbols = 0;
   uint64_t publicSymbols = 0;
 };
@@ -458,8 +465,8 @@ static bool symbolGoesInGlobalsStream(const CVSymbol &sym,
   }
 }
 
-static void addGlobalSymbol(pdb::GSIStreamBuilder &builder, uint16_t modIndex,
-                            unsigned symOffset, const CVSymbol &sym) {
+void PDBLinker::addGlobalSymbol(const CVSymbol &sym, uint16_t modIndex,
+                                unsigned symOffset) {
   switch (sym.kind()) {
   case SymbolKind::S_CONSTANT:
   case SymbolKind::S_UDT:
@@ -469,7 +476,7 @@ static void addGlobalSymbol(pdb::GSIStreamBuilder &builder, uint16_t modIndex,
   case SymbolKind::S_LDATA32:
   case SymbolKind::S_PROCREF:
   case SymbolKind::S_LPROCREF:
-    builder.addGlobalSymbol(sym);
+    globalsByModule[modIndex].push_back(sym);
     break;
   case SymbolKind::S_GPROC32:
   case SymbolKind::S_LPROC32: {
@@ -483,7 +490,8 @@ static void addGlobalSymbol(pdb::GSIStreamBuilder &builder, uint16_t modIndex,
     ps.Name = getSymbolName(sym);
     ps.SumName = 0;
     ps.SymOffset = symOffset;
-    builder.addGlobalSymbol(ps);
+    globalsByModule[modIndex].push_back(codeview::SymbolSerializer::writeOneSymbol(
+        ps, bAlloc, CodeViewContainer::Pdb));
     break;
   }
   default:
@@ -574,11 +582,8 @@ void PDBLinker::mergeSymbolRecords(ObjFile *file, CVIndexMap &indexMap,
         // adding the symbol to the module since we may need to get the next
         // symbol offset, and writing to the module's symbol stream will update
         // that offset.
-        if (symbolGoesInGlobalsStream(sym, !scopes.empty())) {
-          addGlobalSymbol(builder.getGsiBuilder(),
-                          file->moduleDBI->getModuleIndex(), curSymOffset, sym);
-          ++globalSymbols;
-        }
+        if (symbolGoesInGlobalsStream(sym, !scopes.empty()))
+          addGlobalSymbol(sym, file->moduleDBI->getModuleIndex(), curSymOffset);
 
         if (symbolGoesInModuleStream(sym, scopes.empty())) {
           // Add symbols to the module in bulk. If this symbol is contiguous
@@ -957,6 +962,7 @@ void PDBLinker::addObjectsToPDB() {
   // Create module descriptors
   for_each(ObjFile::instances,
            [&](ObjFile *obj) { createModuleDBI(builder, obj); });
+  globalsByModule.resize(ObjFile::instances.size());
 
   // Load or calculate global type hashes in parallel.
   if (config->debugGHashes) {
@@ -1017,6 +1023,11 @@ void PDBLinker::addPublicsToPDB() {
     publicSymbols = publics.size();
     gsiBuilder.addPublicSymbols(std::move(publics));
   }
+
+  // Move all the global symbols we collected earlier in parallel.
+  for (const auto &perModuleGlobals : globalsByModule)
+    for (const CVSymbol &global : perModuleGlobals)
+      gsiBuilder.addGlobalSymbol(global);
 }
 
 void PDBLinker::printStats() {
@@ -1032,6 +1043,10 @@ void PDBLinker::printStats() {
   auto print = [&](uint64_t v, StringRef s) {
     stream << format_decimal(v, 15) << " " << s << '\n';
   };
+
+  size_t globalSymbols = 0;
+  for (const auto &gs : globalsByModule)
+    globalSymbols += gs.size();
 
   print(ObjFile::instances.size(),
         "Input OBJ files (expanded from all cmd-line inputs)");
