@@ -749,10 +749,8 @@ DebugSHandler::mergeInlineeLines(DebugChecksumsSubsection *newChecksums) {
     uint32_t fileID = line.Header->FileID;
     uint32_t sourceLine = line.Header->SourceLineNum;
 
-    MutableArrayRef<TypeIndex> typeOrItemMap =
-        indexMap->isTypeServerMap ? indexMap->ipiMap : indexMap->tpiMap;
     if (!file.debugTypesObj->remapTypeIndex(&linker.tMerger, inlinee,
-                                            typeOrItemMap)) {
+                                            TiRefKind::IndexRef, *indexMap)) {
       log("ignoring inlinee line record in " + file.getName() +
           " with bad inlinee index 0x" + utohexstr(inlinee.getIndex()));
       continue;

@@ -136,6 +136,8 @@ public:
     precompIndexMap.isPrecompiledTypeMap = true;
   }
 
+  void loadGHashes() override;
+
   Expected<CVIndexMap *> mergeDebugT(TypeMerger *m,
                                      CVIndexMap *indexMap) override;
   bool isDependency() const override { return true; }
@@ -266,8 +268,13 @@ void TpiSource::loadGHashes() {
     assignGHashesFromVector(GloballyHashedType::hashTypes(types));
   }
 
-  // Check which type records are item records or type records.
-  // TODO: Get help from compiler to make this faster.
+  // TODO: Either eliminate the need for this info, or make this part of the
+  // ghash format so that we don't have to iterate all of .debug$T again.
+  fillIsItemIndexFromDebugT();
+}
+
+// Walk over file->debugTypes and fill in the isItemIndex bit vector.
+void TpiSource::fillIsItemIndexFromDebugT() {
   uint32_t index = 0;
   isItemIndex.resize(ghashes.size());
   forEachTypeChecked(file->debugTypes, [&](const CVType &ty) {
@@ -284,20 +291,25 @@ static TypeIndex lookupPdbIndexFromGHash(TypeMerger *m,
   return maybeCell->ti.removeDecoration();
 }
 
-bool TpiSource::remapTypeIndex(TypeMerger *m, TypeIndex &ti,
-                               MutableArrayRef<TypeIndex> typeIndexMap) {
+bool TpiSource::remapTypeIndex(TypeMerger *m, TypeIndex &ti, TiRefKind refKind,
+                               CVIndexMap &indexMap) {
+  // This can be an item index or a type index. Choose the appropriate map.
+  MutableArrayRef<TypeIndex> tpiOrIpiMap = indexMap.tpiMap;
+  if (refKind == TiRefKind::IndexRef && indexMap.isTypeServerMap)
+    tpiOrIpiMap = indexMap.ipiMap;
+
   if (ti.isSimple())
     return true;
-  if (ti.toArrayIndex() >= typeIndexMap.size())
+  assert(!shouldOmitFromPdb(ti.toArrayIndex()) && "cannot remap omitted index");
+  if (ti.toArrayIndex() >= tpiOrIpiMap.size())
     return false;
-  TypeIndex &dstTi = typeIndexMap[ti.toArrayIndex()];
+  TypeIndex &dstTi = tpiOrIpiMap[ti.toArrayIndex()];
   if (dstTi.isNoneType()) {
-    // Lazily populate object index maps when ghashing is enabled.
-    assert(kind != UsingPDB && config->debugGHashes &&
-           "should not lazily populate type server index maps");
+    // If the index is zero, lazily populate it with a ghash map lookup.
+    assert(config->debugGHashes && !indexMap.isTypeServerMap &&
+           !indexMap.isPrecompiledTypeMap &&
+           "cannot lazily populate PCH or PDB index maps due to races");
     dstTi = lookupPdbIndexFromGHash(m, ghashes[ti.toArrayIndex()]);
-    log("lazily mapped 0x" + utohexstr(ti.getIndex()) + " to 0x" +
-        utohexstr(dstTi.getIndex()));
   }
   ti = dstTi;
   return true;
@@ -312,24 +324,18 @@ void TpiSource::remapRecord(TypeMerger *m, MutableArrayRef<uint8_t> rec,
     if (contents.size() < ref.Offset + byteSize)
       fatal("symbol record too short");
 
-    // This can be an item index or a type index. Choose the appropriate map.
-    MutableArrayRef<TypeIndex> typeOrItemMap = indexMap.tpiMap;
-    bool isItemIndex = ref.Kind == TiRefKind::IndexRef;
-    if (isItemIndex && indexMap.isTypeServerMap)
-      typeOrItemMap = indexMap.ipiMap;
-
     MutableArrayRef<TypeIndex> indices(
         reinterpret_cast<TypeIndex *>(contents.data() + ref.Offset), ref.Count);
     for (TypeIndex &ti : indices) {
-      if (!remapTypeIndex(m, ti, typeOrItemMap)) {
-        uint16_t kind =
-            reinterpret_cast<const RecordPrefix *>(rec.data())->RecordKind;
+      if (!remapTypeIndex(m, ti, ref.Kind, indexMap)) {
         if (config->verbose) {
+          uint16_t kind =
+              reinterpret_cast<const RecordPrefix *>(rec.data())->RecordKind;
           StringRef fname = file ? file->getName() : "<unknown PDB>";
           log("failed to remap type index in record of kind 0x" +
               utohexstr(kind) + " in " + fname + " with bad " +
-              (isItemIndex ? "item" : "type") + " index 0x" +
-              utohexstr(ti.getIndex()));
+              (ref.Kind == TiRefKind::IndexRef ? "item" : "type") +
+              " index 0x" + utohexstr(ti.getIndex()));
         }
         ti = TypeIndex(SimpleTypeKind::NotTranslated);
         continue;
@@ -357,7 +363,7 @@ bool TpiSource::remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec,
   return true;
 }
 
-void TpiSource::mergeTypeRecord(CVType ty, TypeIndex index, TypeMerger *m,
+void TpiSource::mergeTypeRecord(CVType ty, TypeMerger *m,
                                 CVIndexMap *indexMap) {
   // Decide if the merged type goes into TPI or IPI.
   bool isItem = isIdRecord(ty.kind());
@@ -400,7 +406,7 @@ void TpiSource::mergeUniqueTypeRecords(const CVTypeArray &types, TypeMerger *m,
   assert(mergedIpi.recs.empty());
   for (CVType ty : types) {
     if (nextUniqueIndex != uniqueTypes.end() && *nextUniqueIndex == index) {
-      mergeTypeRecord(ty, index, m, indexMap);
+      mergeTypeRecord(ty, m, indexMap);
       ++nextUniqueIndex;
     }
     ++index;
@@ -484,6 +490,8 @@ void TypeServerSource::loadGHashes() {
     fatal("error retreiving IPI stream: " + toString(std::move(e)));
   ipiSrc->assignGHashesFromVector(
       GloballyHashedType::hashIds(expectedIpi->typeArray(), ghashes));
+
+  // The IPI stream isItemIndex bitvector should be all ones.
   ipiSrc->isItemIndex.resize(ipiSrc->ghashes.size());
   ipiSrc->isItemIndex.set(0, ipiSrc->ghashes.size());
 }
@@ -493,8 +501,12 @@ void TypeServerSource::loadGHashes() {
 void TpiSource::fillMapFromGHashes(TypeMerger *m,
                                    SmallVectorImpl<TypeIndex> &indexMap) {
   indexMap.resize(ghashes.size());
-  for (size_t i = 0, e = ghashes.size(); i < e; ++i)
-    indexMap[i] = lookupPdbIndexFromGHash(m, ghashes[i]);
+  for (size_t i = 0, e = ghashes.size(); i < e; ++i) {
+    if (shouldOmitFromPdb(i))
+      indexMap[i] = TypeIndex(SimpleTypeKind::NotTranslated);
+    else
+      indexMap[i] = lookupPdbIndexFromGHash(m, ghashes[i]);
+  }
 }
 
 // Merge the given TPI or IPI stream from a type server PDB into the
@@ -635,25 +647,27 @@ static PrecompSource *findObjByName(StringRef fileNameOnly) {
   return nullptr;
 }
 
-Expected<CVIndexMap *> findPrecompMap(ObjFile *file, PrecompRecord &pr) {
+static PrecompSource *findPrecompSource(ObjFile *file, PrecompRecord &pr) {
   // Cross-compile warning: given that Clang doesn't generate LF_PRECOMP
   // records, we assume the OBJ comes from a Windows build of cl.exe. Thusly,
   // the paths embedded in the OBJs are in the Windows format.
   SmallString<128> prFileName =
       sys::path::filename(pr.getPrecompFilePath(), sys::path::Style::windows);
 
-  PrecompSource *precomp;
   auto it = PrecompSource::mappings.find(pr.getSignature());
   if (it != PrecompSource::mappings.end()) {
-    precomp = it->second;
-  } else {
-    // Lookup by name
-    precomp = findObjByName(prFileName);
+    return it->second;
   }
+  // Lookup by name
+  return findObjByName(prFileName);
+}
+
+static Expected<CVIndexMap *> findPrecompMap(ObjFile *file, PrecompRecord &pr) {
+  PrecompSource *precomp = findPrecompSource(file, pr);
 
   if (!precomp)
     return createFileError(
-        prFileName,
+        pr.getPrecompFilePath(),
         make_error<pdb::PDBError>(pdb::pdb_error_code::no_matching_pch));
 
   if (pr.getSignature() != file->pchSignature)
@@ -669,12 +683,52 @@ Expected<CVIndexMap *> findPrecompMap(ObjFile *file, PrecompRecord &pr) {
   return &precomp->precompIndexMap;
 }
 
-/// Merges a precompiled headers TPI map into the current TPI map. The
-/// precompiled headers object will also be loaded and remapped in the
-/// process.
-static Expected<CVIndexMap *>
-mergeInPrecompHeaderObj(ObjFile *file, CVIndexMap *indexMap,
-                        PrecompRecord &precomp) {
+void PrecompSource::loadGHashes() {
+  if (getDebugH(file)) {
+    warn("ignoring .debug$H section; pch with ghash is not implemented");
+  }
+
+  uint32_t ghashIdx = 0;
+  std::vector<GloballyHashedType> hashVec;
+  forEachTypeChecked(file->debugTypes, [&](const CVType &ty) {
+    // Remember the index of the LF_ENDPRECOMP record so it can be excluded from
+    // the PDB. There must be an entry in the list of ghashes so that the type
+    // indexes of the following records in the /Yc PCH object line up.
+    if (ty.kind() == LF_ENDPRECOMP)
+      endPrecompGHashIdx = ghashIdx;
+
+    hashVec.push_back(GloballyHashedType::hashType(ty, hashVec, hashVec));
+    isItemIndex.push_back(isIdRecord(ty.kind()));
+    ++ghashIdx;
+  });
+  assignGHashesFromVector(std::move(hashVec));
+}
+
+void UsePrecompSource::loadGHashes() {
+  PrecompSource *pchSrc = findPrecompSource(file, precompDependency);
+  if (!pchSrc)
+    return; // FIXME: Test error handling.
+
+  // To compute ghashes of a /Yu object file, we need to build on the the
+  // ghashes of the /Yc PCH object. After we are done hashing, discard the
+  // ghashes from the PCH source so we don't unnecessarily try to deduplicate
+  // them.
+  std::vector<GloballyHashedType> hashVec =
+      pchSrc->ghashes.take_front(precompDependency.getTypesCount());
+  forEachTypeChecked(file->debugTypes, [&](const CVType &ty) {
+    hashVec.push_back(GloballyHashedType::hashType(ty, hashVec, hashVec));
+    isItemIndex.push_back(isIdRecord(ty.kind()));
+  });
+  hashVec.erase(hashVec.begin(),
+                hashVec.begin() + precompDependency.getTypesCount());
+  assignGHashesFromVector(std::move(hashVec));
+}
+
+/// Retreives the index map from the PCH object. Prepends the initial index
+/// mapping to this object's index mapping.
+static Expected<CVIndexMap *> prependPrecompIndexMap(ObjFile *file,
+                                                     CVIndexMap *indexMap,
+                                                     PrecompRecord &precomp) {
   auto e = findPrecompMap(file, precomp);
   if (!e)
     return e.takeError();
@@ -694,17 +748,13 @@ mergeInPrecompHeaderObj(ObjFile *file, CVIndexMap *indexMap,
   return indexMap;
 }
 
-void UsePrecompSource::loadGHashes() {
-  report_fatal_error("NYI, can base impl be used directly?");
-}
-
 Expected<CVIndexMap *>
 UsePrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *indexMap) {
   // This object was compiled with /Yu, so process the corresponding
   // precompiled headers object (/Yc) first. Some type indices in the current
   // object are referencing data in the precompiled headers object, so we need
   // both to be loaded.
-  auto e = mergeInPrecompHeaderObj(file, indexMap, precompDependency);
+  auto e = prependPrecompIndexMap(file, indexMap, precompDependency);
   if (!e)
     return e.takeError();
 
@@ -715,6 +765,8 @@ Expected<CVIndexMap *> PrecompSource::mergeDebugT(TypeMerger *m, CVIndexMap *) {
   // Note that we're not using the provided CVIndexMap. Instead, we use our
   // local one. Precompiled headers objects need to save the index map for
   // further reference by other objects which use the precompiled headers.
+  // Similar to type servers, the map must be filled in eagerly.
+  fillMapFromGHashes(m, precompIndexMap.tpiMap);
   return TpiSource::mergeDebugT(m, &precompIndexMap);
 }
 
@@ -876,6 +928,8 @@ void TypeMerger::identifyUniqueTypeIndices() {
   parallelForEachN(0, TpiSource::instances.size(), [&](size_t tpiSrcIdx) {
     TpiSource *source = TpiSource::instances[tpiSrcIdx];
     for (uint32_t i = 0, e = source->ghashes.size(); i < e; i++) {
+      if (source->shouldOmitFromPdb(i))
+        continue;
       bool isItem = source->isItemIndex.test(i);
       inTable.insert(GHashInCell(isItem, tpiSrcIdx, i));
     }

@@ -12,16 +12,13 @@
 #include "lld/Common/LLVM.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
+#include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 
 namespace llvm {
 namespace codeview {
-class PrecompRecord;
-class TypeServer2Record;
-class TypeIndex;
 struct GloballyHashedType;
-struct TiReference;
 } // namespace codeview
 namespace pdb {
 class NativeSession;
@@ -66,15 +63,15 @@ public:
                                              CVIndexMap *indexMap);
 
   bool remapTypeIndex(TypeMerger *m, TypeIndex &ti,
-                      MutableArrayRef<TypeIndex> typeIndexMap);
+                      llvm::codeview::TiRefKind refKind, CVIndexMap &indexMap);
 
 protected:
   void remapRecord(TypeMerger *m, MutableArrayRef<uint8_t> rec,
                    CVIndexMap &indexMap,
                    ArrayRef<llvm::codeview::TiReference> typeRefs);
 
-  void mergeTypeRecord(llvm::codeview::CVType ty, TypeIndex index,
-                       TypeMerger *m, CVIndexMap *indexMap);
+  void mergeTypeRecord(llvm::codeview::CVType ty, TypeMerger *m,
+                       CVIndexMap *indexMap);
 
   void mergeUniqueTypeRecords(const llvm::codeview::CVTypeArray &types,
                               TypeMerger *m, CVIndexMap *indexMap);
@@ -89,6 +86,9 @@ protected:
   // memory usage.
   void assignGHashesFromVector(std::vector<GloballyHashedType> &&hashVec);
 
+  // Walk over file->debugTypes and fill in the isItemIndex bit vector.
+  void fillIsItemIndexFromDebugT();
+
 public:
   bool remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec, TypeMerger *m,
                                 CVIndexMap &indexMap);
@@ -99,6 +99,13 @@ public:
   /// Is this a dependent file that needs to be processed first, before other
   /// OBJs?
   virtual bool isDependency() const { return false; }
+
+  /// Returns true if this type record should be omitted from the PDB, even if
+  /// it is unique. This prevents a record from being added to the input ghash
+  /// table.
+  bool shouldOmitFromPdb(uint32_t ghashIdx) {
+    return ghashIdx == endPrecompGHashIdx;
+  }
 
   static std::vector<TpiSource *> instances;
 
@@ -111,6 +118,14 @@ public:
   const TpiKind kind;
   bool ownedGHashes = true;
   uint32_t tpiSrcIdx = 0;
+
+protected:
+  /// The ghash index (zero based, not 0x1000-based) of the LF_ENDPRECOMP record
+  /// in this object, if one exists. This is the all ones value otherwise. It is
+  /// recorded here so that it can be omitted from the final ghash table.
+  uint32_t endPrecompGHashIdx = ~0U;
+
+public:
   ObjFile *file;
 
   /// GHashes for TPI and IPI records.
