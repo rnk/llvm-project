@@ -79,9 +79,6 @@ public:
 
   CVIndexMap tsIndexMap;
 
-  // FIXME: Re-parent over to TypeServerIpiSource?
-  std::vector<GloballyHashedType> ownedIpiGHashes;
-
   static std::map<codeview::GUID, TypeServerSource *> mappings;
 };
 
@@ -99,6 +96,8 @@ public:
   bool isDependency() const override { return true; }
   void mergeIpiStream(TypeMerger *m, pdb::TpiStream &ipi,
                       CVIndexMap *tsIndexMap);
+
+  using TpiSource::assignGHashesFromVector;
 };
 
 // This class represents the debug type stream of an OBJ file that depends on a
@@ -235,14 +234,15 @@ getHashesFromDebugH(ArrayRef<uint8_t> debugH) {
   return {reinterpret_cast<const GloballyHashedType *>(debugH.data()), count};
 }
 
-static void hashCVTypeArray(TpiSource *src, const CVTypeArray &types) {
-  // BumpPtrAllocator is not thread-safe, so use `new`.
-  std::vector<GloballyHashedType> hashVec =
-      GloballyHashedType::hashTypes(types);
+// Copies ghashes from a vector into an array. These are long lived, so it's
+// worth the time to copy these into an appropriately sized vector to reduce
+// memory usage.
+void TpiSource::assignGHashesFromVector(
+    std::vector<GloballyHashedType> &&hashVec) {
   GloballyHashedType *hashes = new GloballyHashedType[hashVec.size()];
   memcpy(hashes, hashVec.data(), hashVec.size() * sizeof(GloballyHashedType));
-  src->ghashes = makeArrayRef(hashes, hashVec.size());
-  src->ownedGHashes = true;
+  ghashes = makeArrayRef(hashes, hashVec.size());
+  ownedGHashes = true;
 }
 
 // Wrapper on forEachCodeViewRecord with less error handling.
@@ -263,7 +263,7 @@ void TpiSource::loadGHashes() {
     CVTypeArray types;
     BinaryStreamReader reader(file->debugTypes, support::little);
     cantFail(reader.readArray(types, reader.getLength()));
-    hashCVTypeArray(this, types);
+    assignGHashesFromVector(GloballyHashedType::hashTypes(types));
   }
 
   // Check which type records are item records or type records.
@@ -324,10 +324,13 @@ void TpiSource::remapRecord(TypeMerger *m, MutableArrayRef<uint8_t> rec,
       if (!remapTypeIndex(m, ti, typeOrItemMap)) {
         uint16_t kind =
             reinterpret_cast<const RecordPrefix *>(rec.data())->RecordKind;
-        log("failed to remap type index in record of kind 0x" +
-            utohexstr(kind) + " in " + file->getName() + " with bad " +
-            (isItemIndex ? "item" : "type") + " index 0x" +
-            utohexstr(ti.getIndex()));
+        if (config->verbose) {
+          StringRef fname = file ? file->getName() : "<unknown PDB>";
+          log("failed to remap type index in record of kind 0x" +
+              utohexstr(kind) + " in " + fname + " with bad " +
+              (isItemIndex ? "item" : "type") + " index 0x" +
+              utohexstr(ti.getIndex()));
+        }
         ti = TypeIndex(SimpleTypeKind::NotTranslated);
         continue;
       }
@@ -469,7 +472,8 @@ void TypeServerSource::loadGHashes() {
   Expected<pdb::TpiStream &> expectedTpi = pdbFile.getPDBTpiStream();
   if (auto e = expectedTpi.takeError())
     fatal("Type server does not have TPI stream: " + toString(std::move(e)));
-  hashCVTypeArray(this, expectedTpi->typeArray());
+  assignGHashesFromVector(
+      GloballyHashedType::hashTypes(expectedTpi->typeArray()));
   isItemIndex.resize(ghashes.size());
 
   // Hash IPI stream, which depends on TPI ghashes.
@@ -478,11 +482,10 @@ void TypeServerSource::loadGHashes() {
   Expected<pdb::TpiStream &> expectedIpi = pdbFile.getPDBIpiStream();
   if (auto e = expectedIpi.takeError())
     fatal("error retreiving IPI stream: " + toString(std::move(e)));
-  ownedIpiGHashes =
-      GloballyHashedType::hashIds(expectedIpi->typeArray(), ghashes);
-  ipiSrc->ghashes = ownedIpiGHashes;
-  ipiSrc->isItemIndex.resize(ownedIpiGHashes.size());
-  ipiSrc->isItemIndex.set(0, ownedIpiGHashes.size());
+  ipiSrc->assignGHashesFromVector(
+      GloballyHashedType::hashIds(expectedIpi->typeArray(), ghashes));
+  ipiSrc->isItemIndex.resize(ipiSrc->ghashes.size());
+  ipiSrc->isItemIndex.set(0, ipiSrc->ghashes.size());
 }
 
 // Eagerly fill in type server index maps. They will be used concurrently, so

@@ -84,6 +84,11 @@ protected:
   void fillMapFromGHashes(TypeMerger *m,
                           llvm::SmallVectorImpl<TypeIndex> &indexMap);
 
+  // Copies ghashes from a vector into an array. These are long lived, so it's
+  // worth the time to copy these into an appropriately sized vector to reduce
+  // memory usage.
+  void assignGHashesFromVector(std::vector<GloballyHashedType> &&hashVec);
+
 public:
   bool remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec, TypeMerger *m,
                                 CVIndexMap &indexMap);
