@@ -23,9 +23,11 @@ add_entrypoint_library(
     libc.src.stdlib.abort
 
     # string.h entrypoints
+    libc.src.string.bzero
     libc.src.string.memcpy
-    libc.src.string.strcpy
+    libc.src.string.memset
     libc.src.string.strcat
+    libc.src.string.strcpy
     libc.src.string.strlen
 
     # sys/mman.h entrypoints
@@ -33,6 +35,7 @@ add_entrypoint_library(
     libc.src.sys.mman.munmap
 
     # threads.h entrypoints
+    libc.src.threads.call_once
     libc.src.threads.mtx_init
     libc.src.threads.mtx_lock
     libc.src.threads.mtx_unlock
