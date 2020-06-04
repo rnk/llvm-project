@@ -112,7 +112,7 @@ public:
   /// externally.
   void addDebug(TpiSource *source);
 
-  const CVIndexMap *mergeTypeRecords(TpiSource *source, CVIndexMap *localMap);
+  const CVIndexMap *mergeTypeRecords(TpiSource *source);
 
   void addDebugSymbols(ObjFile *file, const CVIndexMap *indexMap);
 
@@ -834,21 +834,18 @@ static void warnUnusable(InputFile *f, Error e) {
     warn(msg);
 }
 
-const CVIndexMap *PDBLinker::mergeTypeRecords(TpiSource *source,
-                                              CVIndexMap *localMap) {
+const CVIndexMap *PDBLinker::mergeTypeRecords(TpiSource *source) {
   ScopedTimer t(typeMergingTimer);
   // Before we can process symbol substreams from .debug$S, we need to process
   // type information, file checksums, and the string table.  Add type info to
   // the PDB first, so that we can get the map from object file type and item
   // indices to PDB type and item indices.
-  Expected<const CVIndexMap *> r = source->mergeDebugT(&tMerger, localMap);
-
-  // If the .debug$T sections fail to merge, assume there is no debug info.
-  if (!r) {
-    warnUnusable(source->file, r.takeError());
+  if (Error e = source->mergeDebugT(&tMerger)) {
+    // If the .debug$T sections fail to merge, assume there is no debug info.
+    warnUnusable(source->file, std::move(e));
     return nullptr;
   }
-  return *r;
+  return &source->indexMap;
 }
 
 // Allocate memory for a .debug$S / .debug$F section and relocate it.
@@ -925,8 +922,7 @@ static void createModuleDBI(pdb::PDBFileBuilder &builder, ObjFile *file) {
 }
 
 void PDBLinker::addDebug(TpiSource *source) {
-  CVIndexMap localMap;
-  const CVIndexMap *indexMap = mergeTypeRecords(source, &localMap);
+  const CVIndexMap *indexMap = mergeTypeRecords(source);
 
   if (source->kind == TpiSource::PDB)
     return; // No symbols in TypeServer PDBs
