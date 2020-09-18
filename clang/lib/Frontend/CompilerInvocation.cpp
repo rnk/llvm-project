@@ -1443,6 +1443,10 @@ static bool ParseCodeGenArgs(CodeGenOptions &Opts, ArgList &Args, InputKind IK,
 
   Opts.Addrsig = Args.hasArg(OPT_faddrsig);
 
+  Opts.LlvmDllexports = Args.hasArg(OPT_fllvm_dllexports);
+
+  Opts.LlvmSymbolRoots = Args.hasArg(OPT_fllvm_symbol_roots);
+
   Opts.KeepStaticConsts = Args.hasArg(OPT_fkeep_static_consts);
 
   Opts.SpeculativeLoadHardening = Args.hasArg(OPT_mspeculative_load_hardening);

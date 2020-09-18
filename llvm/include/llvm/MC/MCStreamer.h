@@ -1028,6 +1028,13 @@ public:
   virtual void emitAddrsig() {}
   virtual void emitAddrsigSym(const MCSymbol *Sym) {}
 
+  virtual void emitLlvmDllExports() {}
+  virtual void emitLlvmDllExportFunc(const MCSymbol *Sym) {}
+  virtual void emitLlvmDllExportData(const MCSymbol *Sym) {}
+
+  virtual void emitLlvmSymbolRoots() {}
+  virtual void emitLlvmSymbolRoot(const MCSymbol *Sym) {}
+
   /// Emit the given \p Instruction into the current section.
   virtual void emitInstruction(const MCInst &Inst, const MCSubtargetInfo &STI);
 

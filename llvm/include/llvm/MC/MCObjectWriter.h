@@ -94,6 +94,13 @@ public:
   /// diring writeObject().
   virtual void addAddrsigSymbol(const MCSymbol *Sym) {}
 
+  virtual void emitLlvmDllExports();
+  virtual void emitLlvmDllExportFunc(const MCSymbol *Sym);
+  virtual void emitLlvmDllExportData(const MCSymbol *Sym);
+
+  virtual void emitLlvmSymbolRoots();
+  virtual void emitLlvmSymbolRoot(const MCSymbol *Sym);
+
   /// Write the object file and returns the number of bytes written.
   ///
   /// This routine is called by the assembler after layout and relaxation is

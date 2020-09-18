@@ -143,6 +143,12 @@ public:
 class TargetLoweringObjectFileCOFF : public TargetLoweringObjectFile {
   mutable unsigned NextUniqueID = 0;
 
+  // True if we should use an LLVM-style dllexport table.
+  bool LlvmDllexports = false;
+
+  // True if we should use an LLVM-style symbol GC root table.
+  bool LlvmSymbolRoots = false;
+
 public:
   ~TargetLoweringObjectFileCOFF() override = default;
 

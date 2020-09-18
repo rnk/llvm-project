@@ -151,8 +151,18 @@ public:
   bool UseBigObj;
 
   bool EmitAddrsigSection = false;
-  MCSectionCOFF *AddrsigSection;
+  MCSectionCOFF *AddrsigSection = nullptr;
   std::vector<const MCSymbol *> AddrsigSyms;
+
+  bool EmitLlvmDllExportsSections = false;
+  MCSectionCOFF *DllExportFuncSection = nullptr;
+  std::vector<const MCSymbol *> DllExportFuncSyms;
+  MCSectionCOFF *DllExportDataSection = nullptr;
+  std::vector<const MCSymbol *> DllExportDataSyms;
+
+  bool EmitLlvmSymbolRootsSection = false;
+  MCSectionCOFF *SymbolRootsSection = nullptr;
+  std::vector<const MCSymbol *> SymbolRootSyms;
 
   MCSectionCOFF *CGProfileSection = nullptr;
 
@@ -216,10 +226,31 @@ public:
   void assignSectionNumbers();
   void assignFileOffsets(MCAssembler &Asm, const MCAsmLayout &Layout);
 
+  // Given a list of symbols and a section, fill that section with a data
+  // fragment containing ULEB128-encoded symbol table indices. Used for the
+  // .llvm_addrsig, .llvm_dllexport_func, .llvm_dllexport_data, and
+  // .llvm_symbol_roots sections.
+  void emitUleb128SymbolIndexTable(MCSectionCOFF *Sec,
+                                   ArrayRef<const MCSymbol *> Syms);
+
   void emitAddrsigSection() override { EmitAddrsigSection = true; }
   void addAddrsigSymbol(const MCSymbol *Sym) override {
     AddrsigSyms.push_back(Sym);
   }
+
+  void emitLlvmDllExports() override { EmitLlvmDllExportsSections = true; }
+  void emitLlvmDllExportFunc(const MCSymbol *Sym) override {
+    DllExportFuncSyms.push_back(Sym);
+  }
+  void emitLlvmDllExportData(const MCSymbol *Sym) override {
+    DllExportDataSyms.push_back(Sym);
+  }
+
+  void emitLlvmSymbolRoots() override { EmitLlvmSymbolRootsSection = true; }
+  void emitLlvmSymbolRoot(const MCSymbol *Sym) override {
+    SymbolRootSyms.push_back(Sym);
+  }
+
 
   uint64_t writeObject(MCAssembler &Asm, const MCAsmLayout &Layout) override;
 };
@@ -677,6 +708,29 @@ void WinCOFFObjectWriter::executePostLayoutBinding(MCAssembler &Asm,
     Asm.registerSection(*AddrsigSection);
   }
 
+  if (EmitLlvmDllExportsSections) {
+    if (!DllExportFuncSyms.empty()) {
+      DllExportFuncSection = Asm.getContext().getCOFFSection(
+          ".llvm_dllexport_func", COFF::IMAGE_SCN_LNK_REMOVE,
+          SectionKind::getMetadata());
+      Asm.registerSection(*DllExportDataSection);
+    }
+    Asm.registerSection(*DllExportDataSection);
+    if (!DllExportDataSyms.empty()) {
+      DllExportDataSection = Asm.getContext().getCOFFSection(
+          ".llvm_dllexport_data", COFF::IMAGE_SCN_LNK_REMOVE,
+          SectionKind::getMetadata());
+      Asm.registerSection(*DllExportDataSection);
+    }
+  }
+
+  if (EmitLlvmSymbolRootsSection) {
+    SymbolRootsSection = Asm.getContext().getCOFFSection(
+        ".llvm_symbol_roots", COFF::IMAGE_SCN_LNK_REMOVE,
+        SectionKind::getMetadata());
+    Asm.registerSection(*SymbolRootsSection);
+  }
+
   if (!Asm.CGProfile.empty()) {
     CGProfileSection = Asm.getContext().getCOFFSection(
         ".llvm.call-graph-profile", COFF::IMAGE_SCN_LNK_REMOVE,
@@ -1007,6 +1061,25 @@ void WinCOFFObjectWriter::assignFileOffsets(MCAssembler &Asm,
   Header.PointerToSymbolTable = Offset;
 }
 
+void WinCOFFObjectWriter::emitUleb128SymbolIndexTable(
+    MCSectionCOFF *Sec, ArrayRef<const MCSymbol *> Syms) {
+  auto Frag = new MCDataFragment(Sec);
+  Frag->setLayoutOrder(0);
+  raw_svector_ostream OS(Frag->getContents());
+  for (const MCSymbol *S : Syms) {
+    if (!S->isTemporary()) {
+      encodeULEB128(S->getIndex(), OS);
+      continue;
+    }
+
+    MCSection *TargetSection = &S->getSection();
+    assert(SectionMap.find(TargetSection) != SectionMap.end() &&
+           "Section must already have been defined in "
+           "executePostLayoutBinding!");
+    encodeULEB128(SectionMap[TargetSection]->Symbol->getIndex(), OS);
+  }
+}
+
 uint64_t WinCOFFObjectWriter::writeObject(MCAssembler &Asm,
                                           const MCAsmLayout &Layout) {
   uint64_t StartOffset = W.OS.tell();
@@ -1090,24 +1163,15 @@ uint64_t WinCOFFObjectWriter::writeObject(MCAssembler &Asm,
     Section->Symbol->Aux[0].Aux.SectionDefinition.Number = AssocSec->Number;
   }
 
-  // Create the contents of the .llvm_addrsig section.
-  if (EmitAddrsigSection) {
-    auto Frag = new MCDataFragment(AddrsigSection);
-    Frag->setLayoutOrder(0);
-    raw_svector_ostream OS(Frag->getContents());
-    for (const MCSymbol *S : AddrsigSyms) {
-      if (!S->isTemporary()) {
-        encodeULEB128(S->getIndex(), OS);
-        continue;
-      }
-
-      MCSection *TargetSection = &S->getSection();
-      assert(SectionMap.find(TargetSection) != SectionMap.end() &&
-             "Section must already have been defined in "
-             "executePostLayoutBinding!");
-      encodeULEB128(SectionMap[TargetSection]->Symbol->getIndex(), OS);
-    }
-  }
+  // Emit LLVM's various ULEB128 symbol table index tables.
+  if (EmitAddrsigSection)
+    emitUleb128SymbolIndexTable(AddrsigSection, AddrsigSyms);
+  if (DllExportFuncSection)
+    emitUleb128SymbolIndexTable(DllExportFuncSection, DllExportFuncSyms);
+  if (DllExportDataSection)
+    emitUleb128SymbolIndexTable(DllExportDataSection, DllExportDataSyms);
+  if (EmitLlvmSymbolRootsSection)
+    emitUleb128SymbolIndexTable(SymbolRootsSection, SymbolRootSyms);
 
   // Create the contents of the .llvm.call-graph-profile section.
   if (CGProfileSection) {

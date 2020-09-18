@@ -66,6 +66,14 @@ public:
   void EmitWinEHHandlerData(SMLoc Loc) override;
   void emitCGProfileEntry(const MCSymbolRefExpr *From,
                           const MCSymbolRefExpr *To, uint64_t Count) override;
+
+  void emitLlvmDllExports() override;
+  void emitLlvmDllExportFunc(const MCSymbol *Sym) override;
+  void emitLlvmDllExportData(const MCSymbol *Sym) override;
+
+  void emitLlvmSymbolRoots() override;
+  void emitLlvmSymbolRoot(const MCSymbol *Sym) override;
+
   void finishImpl() override;
 
   /// \}

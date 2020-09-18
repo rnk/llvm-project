@@ -857,6 +857,8 @@ def forder_file_instrumentation : Flag<["-"], "forder-file-instrumentation">,
     Group<f_Group>, Flags<[CC1Option, CoreOption]>,
     HelpText<"Generate instrumented code to collect order file into default.profraw file (overridden by '=' form of option or LLVM_PROFILE_FILE env var)">;
 
+defm llvm_dllexports : OptInFFlag<"llvm-dllexports", "Emit", "Don't emit", " LLVM-specific dllexport tables (COFF only)", [CoreOption]>;
+defm llvm_symbol_roots : OptInFFlag<"llvm-symbol-roots", "Emit", "Don't emit", " LLVM-specific section GC root tables (COFF only)", [CoreOption]>;
 defm addrsig : OptInFFlag<"addrsig", "Emit", "Don't emit", " an address-significance table", [CoreOption]>;
 defm blocks : OptInFFlag<"blocks", "Enable the 'blocks' language feature", "", "", [CoreOption]>;
 def fbootclasspath_EQ : Joined<["-"], "fbootclasspath=">, Group<f_Group>;

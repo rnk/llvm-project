@@ -390,6 +390,12 @@ CODEGENOPT(ForceEmitVTables, 1, 0)
 /// Whether to emit an address-significance table into the object file.
 CODEGENOPT(Addrsig, 1, 0)
 
+/// Whether to emit an LLVM-style table of dllexported symbols.
+CODEGENOPT(LlvmDllexports, 1, 0)
+
+/// Whether to emit an LLVM-style table of symbols to consider GC roots.
+CODEGENOPT(LlvmSymbolRoots, 1, 0)
+
 /// Whether to emit unused static constants.
 CODEGENOPT(KeepStaticConsts, 1, 0)
 

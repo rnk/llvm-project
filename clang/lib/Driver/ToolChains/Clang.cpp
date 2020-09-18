@@ -6244,6 +6244,14 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
                        TC.useIntegratedAs()))
     CmdArgs.push_back("-faddrsig");
 
+  if (Args.hasFlag(options::OPT_fllvm_dllexports,
+                   options::OPT_fno_llvm_dllexports, false))
+    CmdArgs.push_back("-fllvm-dllexports");
+
+  if (Args.hasFlag(options::OPT_fllvm_symbol_roots,
+                   options::OPT_fno_llvm_symbol_roots, false))
+    CmdArgs.push_back("-fllvm-symbol-roots");
+
   if (Arg *A = Args.getLastArg(options::OPT_fsymbol_partition_EQ)) {
     std::string Str = A->getAsString(Args);
     if (!TC.getTriple().isOSBinFormatELF())

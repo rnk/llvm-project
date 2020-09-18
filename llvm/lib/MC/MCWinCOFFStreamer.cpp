@@ -353,6 +353,33 @@ void MCWinCOFFStreamer::finalizeCGProfile() {
   }
 }
 
+void MCWinCOFFStreamer::emitLlvmDllExports() {
+  getAssembler().getWriter().emitLlvmDllExports();
+}
+
+void MCWinCOFFStreamer::emitLlvmDllExportFunc(const MCSymbol *Sym) {
+  if (!Sym->isExternal() || Sym->isTemporary())
+    Error("only external symbols can be exported");
+  else
+    getAssembler().getWriter().emitLlvmDllExportFunc(Sym);
+}
+
+void MCWinCOFFStreamer::emitLlvmDllExportData(const MCSymbol *Sym) {
+  if (!Sym->isExternal() || Sym->isTemporary())
+    Error("only external symbols can be exported");
+  else
+    getAssembler().getWriter().emitLlvmDllExportData(Sym);
+}
+
+void MCWinCOFFStreamer::emitLlvmSymbolRoots() {
+  getAssembler().getWriter().emitLlvmSymbolRoots();
+}
+
+void MCWinCOFFStreamer::emitLlvmSymbolRoot(const MCSymbol *Sym) {
+  // Any kind of symbol can be a GC root: temporary, static, or external.
+  getAssembler().getWriter().emitLlvmSymbolRoot(Sym);
+}
+
 void MCWinCOFFStreamer::finishImpl() {
   finalizeCGProfile();
 

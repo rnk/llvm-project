@@ -694,6 +694,11 @@ void CodeGenModule::EmitBackendOptionsMetadata(
                               CodeGenOpts.SmallDataLimit);
     break;
   }
+
+  if (CodeGenOpts.LlvmDllexports)
+    getModule().addModuleFlag(llvm::Module::Error, "LlvmDllexports", 1);
+  if (CodeGenOpts.LlvmSymbolRoots)
+    getModule().addModuleFlag(llvm::Module::Error, "LlvmSymbolRoots", 1);
 }
 
 void CodeGenModule::UpdateCompletedType(const TagDecl *TD) {

@@ -50,3 +50,23 @@ bool MCObjectWriter::isSymbolRefDifferenceFullyResolvedImpl(
   // On ELF and COFF  A - B is absolute if A and B are in the same section.
   return &SecA == &SecB;
 }
+
+void MCObjectWriter::emitLlvmDllExports() {
+  llvm_unreachable("llvm dllexport directives not supported on this target");
+}
+
+void MCObjectWriter::emitLlvmDllExportFunc(const MCSymbol *Sym) {
+  llvm_unreachable("llvm dllexport directives not supported on this target");
+}
+
+void MCObjectWriter::emitLlvmDllExportData(const MCSymbol *Sym) {
+  llvm_unreachable("llvm dllexport directives not supported on this target");
+}
+
+void MCObjectWriter::emitLlvmSymbolRoots() {
+  llvm_unreachable("llvm symbol root directives not supported on this target");
+}
+
+void MCObjectWriter::emitLlvmSymbolRoot(const MCSymbol *Sym) {
+  llvm_unreachable("llvm symbol root directives not supported on this target");
+}

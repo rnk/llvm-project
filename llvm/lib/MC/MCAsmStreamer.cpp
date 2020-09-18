@@ -356,6 +356,13 @@ public:
   void emitAddrsig() override;
   void emitAddrsigSym(const MCSymbol *Sym) override;
 
+  void emitLlvmDllExports() override;
+  void emitLlvmDllExportFunc(const MCSymbol *Sym) override;
+  void emitLlvmDllExportData(const MCSymbol *Sym) override;
+
+  void emitLlvmSymbolRoots() override;
+  void emitLlvmSymbolRoot(const MCSymbol *Sym) override;
+
   /// If this file is backed by an assembly streamer, this dumps the specified
   /// string in the output .s file. This capability is indicated by the
   /// hasRawTextSupport() predicate.
@@ -2106,6 +2113,34 @@ void MCAsmStreamer::emitAddrsig() {
 
 void MCAsmStreamer::emitAddrsigSym(const MCSymbol *Sym) {
   OS << "\t.addrsig_sym ";
+  Sym->print(OS, MAI);
+  EmitEOL();
+}
+
+void MCAsmStreamer::emitLlvmDllExports() {
+  OS << "\t.llvm_dllexports";
+  EmitEOL();
+}
+
+void MCAsmStreamer::emitLlvmDllExportFunc(const MCSymbol *Sym) {
+  OS << "\t.llvm_dllexport_func ";
+  Sym->print(OS, MAI);
+  EmitEOL();
+}
+
+void MCAsmStreamer::emitLlvmDllExportData(const MCSymbol *Sym) {
+  OS << "\t.llvm_dllexport_data ";
+  Sym->print(OS, MAI);
+  EmitEOL();
+}
+
+void MCAsmStreamer::emitLlvmSymbolRoots() {
+  OS << "\t.llvm_symbol_roots";
+  EmitEOL();
+}
+
+void MCAsmStreamer::emitLlvmSymbolRoot(const MCSymbol *Sym) {
+  OS << "\t.llvm_symbol_root ";
   Sym->print(OS, MAI);
   EmitEOL();
 }

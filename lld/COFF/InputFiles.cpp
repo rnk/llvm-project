@@ -254,6 +254,21 @@ SectionChunk *ObjFile::readSection(uint32_t sectionNumber,
     return nullptr;
   }
 
+  if (name == ".llvm_dllexport_func") {
+    dllexportFuncSec = sec;
+    return nullptr;
+  }
+
+  if (name == ".llvm_dllexport_data") {
+    dllexportDataSec = sec;
+    return nullptr;
+  }
+
+  if (name == ".llvm_symbol_roots") {
+    symbolRootsSec = sec;
+    return nullptr;
+  }
+
   // Object files may have DWARF debug info or MS CodeView debug info
   // (or both).
   //

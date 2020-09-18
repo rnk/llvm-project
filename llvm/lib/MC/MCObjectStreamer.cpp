@@ -842,6 +842,31 @@ void MCObjectStreamer::emitAddrsigSym(const MCSymbol *Sym) {
   getAssembler().getWriter().addAddrsigSymbol(Sym);
 }
 
+void MCObjectStreamer::emitLlvmDllExports() {
+  getContext().reportError(
+      SMLoc(), "llvm dllexport directives not supported on this target");
+}
+
+void MCObjectStreamer::emitLlvmDllExportFunc(const MCSymbol *Sym) {
+  getContext().reportError(
+      SMLoc(), "llvm dllexport directives not supported on this target");
+}
+
+void MCObjectStreamer::emitLlvmDllExportData(const MCSymbol *Sym) {
+  getContext().reportError(
+      SMLoc(), "llvm dllexport directives not supported on this target");
+}
+
+void MCObjectStreamer::emitLlvmSymbolRoots() {
+  getContext().reportError(
+      SMLoc(), "llvm symbol root directives not supported on this target");
+}
+
+void MCObjectStreamer::emitLlvmSymbolRoot(const MCSymbol *Sym) {
+  getContext().reportError(
+      SMLoc(), "llvm symbol root directives not supported on this target");
+}
+
 void MCObjectStreamer::finishImpl() {
   getContext().RemapDebugPaths();
 

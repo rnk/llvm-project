@@ -186,6 +186,13 @@ public:
   void emitAddrsig() override;
   void emitAddrsigSym(const MCSymbol *Sym) override;
 
+  void emitLlvmDllExports() override;
+  void emitLlvmDllExportFunc(const MCSymbol *Sym) override;
+  void emitLlvmDllExportData(const MCSymbol *Sym) override;
+
+  void emitLlvmSymbolRoots() override;
+  void emitLlvmSymbolRoot(const MCSymbol *Sym) override;
+
   void finishImpl() override;
 
   /// Emit the absolute difference between two symbols if possible.

@@ -1574,6 +1574,13 @@ void TargetLoweringObjectFileCOFF::emitModuleMetadata(MCStreamer &Streamer,
   emitCGProfile(Streamer, M);
 }
 
+static bool checkModuleFlag(Module &M, StringRef Flag) {
+  auto *Val = dyn_cast_or_null<ConstantAsMetadata>(getModuleFlag(Flag));
+  if (!Val)
+    return 0;
+  return cast<ConstantInt>(Val->getValue())->getZExtValue() != 0;
+}
+
 void TargetLoweringObjectFileCOFF::emitLinkerDirectives(
     MCStreamer &Streamer, Module &M) const {
   if (NamedMDNode *LinkerOptions = M.getNamedMetadata("llvm.linker.options")) {
@@ -1592,25 +1599,44 @@ void TargetLoweringObjectFileCOFF::emitLinkerDirectives(
     }
   }
 
-  // Emit /EXPORT: flags for each exported global as necessary.
-  std::string Flags;
-  for (const GlobalValue &GV : M.global_values()) {
-    raw_string_ostream OS(Flags);
-    emitLinkerFlagsForGlobalCOFF(OS, &GV, getTargetTriple(), getMangler());
-    OS.flush();
-    if (!Flags.empty()) {
-      Streamer.SwitchSection(getDrectveSection());
-      Streamer.emitBytes(Flags);
+  // Check the LLVM module flags that control whether dllexports or llvm.used
+  // is expressed as a linker flag in .drective, or in a special section.
+  if (checkModuleFlag(M, "LlvmDllexports")) {
+    bool HasExport = false;
+    for (const GlobalValue &GV : M.global_values()) {
+      if (GV.hasDLLExportStorageClass() && !GV.isDeclarationForLinker()) {
+        HasExport = true;
+        if (isa<Function>(GV))
+          Streamer.emitLlvmDllExportFunc(TM.getSymbol(&GV));
+        else
+          Streamer.emitLlvmDllExportData(TM.getSymbol(&GV));
+      }
     }
-    Flags.clear();
+    if (HasExport)
+      Streamer.emitLlvmDllExports();
+  } else {
+    // Emit /EXPORT: flags for each exported global as necessary.
+    std::string Flags;
+    for (const GlobalValue &GV : M.global_values()) {;
+      raw_string_ostream OS(Flags);
+      emitLinkerFlagsForGlobalCOFF(OS, &GV, getTargetTriple(), getMangler());
+      OS.flush();
+      if (!Flags.empty()) {
+        Streamer.SwitchSection(getDrectveSection());
+        Streamer.emitBytes(Flags);
+      }
+      Flags.clear();
+    }
   }
 
-  // Emit /INCLUDE: flags for each used global as necessary.
   if (const auto *LU = M.getNamedGlobal("llvm.used")) {
+    bool UseLlvmSymbolRoots = checkModuleFlag(M, "LlvmSymbolRoots");
+    // Emit /INCLUDE: flags for each used global as necessary.
     assert(LU->hasInitializer() && "expected llvm.used to have an initializer");
     assert(isa<ArrayType>(LU->getValueType()) &&
            "expected llvm.used to be an array type");
     if (const auto *A = cast<ConstantArray>(LU->getInitializer())) {
+      std::string Flags;
       for (const Value *Op : A->operands()) {
         const auto *GV = cast<GlobalValue>(Op->stripPointerCasts());
         // Global symbols with internal or private linkage are not visible to
@@ -1619,15 +1645,18 @@ void TargetLoweringObjectFileCOFF::emitLinkerDirectives(
         if (GV->hasLocalLinkage())
           continue;
 
-        raw_string_ostream OS(Flags);
-        emitLinkerFlagsForUsedCOFF(OS, GV, getTargetTriple(), getMangler());
-        OS.flush();
+        if (UseLlvmSymbolRoots) {
+        } else {
+          raw_string_ostream OS(Flags);
+          emitLinkerFlagsForUsedCOFF(OS, GV, getTargetTriple(), getMangler());
+          OS.flush();
 
-        if (!Flags.empty()) {
-          Streamer.SwitchSection(getDrectveSection());
-          Streamer.emitBytes(Flags);
+          if (!Flags.empty()) {
+            Streamer.SwitchSection(getDrectveSection());
+            Streamer.emitBytes(Flags);
+          }
+          Flags.clear();
         }
-        Flags.clear();
       }
     }
   }

@@ -6650,6 +6650,21 @@ Some optimisations are only when the entire LTO unit is present in the current
 module. This is represented by the ``LTOPostLink`` module flags metadata, which
 will be created with a value of ``1`` when LTO linking occurs.
 
+LLVM COFF Module Flags Metadata
+-------------------------------
+
+The ``LlvmDllexports`` and ``LlvmSymbolRoots`` module flags indicate that
+dllexported symbols and/or section GC roots (from ``llvm.used``) should be
+represented using a more efficient, LLVM-specific table in COFF files.
+Normally, these properties of a symbol are indicated by emitting
+``/EXPORT:sym[,data]`` or ``/INCLUDE:sym`` in the ``.drective`` section of a
+COFF object. However, if sufficiently many symbols are exported or included,
+this can become an appreciable fraction of object file size. These module flags
+indicate that the backend can use a table, understood by LLD, to represent
+these symbol properties instead of the linker flag strings. The Visual C++
+linker does not, as of this writing, understand these sections, so symbols will
+not be exported or included.
+
 Automatic Linker Flags Named Metadata
 =====================================
 
