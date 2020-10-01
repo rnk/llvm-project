@@ -9,7 +9,8 @@
 #include "llvm/DebugInfo/CodeView/TypeHashing.h"
 
 #include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
-#include "llvm/Support/SHA1.h"
+
+#include "../../../../../BLAKE3/c/blake3.h"
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -35,16 +36,18 @@ GloballyHashedType::hashType(ArrayRef<uint8_t> RecordData,
                              ArrayRef<GloballyHashedType> PreviousIds) {
   SmallVector<TiReference, 4> Refs;
   discoverTypeIndices(RecordData, Refs);
-  SHA1 S;
-  S.init();
+
+  blake3_hasher b3;
+  blake3_hasher_init(&b3);
+
   uint32_t Off = 0;
-  S.update(RecordData.take_front(sizeof(RecordPrefix)));
+  blake3_hasher_update(&b3, RecordData.data(), sizeof(RecordPrefix));
   RecordData = RecordData.drop_front(sizeof(RecordPrefix));
   for (const auto &Ref : Refs) {
     // Hash any data that comes before this TiRef.
     uint32_t PreLen = Ref.Offset - Off;
     ArrayRef<uint8_t> PreData = RecordData.slice(Off, PreLen);
-    S.update(PreData);
+    blake3_hasher_update(&b3, PreData.data(), PreData.size());
     auto Prev = (Ref.Kind == TiRefKind::IndexRef) ? PreviousIds : PreviousTypes;
 
     auto RefData = RecordData.slice(Ref.Offset, Ref.Count * sizeof(TypeIndex));
@@ -66,7 +69,7 @@ GloballyHashedType::hashType(ArrayRef<uint8_t> RecordData,
         }
         BytesToHash = Prev[TI.toArrayIndex()].Hash;
       }
-      S.update(BytesToHash);
+      blake3_hasher_update(&b3, BytesToHash.data(), BytesToHash.size());
     }
 
     Off = Ref.Offset + Ref.Count * sizeof(TypeIndex);
@@ -74,7 +77,9 @@ GloballyHashedType::hashType(ArrayRef<uint8_t> RecordData,
 
   // Don't forget to add in any trailing bytes.
   auto TrailingBytes = RecordData.drop_front(Off);
-  S.update(TrailingBytes);
+  blake3_hasher_update(&b3, TrailingBytes.data(), TrailingBytes.size());
 
-  return {S.final().take_back(8)};
+  uint8_t hash64[8];
+  blake3_hasher_finalize(&b3, &hash64[0], 8);
+  return {hash64};
 }

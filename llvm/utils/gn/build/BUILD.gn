@@ -78,7 +78,7 @@ config("compiler_defaults") {
 
       # Speed up links with ghash on windows.
       if (use_lld && is_clang) {
-        cflags += [ "-gcodeview-ghash" ]
+        #cflags += [ "-gcodeview-ghash" ]
         ldflags += [ "/DEBUG:GHASH" ]
       }
     }

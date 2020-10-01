@@ -1,3 +1,42 @@
+source_set("blake3_sse41") {
+  sources = [
+    "../../../../BLAKE3/c/blake3_sse41.c",
+  ]
+  cflags = [ "-msse4.1" ]
+}
+source_set("blake3_avx2") {
+  sources = [
+    "../../../../BLAKE3/c/blake3_avx2.c",
+  ]
+  cflags = [ "-mavx2" ]
+}
+source_set("blake3_avx512") {
+  sources = [
+    "../../../../BLAKE3/c/blake3_avx512.c",
+  ]
+  cflags = [ "-mavx512f", "-mavx512vl" ]
+}
+source_set("blake3") {
+  sources = [
+    # Blake 3
+    "../../../../BLAKE3/c/blake3.c",
+    "../../../../BLAKE3/c/blake3_dispatch.c",
+    "../../../../BLAKE3/c/blake3_portable.c",
+    "../../../../BLAKE3/c/blake3_sse2.c",
+  ]
+  cflags = [
+    #"-DBLAKE3_NO_SSE41",
+    #"-DBLAKE3_NO_AVX",
+    #"-DBLAKE3_NO_AVX2",
+    #"-DBLAKE3_NO_AVX512",
+  ]
+  deps = [
+    ":blake3_sse41",
+    ":blake3_avx2",
+    ":blake3_avx512",
+  ]
+}
+
 static_library("Support") {
   output_name = "LLVMSupport"
   deps = [
@@ -6,6 +45,7 @@ static_library("Support") {
     "//llvm/utils/gn/build/libs/pthread",
     "//llvm/utils/gn/build/libs/terminfo",
     "//llvm/utils/gn/build/libs/zlib",
+    ":blake3",
   ]
 
   # public_deps are used for depending on targets that generate headers
@@ -166,6 +206,7 @@ static_library("Support") {
     "Valgrind.cpp",
     "VirtualFileSystem.cpp",
     "Watchdog.cpp",
+
   ]
 
   libs = []
