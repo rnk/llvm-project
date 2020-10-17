@@ -19,6 +19,10 @@
 #include <functional>
 #include <mutex>
 
+#if LLVM_USE_PSTL
+#include <execution>
+#endif
+
 namespace llvm {
 
 namespace parallel {
@@ -28,9 +32,9 @@ namespace parallel {
 // initialized before the first use of parallel routines.
 extern ThreadPoolStrategy strategy;
 
-namespace detail {
+#if LLVM_ENABLE_THREADS && !LLVM_USE_PSTL
 
-#if LLVM_ENABLE_THREADS
+namespace detail {
 
 class Latch {
   uint32_t Count;
@@ -156,9 +160,10 @@ void parallel_for_each_n(IndexTy Begin, IndexTy End, FuncTy Fn) {
     Fn(J);
 }
 
+} // namespace detail
+
 #endif
 
-} // namespace detail
 } // namespace parallel
 
 template <class RandomAccessIterator,
@@ -168,7 +173,11 @@ void parallelSort(RandomAccessIterator Start, RandomAccessIterator End,
                   const Comparator &Comp = Comparator()) {
 #if LLVM_ENABLE_THREADS
   if (parallel::strategy.ThreadsRequested != 1) {
+#if LLVM_USE_PSTL
+    std::sort(std::execution::par, Start, End, Comp);
+#else
     parallel::detail::parallel_sort(Start, End, Comp);
+#endif
     return;
   }
 #endif
@@ -179,7 +188,11 @@ template <class IterTy, class FuncTy>
 void parallelForEach(IterTy Begin, IterTy End, FuncTy Fn) {
 #if LLVM_ENABLE_THREADS
   if (parallel::strategy.ThreadsRequested != 1) {
+#if LLVM_USE_PSTL
+    std::for_each(std::execution::par, Begin, End, Fn);
+#else
     parallel::detail::parallel_for_each(Begin, End, Fn);
+#endif
     return;
   }
 #endif
@@ -190,7 +203,15 @@ template <class FuncTy>
 void parallelForEachN(size_t Begin, size_t End, FuncTy Fn) {
 #if LLVM_ENABLE_THREADS
   if (parallel::strategy.ThreadsRequested != 1) {
+#if LLVM_USE_PSTL
+    // FIXME: Make a fancy iterator to avoid making vectors of indices.
+    std::vector<size_t> Indices(End - Begin);
+    for (size_t I = 0; I < Indices.size(); ++I)
+      Indices[I] = I + Begin;
+    std::for_each(std::execution::par, Indices.begin(), Indices.end(), Fn);
+#else
     parallel::detail::parallel_for_each_n(Begin, End, Fn);
+#endif
     return;
   }
 #endif

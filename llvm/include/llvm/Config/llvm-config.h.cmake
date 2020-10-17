@@ -23,6 +23,9 @@
 /* Define if threads enabled */
 #cmakedefine01 LLVM_ENABLE_THREADS
 
+/* Define if the C++17 parallel STL algorithms should be used */
+#cmakedefine01 LLVM_USE_PSTL
+
 /* Has gcc/MSVC atomic intrinsics */
 #cmakedefine01 LLVM_HAS_ATOMICS
 

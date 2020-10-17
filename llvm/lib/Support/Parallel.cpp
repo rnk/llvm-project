@@ -19,7 +19,7 @@
 
 llvm::ThreadPoolStrategy llvm::parallel::strategy;
 
-#if LLVM_ENABLE_THREADS
+#if LLVM_ENABLE_THREADS && !LLVM_USE_PSTL
 
 namespace llvm {
 namespace parallel {

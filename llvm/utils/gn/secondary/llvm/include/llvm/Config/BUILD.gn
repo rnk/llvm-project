@@ -5,6 +5,7 @@ import("//llvm/lib/Target/targets_with_disassemblers.gni")
 import("//llvm/triples.gni")
 import("//llvm/utils/gn/build/buildflags.gni")
 import("//llvm/utils/gn/build/libs/edit/enable.gni")
+import("//llvm/utils/gn/build/libs/pstl/enable.gni")
 import("//llvm/utils/gn/build/libs/pthread/enable.gni")
 import("//llvm/utils/gn/build/libs/terminfo/enable.gni")
 import("//llvm/utils/gn/build/libs/xar/enable.gni")
@@ -352,6 +353,12 @@ write_cmake_config("llvm-config") {
     values += [ "LLVM_ENABLE_THREADS=1" ]
   } else {
     values += [ "LLVM_ENABLE_THREADS=" ]
+  }
+
+  if (llvm_enable_pstl) {
+    values += [ "LLVM_USE_PSTL=1" ]
+  } else {
+    values += [ "LLVM_USE_PSTL=" ]
   }
 }
 

@@ -1137,3 +1137,13 @@ if(LLVM_USE_RELATIVE_PATHS_IN_FILES)
   append_if(SUPPORTS_FFILE_PREFIX_MAP "-ffile-prefix-map=${source_root}/=${LLVM_SOURCE_PREFIX}" CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
   add_flag_if_supported("-no-canonical-prefixes" NO_CANONICAL_PREFIXES)
 endif()
+
+# Allow the user to request the parallel STL algorithms. These were standardized
+# in C++17, but are not available everywhere.
+option(LLVM_USE_PSTL "Use the C++17 standard parallel STL for parallel algorithms" OFF)
+
+if (MSVC AND LLVM_USE_PSTL)
+  # MSVC pstl requires C++17. LLVM still uses deprecated C++17 features, so turn
+  # those warnings off.
+  append("/std:c++17 -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS" CMAKE_CXX_FLAGS)
+endif()

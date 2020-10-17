@@ -1,4 +1,5 @@
 import("//llvm/utils/gn/build/buildflags.gni")
+import("//llvm/utils/gn/build/libs/pstl/enable.gni")
 import("//llvm/utils/gn/build/mac_sdk.gni")
 import("//llvm/utils/gn/build/toolchain/compiler.gni")
 import("//llvm/utils/gn/build/toolchain/target_flags.gni")
@@ -125,6 +126,12 @@ config("compiler_defaults") {
       "UNICODE",
     ]
     cflags += [ "/EHs-c-" ]
+
+    if (llvm_enable_pstl) {
+      # C++17 is required to enable the parallel STL. Some things are deprecated
+      # in C++17, so silence those warnings.
+      cflags_cc = [ "/std:c++17", "-D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS" ]
+    }
 
     # The MSVC default value (1 MB) is not enough for parsing recursive C++
     # templates in Clang.

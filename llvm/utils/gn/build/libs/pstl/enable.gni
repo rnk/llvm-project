@@ -1,0 +1,4 @@
+declare_args() {
+  # Whether to use the C++17 parallel stl algorithms.
+  llvm_enable_pstl = false
+}
