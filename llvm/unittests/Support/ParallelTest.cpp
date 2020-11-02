@@ -49,4 +49,25 @@ TEST(Parallel, parallel_for) {
   ASSERT_EQ(range[2049], 1u);
 }
 
+TEST(Parallel, TransformReduce) {
+  // Sum the lengths of these strings in parallel.
+  const char *strs[] = {"a", "ab", "abc", "abcd", "abcde", "abcdef"};
+  size_t lenSum = parallelTransformReduce(
+      strs, static_cast<size_t>(0), std::plus<size_t>(),
+      [](const char *s) { return strlen(s); });
+  ASSERT_EQ(lenSum, static_cast<size_t>(21));
+}
+
+TEST(Parallel, ForEachError) {
+  int nums[] = {1, 2, 3, 4, 5, 6};
+  Error e = parallelForEachError(nums, [](int v) -> Error {
+    if ((v & 1) == 0)
+      return createStringError(std::errc::invalid_argument, "asdf");
+    return Error::success();
+  });
+  EXPECT_TRUE(e.isA<ErrorList>());
+  std::string errText = toString(std::move(e));
+  EXPECT_EQ(errText, std::string("asdf\nasdf\nasdf"));
+}
+
 #endif
