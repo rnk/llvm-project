@@ -749,6 +749,14 @@ static std::string getVarName(InstrProfIncrementInst *Inc, StringRef Prefix) {
 }
 
 static inline bool shouldRecordFunctionAddr(Function *F) {
+  // Only record function addresses if IR PGO is enabled. Frontend
+  // instrumentation does not insert any value profiling instrumentation, and is
+  // typically only used for coverage data. Recording the address of a function
+  // prevents the inliner from removing it after inlining all callers, which can
+  // greatly increase object file size.
+  if (!isIRPGOFlagSet(F->getParent()))
+    return false;
+
   // Check the linkage
   bool HasAvailableExternallyLinkage = F->hasAvailableExternallyLinkage();
   if (!F->hasLinkOnceLinkage() && !F->hasLocalLinkage() &&
