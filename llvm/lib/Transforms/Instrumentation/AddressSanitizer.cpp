@@ -417,13 +417,6 @@ static cl::opt<bool>
                             "code stripping of globals"),
                    cl::Hidden, cl::init(true));
 
-// This is on by default even though there is a bug in gold:
-// https://sourceware.org/bugzilla/show_bug.cgi?id=19002
-static cl::opt<bool>
-    ClWithComdat("asan-with-comdat",
-                 cl::desc("Place ASan constructors in comdat sections"),
-                 cl::Hidden, cl::init(true));
-
 static cl::opt<AsanDtorKind> ClOverrideDestructorKind(
     "asan-destructor-kind",
     cl::desc("Sets the ASan destructor kind. The default is to use the value "
@@ -793,14 +786,6 @@ public:
         UseOdrIndicator(ClUseOdrIndicator.getNumOccurrences() > 0
                             ? ClUseOdrIndicator
                             : UseOdrIndicator),
-        // Not a typo: ClWithComdat is almost completely pointless without
-        // ClUseGlobalsGC (because then it only works on modules without
-        // globals, which are rare); it is a prerequisite for ClUseGlobalsGC;
-        // and both suffer from gold PR19002 for which UseGlobalsGC constructor
-        // argument is designed as workaround. Therefore, disable both
-        // ClWithComdat and ClUseGlobalsGC unless the frontend says it's ok to
-        // do globals-gc.
-        UseCtorComdat(UseGlobalsGC && ClWithComdat && !this->CompileKernel),
         DestructorKind(DestructorKind),
         ConstructorKind(ConstructorKind) {
     C = &(M.getContext());
@@ -819,14 +804,13 @@ public:
 private:
   void initializeCallbacks(Module &M);
 
-  bool InstrumentGlobals(IRBuilder<> &IRB, Module &M, bool *CtorComdat);
+  bool InstrumentGlobals(IRBuilder<> &IRB, Module &M);
   void InstrumentGlobalsCOFF(IRBuilder<> &IRB, Module &M,
                              ArrayRef<GlobalVariable *> ExtendedGlobals,
                              ArrayRef<Constant *> MetadataInitializers);
   void InstrumentGlobalsELF(IRBuilder<> &IRB, Module &M,
                             ArrayRef<GlobalVariable *> ExtendedGlobals,
-                            ArrayRef<Constant *> MetadataInitializers,
-                            const std::string &UniqueModuleId);
+                            ArrayRef<Constant *> MetadataInitializers);
   void InstrumentGlobalsMachO(IRBuilder<> &IRB, Module &M,
                               ArrayRef<GlobalVariable *> ExtendedGlobals,
                               ArrayRef<Constant *> MetadataInitializers);
@@ -858,7 +842,6 @@ private:
   bool UseGlobalsGC;
   bool UsePrivateAlias;
   bool UseOdrIndicator;
-  bool UseCtorComdat;
   AsanDtorKind DestructorKind;
   AsanCtorKind ConstructorKind;
   Type *IntptrTy;
@@ -2179,27 +2162,32 @@ void ModuleAddressSanitizer::InstrumentGlobalsCOFF(
 
 void ModuleAddressSanitizer::InstrumentGlobalsELF(
     IRBuilder<> &IRB, Module &M, ArrayRef<GlobalVariable *> ExtendedGlobals,
-    ArrayRef<Constant *> MetadataInitializers,
-    const std::string &UniqueModuleId) {
+    ArrayRef<Constant *> MetadataInitializers) {
   assert(ExtendedGlobals.size() == MetadataInitializers.size());
 
   // Putting globals in a comdat changes the semantic and potentially cause
   // false negative odr violations at link time. If odr indicators are used, we
   // keep the comdat sections, as link time odr violations will be dectected on
   // the odr indicator symbols.
-  bool UseComdatForGlobalsGC = UseOdrIndicator;
+  std::string UniqueModuleId;
+  bool UseComdatForGlobalsGC = UseGlobalsGC && UseOdrIndicator;
+  if (UseComdatForGlobalsGC) {
+    UniqueModuleId = getUniqueModuleId(&M);
+    UseComdatForGlobalsGC = UniqueModuleId != "";
+  }
 
   SmallVector<GlobalValue *, 16> MetadataGlobals(ExtendedGlobals.size());
   for (size_t i = 0; i < ExtendedGlobals.size(); i++) {
     GlobalVariable *G = ExtendedGlobals[i];
     GlobalVariable *Metadata =
         CreateMetadataGlobal(M, MetadataInitializers[i], G->getName());
-    MDNode *MD = MDNode::get(M.getContext(), ValueAsMetadata::get(G));
-    Metadata->setMetadata(LLVMContext::MD_associated, MD);
     MetadataGlobals[i] = Metadata;
 
-    if (UseComdatForGlobalsGC)
+    if (UseComdatForGlobalsGC) {
+      MDNode *MD = MDNode::get(M.getContext(), ValueAsMetadata::get(G));
+      Metadata->setMetadata(LLVMContext::MD_associated, MD);
       SetComdatForGlobalMetadata(G, Metadata, UniqueModuleId);
+    }
   }
 
   // Update llvm.compiler.used, adding the new metadata globals. This is
@@ -2341,12 +2329,7 @@ void ModuleAddressSanitizer::InstrumentGlobalsWithMetadataArray(
 // This function replaces all global variables with new variables that have
 // trailing redzones. It also creates a function that poisons
 // redzones and inserts this function into llvm.global_ctors.
-// Sets *CtorComdat to true if the global registration code emitted into the
-// asan constructor is comdat-compatible.
-bool ModuleAddressSanitizer::InstrumentGlobals(IRBuilder<> &IRB, Module &M,
-                                               bool *CtorComdat) {
-  *CtorComdat = false;
-
+bool ModuleAddressSanitizer::InstrumentGlobals(IRBuilder<> &IRB, Module &M) {
   // Build set of globals that are aliased by some GA, where
   // getExcludedAliasedGlobal(GA) returns the relevant GlobalVariable.
   SmallPtrSet<const GlobalVariable *, 16> AliasedGlobalExclusions;
@@ -2364,10 +2347,8 @@ bool ModuleAddressSanitizer::InstrumentGlobals(IRBuilder<> &IRB, Module &M,
   }
 
   size_t n = GlobalsToChange.size();
-  if (n == 0) {
-    *CtorComdat = true;
+  if (n == 0)
     return false;
-  }
 
   auto &DL = M.getDataLayout();
 
@@ -2517,13 +2498,8 @@ bool ModuleAddressSanitizer::InstrumentGlobals(IRBuilder<> &IRB, Module &M,
   }
   appendToCompilerUsed(M, ArrayRef<GlobalValue *>(GlobalsToAddToUsedList));
 
-  std::string ELFUniqueModuleId =
-      (UseGlobalsGC && TargetTriple.isOSBinFormatELF()) ? getUniqueModuleId(&M)
-                                                        : "";
-
-  if (!ELFUniqueModuleId.empty()) {
-    InstrumentGlobalsELF(IRB, M, NewGlobals, Initializers, ELFUniqueModuleId);
-    *CtorComdat = true;
+  if (TargetTriple.isOSBinFormatELF()) {
+    InstrumentGlobalsELF(IRB, M, NewGlobals, Initializers);
   } else if (UseGlobalsGC && TargetTriple.isOSBinFormatCOFF()) {
     InstrumentGlobalsCOFF(IRB, M, NewGlobals, Initializers);
   } else if (UseGlobalsGC && ShouldUseMachOGlobalsSection()) {
@@ -2596,24 +2572,22 @@ bool ModuleAddressSanitizer::instrumentModule(Module &M) {
     }
   }
 
-  bool CtorComdat = true;
   if (ClGlobals) {
     assert(AsanCtorFunction || ConstructorKind == AsanCtorKind::None);
     if (AsanCtorFunction) {
       IRBuilder<> IRB(AsanCtorFunction->getEntryBlock().getTerminator());
-      InstrumentGlobals(IRB, M, &CtorComdat);
+      InstrumentGlobals(IRB, M);
     } else {
       IRBuilder<> IRB(*C);
-      InstrumentGlobals(IRB, M, &CtorComdat);
+      InstrumentGlobals(IRB, M);
     }
   }
 
   const uint64_t Priority = GetCtorAndDtorPriority(TargetTriple);
 
-  // Put the constructor and destructor in comdat if both
-  // (1) global instrumentation is not TU-specific
-  // (2) target is ELF.
-  if (UseCtorComdat && TargetTriple.isOSBinFormatELF() && CtorComdat) {
+  // Put the constructor and destructor in comdat we are targetting a
+  // non-kernel ELF environment.
+  if (TargetTriple.isOSBinFormatELF() && !CompileKernel) {
     if (AsanCtorFunction) {
       AsanCtorFunction->setComdat(M.getOrInsertComdat(kAsanModuleCtorName));
       appendToGlobalCtors(M, AsanCtorFunction, Priority, AsanCtorFunction);
