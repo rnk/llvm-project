@@ -1712,6 +1712,7 @@ cc_library(
     hdrs = [
         "include/llvm/CodeGen/LowLevelType.h",
         "include/llvm/CodeGen/MachineValueType.h",
+        "include/llvm/CodeGen/WasmAddressSpaces.h",
     ],
     copts = llvm_copts,
     deps = [

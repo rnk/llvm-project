@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
-#include "Utils/WebAssemblyUtilities.h"
+#include "WebAssemblyUtilities.h"
 #include "WebAssembly.h"
 #include "WebAssemblyMachineFunctionInfo.h"
 #include "WebAssemblySubtarget.h"
@@ -100,7 +100,7 @@ bool WebAssemblyRegNumbering::runOnMachineFunction(MachineFunction &MF) {
       MFI.setWAReg(VReg, INT32_MIN | NumStackRegs++);
       continue;
     }
-    if (MFI.getWAReg(VReg) == WebAssemblyFunctionInfo::UnusedReg) {
+    if (MFI.getWAReg(VReg) == WebAssembly::UnusedReg) {
       LLVM_DEBUG(dbgs() << "VReg " << VReg << " -> WAReg " << CurReg << "\n");
       MFI.setWAReg(VReg, CurReg++);
     }

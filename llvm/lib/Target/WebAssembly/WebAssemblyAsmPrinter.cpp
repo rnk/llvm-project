@@ -18,7 +18,7 @@
 #include "MCTargetDesc/WebAssemblyTargetStreamer.h"
 #include "TargetInfo/WebAssemblyTargetInfo.h"
 #include "Utils/WebAssemblyTypeUtilities.h"
-#include "Utils/WebAssemblyUtilities.h"
+#include "WebAssemblyUtilities.h"
 #include "WebAssembly.h"
 #include "WebAssemblyMCInstLower.h"
 #include "WebAssemblyMachineFunctionInfo.h"
@@ -76,7 +76,7 @@ std::string WebAssemblyAsmPrinter::regToString(const MachineOperand &MO) {
          "Unlowered physical register encountered during assembly printing");
   assert(!MFI->isVRegStackified(RegNo));
   unsigned WAReg = MFI->getWAReg(RegNo);
-  assert(WAReg != WebAssemblyFunctionInfo::UnusedReg);
+  assert(WAReg != WebAssembly::UnusedReg);
   return '$' + utostr(WAReg);
 }
 

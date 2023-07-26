@@ -15,7 +15,7 @@
 #include "WebAssemblyMCInstLower.h"
 #include "TargetInfo/WebAssemblyTargetInfo.h"
 #include "Utils/WebAssemblyTypeUtilities.h"
-#include "Utils/WebAssemblyUtilities.h"
+#include "WebAssemblyUtilities.h"
 #include "WebAssemblyAsmPrinter.h"
 #include "WebAssemblyISelLowering.h"
 #include "WebAssemblyMachineFunctionInfo.h"
@@ -164,6 +164,11 @@ static void getFunctionReturns(const MachineInstr *MI,
   valTypesFromMVTs(CallerRetTys, Returns);
 }
 
+static wasm::ValType regClassToValType(const TargetRegisterClass *RC) {
+  assert(RC != nullptr);
+  return WebAssembly::regClassToValType(RC->getID());
+}
+
 void WebAssemblyMCInstLower::lower(const MachineInstr *MI,
                                    MCInst &OutMI) const {
   OutMI.setOpcode(MI->getOpcode());
@@ -203,11 +208,11 @@ void WebAssemblyMCInstLower::lower(const MachineInstr *MI,
               MI->getParent()->getParent()->getRegInfo();
           for (const MachineOperand &MO : MI->defs())
             Returns.push_back(
-                WebAssembly::regClassToValType(MRI.getRegClass(MO.getReg())));
+                regClassToValType(MRI.getRegClass(MO.getReg())));
           for (const MachineOperand &MO : MI->explicit_uses())
             if (MO.isReg())
               Params.push_back(
-                  WebAssembly::regClassToValType(MRI.getRegClass(MO.getReg())));
+                  regClassToValType(MRI.getRegClass(MO.getReg())));
 
           // call_indirect instructions have a callee operand at the end which
           // doesn't count as a param.

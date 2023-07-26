@@ -42,6 +42,7 @@ public:
       : Ctx(ctx), Printer(printer) {}
   void lower(const MachineInstr *MI, MCInst &OutMI) const;
 };
+
 } // end namespace llvm
 
 #endif

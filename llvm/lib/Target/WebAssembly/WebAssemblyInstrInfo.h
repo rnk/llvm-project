@@ -15,6 +15,7 @@
 #ifndef LLVM_LIB_TARGET_WEBASSEMBLY_WEBASSEMBLYINSTRINFO_H
 #define LLVM_LIB_TARGET_WEBASSEMBLY_WEBASSEMBLYINSTRINFO_H
 
+#include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
 #include "WebAssemblyRegisterInfo.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/CodeGen/TargetInstrInfo.h"
@@ -30,6 +31,18 @@ namespace llvm {
 namespace WebAssembly {
 
 int16_t getNamedOperandIdx(uint16_t Opcode, uint16_t NamedIndex);
+
+inline bool isBrTable(const MachineInstr &MI) {
+  switch (MI.getOpcode()) {
+  case WebAssembly::BR_TABLE_I32:
+  case WebAssembly::BR_TABLE_I32_S:
+  case WebAssembly::BR_TABLE_I64:
+  case WebAssembly::BR_TABLE_I64_S:
+    return true;
+  default:
+    return false;
+  }
+}
 
 }
 

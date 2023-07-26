@@ -24,8 +24,6 @@
 
 namespace llvm {
 
-class TargetRegisterClass;
-
 namespace WebAssembly {
 
 /// Return true if this is a WebAssembly Externref Type.
@@ -51,9 +49,6 @@ MVT parseMVT(StringRef Type);
 
 // Convert a MVT into its corresponding wasm ValType.
 wasm::ValType toValType(MVT Type);
-
-// Convert a register class to a wasm ValType.
-wasm::ValType regClassToValType(const TargetRegisterClass *RC);
 
 /// Sets a Wasm Symbol Type.
 void wasmSymbolSetType(MCSymbolWasm *Sym, const Type *GlobalVT,
