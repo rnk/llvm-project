@@ -193,6 +193,11 @@ public:
 };
 
 }
+
+unsigned AMDGPU::getRegBitWidth(const TargetRegisterClass &RC) {
+  return getRegBitWidth(RC.getID());
+}
+
 AMDGPURegisterBankInfo::AMDGPURegisterBankInfo(const GCNSubtarget &ST)
     : Subtarget(ST), TRI(Subtarget.getRegisterInfo()),
       TII(Subtarget.getInstrInfo()) {

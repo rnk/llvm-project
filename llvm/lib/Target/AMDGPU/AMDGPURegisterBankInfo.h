@@ -30,6 +30,11 @@ class SIInstrInfo;
 class SIRegisterInfo;
 class TargetRegisterInfo;
 
+namespace AMDGPU {
+/// Get the size in bits of a register from the register class \p RC.
+unsigned getRegBitWidth(const TargetRegisterClass &RC);
+} // namespace AMDGPU
+
 /// This class provides the information for the target register banks.
 class AMDGPUGenRegisterBankInfo : public RegisterBankInfo {
 
