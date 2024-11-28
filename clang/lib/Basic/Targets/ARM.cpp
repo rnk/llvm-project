@@ -1073,19 +1073,19 @@ void ARMTargetInfo::getTargetDefines(const LangOptions &Opts,
 
 static constexpr Builtin::Info BuiltinInfo[] = {
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER)                                    \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::HEADER, ALL_LANGUAGES},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::HEADER, ALL_LANGUAGES},
 #define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
   {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #include "clang/Basic/BuiltinsNEON.def"
 
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #define LANGBUILTIN(ID, TYPE, ATTRS, LANG)                                     \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, LANG},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::NO_HEADER, LANG},
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER)                                    \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::HEADER, ALL_LANGUAGES},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::HEADER, ALL_LANGUAGES},
 #define TARGET_BUILTIN(ID, TYPE, ATTRS, FEATURE)                               \
   {#ID, TYPE, ATTRS, FEATURE, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #define TARGET_HEADER_BUILTIN(ID, TYPE, ATTRS, HEADER, LANGS, FEATURE)         \

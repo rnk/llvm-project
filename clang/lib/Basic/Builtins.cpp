@@ -30,14 +30,14 @@ const char *HeaderDesc::getName() const {
 }
 
 static constexpr Builtin::Info BuiltinInfo[] = {
-    {"not a builtin function", nullptr, nullptr, nullptr, HeaderDesc::NO_HEADER,
+    {"not a builtin function", "", "", "", HeaderDesc::NO_HEADER,
      ALL_LANGUAGES},
 #define BUILTIN(ID, TYPE, ATTRS)                                               \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, ALL_LANGUAGES},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::NO_HEADER, ALL_LANGUAGES},
 #define LANGBUILTIN(ID, TYPE, ATTRS, LANGS)                                    \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::NO_HEADER, LANGS},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::NO_HEADER, LANGS},
 #define LIBBUILTIN(ID, TYPE, ATTRS, HEADER, LANGS)                             \
-  {#ID, TYPE, ATTRS, nullptr, HeaderDesc::HEADER, LANGS},
+  {#ID, TYPE, ATTRS, "", HeaderDesc::HEADER, LANGS},
 #include "clang/Basic/Builtins.inc"
 };
 

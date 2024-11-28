@@ -70,7 +70,8 @@ enum ID {
 
 struct Info {
   llvm::StringLiteral Name;
-  const char *Type, *Attributes;
+  const char Type[64];
+  const char Attributes[16];
   const char *Features;
   HeaderDesc Header;
   LanguageID Langs;
