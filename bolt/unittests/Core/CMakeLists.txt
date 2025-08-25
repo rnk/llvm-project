@@ -10,6 +10,8 @@ add_bolt_unittest(CoreTests
   MCPlusBuilder.cpp
   MemoryMaps.cpp
   DynoStats.cpp
+
+  DISABLE_LLVM_LINK_LLVM_DYLIB
   )
 
 target_link_libraries(CoreTests
