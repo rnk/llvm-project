@@ -59,6 +59,8 @@ static cl::opt<bool> DisableRequireStructuredCFG(
              "unexpected regressions happen."),
     cl::init(false), cl::Hidden);
 
+// FIXME: Replace this functionality with a `--target-abi` mode, so that it
+// mirrors all other targets.
 static cl::opt<bool> UseShortPointersOpt(
     "nvptx-short-ptr",
     cl::desc(
