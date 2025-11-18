@@ -589,7 +589,8 @@ function(add_integration_test test_name)
       -nolibc
       -nostartfiles
       -nostdlib++
-      -static
+      #-static
+      -static-pie # TODO: Set up a proper testing matrix config.
       ${LIBC_LINK_OPTIONS_DEFAULT}
       ${LIBC_TEST_LINK_OPTIONS_DEFAULT}
     )

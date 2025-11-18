@@ -41,6 +41,71 @@ extern uintptr_t __fini_array_end[];
 }
 
 namespace LIBC_NAMESPACE_DECL {
+
+// Apply relocations to the "interpreter", which here could either be a
+// standalone dynamic interpreter like ld.so, or it could be a static,
+// position-independent executable. The Linux kernel parses the program headers
+// to map in all the PT_LOAD segments, but it does not apply dynamic
+// relocations.
+void bootstrap_pic_image(ptrdiff_t base) {
+  // Find main executable relocations so we can bootstrap if we are static PIE.
+  // TODO: Only compile this into rcrt1.o.
+  struct DynamicFields {
+    uintptr_t rela = 0;
+    uintptr_t relasz = 0;
+    uintptr_t relaent = 0;
+    uintptr_t rel = 0;
+    uintptr_t relsz = 0;
+    uintptr_t relent = 0;
+  } dyn_fields;
+
+  for (uintptr_t i = 0; _DYNAMIC[i].d_tag != DT_NULL; ++i) {
+    const ElfW(Dyn) &ent = _DYNAMIC[i];
+    switch (ent.d_tag) {
+    case DT_RELA:
+      dyn_fields.rela = ent.d_un.d_ptr;
+      break;
+    case DT_RELASZ:
+      dyn_fields.relasz = ent.d_un.d_val;
+      break;
+    case DT_RELAENT:
+      dyn_fields.relaent = ent.d_un.d_val;
+      break;
+    case DT_REL:
+      dyn_fields.rel = ent.d_un.d_ptr;
+      break;
+    case DT_RELSZ:
+      dyn_fields.relsz = ent.d_un.d_val;
+      break;
+    case DT_RELENT:
+      dyn_fields.relent = ent.d_un.d_val;
+      break;
+    // TODO: Handle RELR: https://maskray.me/blog/2024-03-09-a-new-relocation-format-for-elf
+    // case DT_RELLEB:
+    // case DT_RELLEBSZ:
+    }
+  }
+
+  // FIXME: Define relocations properly somewhere.
+  enum {
+    R_X86_64_RELATIVE = 8
+  };
+
+  // Apply rela relocations.
+  if (dyn_fields.rela != 0 && dyn_fields.relaent == sizeof(ElfW(Rela))) {
+    const auto *rela_table = reinterpret_cast<const ElfW(Rela)*>(base + dyn_fields.rela);
+    uintptr_t rela_count = dyn_fields.relasz / sizeof(ElfW(Rela));
+    for (uintptr_t i = 0; i < rela_count; ++i) {
+      const auto &rela_ent = rela_table[i];
+      switch (ELF64_R_TYPE(rela_ent.r_info)) {
+        case R_X86_64_RELATIVE: // This is the most likely one. This is used to fill in
+          *reinterpret_cast<uintptr_t *>(base + rela_ent.r_offset) =
+              base + ELF64_R_SYM(rela_ent.r_info) + rela_ent.r_addend;
+      }
+    }
+  }
+}
+
 AppProperties app;
 
 using InitCallback = void(int, char **, char **);
@@ -122,6 +187,8 @@ void teardown_main_tls() { cleanup_tls(tls.addr, tls.size); }
       tls_phdr = &phdr;
     // TODO: adjust PT_GNU_STACK
   }
+
+  bootstrap_pic_image(base);
 
   app.tls.address = tls_phdr->p_vaddr + base;
   app.tls.size = tls_phdr->p_memsz;
