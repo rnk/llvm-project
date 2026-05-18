@@ -1230,22 +1230,18 @@ exceptions read:
 
     ---- LLVM Exceptions to the Apache 2.0 License ----
 
-    As an exception, if, as a result of your compiling your source code,
-    portions
+    As an exception, if, as a result of your compiling your source code, portions
     of this Software are embedded into an Object form of such source code, you
-    may redistribute such embedded portions in such Object form without
-    complying
+    may redistribute such embedded portions in such Object form without complying
     with the conditions of Sections 4(a), 4(b) and 4(d) of the License.
 
     In addition, if you combine or link compiled forms of this Software with
     software that is licensed under the GPLv2 ("Combined Software") and if a
-    court of competent jurisdiction determines that the patent provision
-    (Section
+    court of competent jurisdiction determines that the patent provision (Section
     3), the indemnity provision (Section 9) or other Section of the License
     conflicts with the conditions of the GPLv2, you may retroactively and
     prospectively choose to deem waived or otherwise exclude such Section(s) of
-    the License, but only in their entirety and only with respect to the
-    Combined
+    the License, but only in their entirety and only with respect to the Combined
     Software.
 
 We intend to keep LLVM perpetually open source and available under a permissive
@@ -1303,12 +1299,9 @@ using some questions and answers, which we reproduce here for your convenience
 still holds though):
 
     Q1: If I own a patent and contribute to a Work, and, at the time my
-    contribution is included in that Work, none of my patent's claims are
-    subject
-    to Apache's Grant of Patent License, is there a way any of those claims
-    would
-    later become subject to the Grant of Patent License solely due to
-    subsequent
+    contribution is included in that Work, none of my patent's claims are subject
+    to Apache's Grant of Patent License, is there a way any of those claims would
+    later become subject to the Grant of Patent License solely due to subsequent
     contributions by other parties who are not licensees of that patent.
 
     A1: No.
@@ -1320,27 +1313,20 @@ still holds though):
 
     A2: Yes.
 
-    Q3: If I own or control a licensable patent and contribute code to a
-    specific
+    Q3: If I own or control a licensable patent and contribute code to a specific
     Apache product, which of my patent claims are subject to Apache's Grant of
     Patent License?
 
-    A3:  The only patent claims that are licensed to the ASF are those you own
-    or
+    A3:  The only patent claims that are licensed to the ASF are those you own or
     have the right to license that read on your contribution or on the
     combination of your contribution with the specific Apache product to which
-    you contributed as it existed at the time of your contribution. No
-    additional
-    patent claims become licensed as a result of subsequent combinations of
-    your
+    you contributed as it existed at the time of your contribution. No additional
+    patent claims become licensed as a result of subsequent combinations of your
     contribution with any other software. Note, however, that licensable patent
-    claims include those that you acquire in the future, as long as they read
-    on
-    your original contribution as made at the original time. Once a patent
-    claim
+    claims include those that you acquire in the future, as long as they read on
+    your original contribution as made at the original time. Once a patent claim
     is subject to Apache's Grant of Patent License, it is licensed under the
-    terms of that Grant to the ASF and to recipients of any software
-    distributed
+    terms of that Grant to the ASF and to recipients of any software distributed
     by the ASF for any Apache software product whatsoever.
 
 (legacy)=

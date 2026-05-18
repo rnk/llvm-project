@@ -438,6 +438,8 @@ def markdown_blocks(lines: list[str]) -> list[Block]:
     start = 0
     fence: tuple[str, int] | None = None
     raw_html = False
+    indented_literal = False
+    previous_nonblank = ""
 
     def flush(end: int) -> None:
         nonlocal items, start
@@ -446,20 +448,48 @@ def markdown_blocks(lines: list[str]) -> list[Block]:
             items = []
 
     for index, line in enumerate(lines):
+        stripped_line = line.strip()
         if fence:
             if is_fence_end(line, fence):
                 fence = None
             flush(index)
+            if stripped_line:
+                previous_nonblank = stripped_line
             continue
         fence_start = is_fence_start(line)
         if fence_start:
             flush(index)
             fence = fence_start
+            if stripped_line:
+                previous_nonblank = stripped_line
             continue
 
-        lower = line.strip().lower()
+        if indented_literal:
+            if not stripped_line or line.startswith("    "):
+                flush(index)
+                if stripped_line:
+                    previous_nonblank = stripped_line
+                continue
+            indented_literal = False
+
+        lower = stripped_line.lower()
         if "<table" in lower:
             raw_html = True
+
+        starts_indented_literal = (
+            not items
+            and index > 0
+            and not lines[index - 1].strip()
+            and previous_nonblank.endswith(":")
+            and line.startswith("    ")
+            and not any(regex.match(line) for regex in (MD_BULLET_RE, MD_NUMBER_RE, MD_DEFINITION_RE))
+        )
+        if starts_indented_literal:
+            flush(index)
+            indented_literal = True
+            if stripped_line:
+                previous_nonblank = stripped_line
+            continue
 
         item = markdown_line_item(line, raw_html=raw_html)
         if item is None:
@@ -475,6 +505,8 @@ def markdown_blocks(lines: list[str]) -> list[Block]:
 
         if "</table>" in lower:
             raw_html = False
+        if stripped_line:
+            previous_nonblank = stripped_line
 
     flush(len(lines))
     return blocks
@@ -484,6 +516,8 @@ def rst_blocks(lines: list[str]) -> list[Block]:
     blocks: list[Block] = []
     items: list[LineItem] = []
     start = 0
+    literal_indent: int | None = None
+    pending_literal = False
 
     def flush(end: int) -> None:
         nonlocal items, start
@@ -492,9 +526,33 @@ def rst_blocks(lines: list[str]) -> list[Block]:
             items = []
 
     for index in range(len(lines)):
+        line = lines[index]
+        if literal_indent is not None:
+            indent = len(line) - len(line.lstrip())
+            if not line.strip() or indent >= literal_indent:
+                flush(index)
+                continue
+            literal_indent = None
+
+        if pending_literal:
+            if not line.strip():
+                flush(index)
+                continue
+            indent = len(line) - len(line.lstrip())
+            if indent:
+                flush(index)
+                literal_indent = indent
+                continue
+            pending_literal = False
+
+        if line.strip().endswith("::"):
+            flush(index)
+            pending_literal = True
+            continue
+
         item = rst_line_item(lines, index)
         if item is None:
-            item = rst_continuation_item(lines[index], items)
+            item = rst_continuation_item(line, items)
         if item is None:
             flush(index)
             continue
