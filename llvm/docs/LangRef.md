@@ -320,11 +320,11 @@ conventions are supported by LLVM, and more may be added in the future:
 
 \"`ccc`\" - The C calling convention
 
-:   This calling convention (the default if no other calling convention is
-    specified) matches the target C calling conventions. This calling
-    convention supports varargs function calls and tolerates some mismatch in
-    the declared prototype and implemented declaration of the function (as does
-    normal C).
+:   This calling convention (the default if no other calling convention
+    is specified) matches the target C calling conventions. This calling
+    convention supports varargs function calls and tolerates some
+    mismatch in the declared prototype and implemented declaration of
+    the function (as does normal C).
 
 \"`fastcc`\" - The fast calling convention
 
@@ -925,8 +925,8 @@ Syntax:
                        [, sanitize_address_dyninit] [, sanitize_memtag]
                        (, !name !N)*
 
-For example, the following defines a global in a numbered address space with an
-initializer, section, and alignment:
+For example, the following defines a global in a numbered address space
+with an initializer, section, and alignment:
 
 ``` llvm
 @G = addrspace(5) constant float 1.0, section "foo", align 4
@@ -938,14 +938,15 @@ The following example just declares a global variable
 @G = external global i32
 ```
 
-The following example defines a global variable with the `large` code model:
+The following example defines a global variable with the
+`large` code model:
 
 ``` llvm
 @G = internal global i32 0, code_model "large"
 ```
 
-The following example defines a thread-local global with the `initialexec` TLS
-model:
+The following example defines a thread-local global with the
+`initialexec` TLS model:
 
 ``` llvm
 @G = thread_local(initialexec) global i32 0, align 4
@@ -954,21 +955,23 @@ model:
 (functionstructure)=
 ### Functions
 
-LLVM function definitions consist of the \"`define`\" keyword, an optional
-{ref}`linkage type <linkage>`, an optional {ref}`runtime preemption specifier
-<runtime_preemption_model>`, an optional {ref}`visibility style <visibility>`,
-an optional {ref}`DLL storage class <dllstorageclass>`, an optional
-{ref}`calling convention <callingconv>`, an optional `unnamed_addr` attribute,
-a return type, an optional {ref}`parameter attribute <paramattrs>` for the
-return type, a function name, a (possibly empty) argument list (each with
-optional {ref}`parameter attributes <paramattrs>`), optional {ref}`function
-attributes <fnattrs>`, an optional address space, an optional section, an
-optional partition, an optional minimum alignment, an optional preferred
-alignment, an optional {ref}`comdat <langref_comdats>`, an optional
-{ref}`garbage collector name <gc>`, an optional {ref}`prefix <prefixdata>`, an
-optional {ref}`prologue <prologuedata>`, an optional {ref}`personality
-<personalityfn>`, an optional list of attached {ref}`metadata <metadata>`, an
-opening curly brace, a list of basic blocks, and a closing curly brace.
+LLVM function definitions consist of the \"`define`\" keyword, an
+optional {ref}`linkage type <linkage>`, an optional {ref}`runtime preemption
+specifier <runtime_preemption_model>`, an optional {ref}`visibility
+style <visibility>`, an optional {ref}`DLL storage class <dllstorageclass>`,
+an optional {ref}`calling convention <callingconv>`, an optional
+`unnamed_addr` attribute, a return type, an optional
+{ref}`parameter attribute <paramattrs>` for the return type, a function
+name, a (possibly empty) argument list (each with optional {ref}`parameter
+attributes <paramattrs>`), optional {ref}`function attributes <fnattrs>`,
+an optional address space, an optional section, an optional partition,
+an optional minimum alignment, an optional preferred alignment,
+an optional {ref}`comdat <langref_comdats>`,
+an optional {ref}`garbage collector name <gc>`, an optional {ref}`prefix <prefixdata>`,
+an optional {ref}`prologue <prologuedata>`,
+an optional {ref}`personality <personalityfn>`,
+an optional list of attached {ref}`metadata <metadata>`,
+an opening curly brace, a list of basic blocks, and a closing curly brace.
 
 Syntax:
 
@@ -987,12 +990,12 @@ Syntax:
 
     <type> [parameter Attrs] [name]
 
-LLVM function declarations consist of the \"`declare`\" keyword, an optional
-{ref}`linkage type <linkage>`, an optional {ref}`visibility style
+LLVM function declarations consist of the \"`declare`\" keyword, an
+optional {ref}`linkage type <linkage>`, an optional {ref}`visibility style
 <visibility>`, an optional {ref}`DLL storage class <dllstorageclass>`, an
-optional {ref}`calling convention <callingconv>`, an optional `unnamed_addr` or
-`local_unnamed_addr` attribute, an optional address space, a return type, an
-optional {ref}`parameter attribute <paramattrs>` for the return type, a
+optional {ref}`calling convention <callingconv>`, an optional `unnamed_addr`
+or `local_unnamed_addr` attribute, an optional address space, a return type,
+an optional {ref}`parameter attribute <paramattrs>` for the return type, a
 function name, a possibly empty list of arguments, an optional alignment, an
 optional {ref}`garbage collector name <gc>`, an optional {ref}`prefix
 <prefixdata>`, and an optional {ref}`prologue <prologuedata>`.
