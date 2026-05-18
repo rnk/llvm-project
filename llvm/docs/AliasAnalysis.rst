@@ -155,6 +155,8 @@ written by the other, ``Ref`` if ``CS1`` reads memory written by ``CS2``,
 ``CS1`` might read or write memory written to by ``CS2``.  Note that this
 relation is not commutative.
 
+.. _other-useful-aliasanalysis-methods:
+
 Other useful ``AliasAnalysis`` methods
 --------------------------------------
 

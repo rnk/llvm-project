@@ -72,6 +72,8 @@ requires a very different intermediate representation. It is not based on the
 ":ref:`landingpad <i_landingpad>`" instruction like the other two models, and is
 described later in this document under :ref:`wineh`.
 
+.. _exception-handling-overview:
+
 Overview
 --------
 
