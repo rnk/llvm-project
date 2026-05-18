@@ -91,8 +91,8 @@ conflicts.
 Reserved words in LLVM are very similar to reserved words in other
 languages. There are keywords for different opcodes ('`add`',
 '`bitcast`', '`ret`', etc\...), for primitive type names ('`void`',
-'`i32`', etc\...), and others. These reserved words cannot conflict with
-variable names, because none of them start with a prefix character
+'`i32`', etc\...), and others. These reserved words cannot conflict
+with variable names, because none of them start with a prefix character
 (`'%'` or `'@'`).
 
 Here is an example of LLVM code to multiply the integer variable '`%X`'
@@ -238,16 +238,17 @@ All Global Variables and Functions have one of the following types of linkage:
 
 `linkonce`
 
-:   Globals with \"`linkonce`\" linkage are merged with other globals of the
-    same name when linkage occurs. This can be used to implement some forms of
-    inline functions, templates, or other code which must be generated in each
-    translation unit that uses it, but where the body may be overridden with a
-    more definitive definition later. Unreferenced `linkonce` globals are
-    allowed to be discarded. Note that `linkonce` linkage does not actually
-    allow the optimizer to inline the body of this function into callers
-    because it doesn't know if this definition of the function is the
-    definitive definition within the program or whether it will be overridden
-    by a stronger definition. To enable inlining and other optimizations, use
+:   Globals with \"`linkonce`\" linkage are merged with other globals of
+    the same name when linkage occurs. This can be used to implement
+    some forms of inline functions, templates, or other code which must
+    be generated in each translation unit that uses it, but where the
+    body may be overridden with a more definitive definition later.
+    Unreferenced `linkonce` globals are allowed to be discarded. Note
+    that `linkonce` linkage does not actually allow the optimizer to
+    inline the body of this function into callers because it doesn't
+    know if this definition of the function is the definitive definition
+    within the program or whether it will be overridden by a stronger
+    definition. To enable inlining and other optimizations, use
     \"`linkonce_odr`\" linkage.
 
 `weak`
@@ -282,21 +283,22 @@ with identical names when `.o` files are linked.
 
 `extern_weak`
 
-:   The semantics of this linkage follow the ELF object file model: the symbol
-    is weak until linked, if not linked, the symbol becomes null instead of
-    being an undefined reference.
+:   The semantics of this linkage follow the ELF object file model: the
+    symbol is weak until linked, if not linked, the symbol becomes null
+    instead of being an undefined reference.
 
 `linkonce_odr`, `weak_odr`
 
-:   The `odr` suffix indicates that all globals defined with the given name are
-    equivalent, along the lines of the C++ \"one definition rule\" (\"ODR\").
-    Informally, this means we can inline functions and fold loads of constants.
+:   The `odr` suffix indicates that all globals defined with the given name
+    are equivalent, along the lines of the C++ \"one definition rule\"
+    (\"ODR\"). Informally, this means we can inline functions and fold loads of
+    constants.
 
-    Formally, use the following definition: when an `odr` function is called,
-    one of the definitions is non-deterministically chosen to run. For `odr`
-    variables, if any byte in the value is not equal in all initializers, that
-    byte is a {ref}`poison value <poisonvalues>`. For aliases and ifuncs, apply
-    the rule for the underlying function or variable.
+    Formally, use the following definition: when an `odr` function is
+    called, one of the definitions is non-deterministically chosen to run. For
+    `odr` variables, if any byte in the value is not equal in all
+    initializers, that byte is a {ref}`poison value <poisonvalues>`. For
+    aliases and ifuncs, apply the rule for the underlying function or variable.
 
     These linkage types are otherwise the same as their non-`odr` versions.
 
@@ -436,8 +438,8 @@ conventions are supported by LLVM, and more may be added in the future:
     This calling convention will be used by a future version of the Objective-C
     runtime and should therefore still be considered experimental at this time.
     Although this convention was created to optimize certain runtime calls to
-    the Objective-C runtime, it is not limited to this runtime and might be
-    used by other runtimes in the future too. The current implementation only
+    the Objective-C runtime, it is not limited to this runtime and might be used
+    by other runtimes in the future too. The current implementation only
     supports X86-64, but the intention is to support more architectures in the
     future.
 
@@ -453,12 +455,12 @@ conventions are supported by LLVM, and more may be added in the future:
     preserved by the callee across the call. This doesn't apply for values
     returned in callee-saved registers.
 
-    -   On X86-64 the callee preserves all general purpose registers, except
-        for R11. R11 can be used as a scratch register. Furthermore it also
-        preserves all floating-point registers (XMMs/YMMs).
+    -   On X86-64 the callee preserves all general purpose registers, except for
+        R11. R11 can be used as a scratch register. Furthermore it also preserves
+        all floating-point registers (XMMs/YMMs).
     -   On AArch64 the callee preserves all general purpose registers, except
-        X0-X8 and X16-X18. Furthermore it also preserves lower 128 bits of
-        V8-V31 SIMD floating point registers. Not allowed with `nest`.
+        X0-X8 and X16-X18. Furthermore it also preserves lower 128 bits of V8-V31
+        SIMD floating point registers. Not allowed with `nest`.
 
     The idea behind this convention is to support calls to runtime functions
     that don't need to call out to any other functions.
@@ -624,14 +626,14 @@ specified:
 
 If no explicit model is given, the \"general dynamic\" model is used.
 
-The models correspond to the ELF TLS models; see [ELF Handling For Thread-Local
-Storage](http://people.redhat.com/drepper/tls.pdf) for more information on
-under which circumstances the different models may be used. The target may
-choose a different TLS model if the specified model is not supported, or if a
-better choice of model can be made.
+The models correspond to the ELF TLS models; see [ELF Handling For
+Thread-Local Storage](http://people.redhat.com/drepper/tls.pdf) for
+more information on under which circumstances the different models may
+be used. The target may choose a different TLS model if the specified
+model is not supported, or if a better choice of model can be made.
 
-A model can also be specified in an alias, but then it only governs how the
-alias is accessed. It will not have any effect on the aliasee.
+A model can also be specified in an alias, but then it only governs how
+the alias is accessed. It will not have any effect on the aliasee.
 
 For platforms without linker support of ELF TLS model, the `-femulated-tls`
 flag can be used to generate GCC-compatible emulated TLS code.
@@ -640,8 +642,8 @@ flag can be used to generate GCC-compatible emulated TLS code.
 ### Runtime Preemption Specifiers
 
 Global variables, functions and aliases may have an optional runtime preemption
-specifier. If a preemption specifier isn't given explicitly, then a symbol is
-assumed to be `dso_preemptable`.
+specifier. If a preemption specifier isn't given explicitly, then a
+symbol is assumed to be `dso_preemptable`.
 
 `dso_preemptable`
 
@@ -678,9 +680,10 @@ Note: non-integral pointer types are a work in progress, and they should be
 considered experimental at this time.
 
 For most targets, the pointer representation is a direct mapping from the
-bitwise representation to the address of the underlying memory location. Such
-pointers are considered \"integral\", and any pointers where the representation
-is not just an integer address are called \"non-integral\".
+bitwise representation to the address of the underlying memory location.
+Such pointers are considered \"integral\", and any pointers where
+the representation is not just an integer address are called
+\"non-integral\".
 
 Non-integral pointers have at least one of the following three properties:
 
@@ -706,18 +709,18 @@ address unless all the non-address bits are also recreated correctly in a
 target-specific way.
 
 An example of pointers with non-address bits are the AMDGPU buffer descriptors
-which are 160 bits: a 128-bit fat pointer and a 32-bit offset. Similarly, CHERI
-capabilities contain a 32- or 64-bit address as well as the same number of
-metadata bits, but unlike the AMDGPU buffer descriptors they have external
-state in addition to non-address bits.
+which are 160 bits: a 128-bit fat pointer and a 32-bit offset.
+Similarly, CHERI capabilities contain a 32- or 64-bit address as well as the
+same number of metadata bits, but unlike the AMDGPU buffer descriptors they have
+external state in addition to non-address bits.
 
 #### Unstable pointer representation
 
 Pointers in this address space have an *unspecified* bitwise representation
 (i.e., not backed by a fixed integer). The bitwise pattern of such pointers is
-allowed to change in a target-specific way. For example, this could be a
-pointer type used with copying garbage collection where the garbage collector
-could update the pointer at any time in the collection sweep.
+allowed to change in a target-specific way. For example, this could be a pointer
+type used with copying garbage collection where the garbage collector could
+update the pointer at any time in the collection sweep.
 
 `inttoptr` and `ptrtoint` instructions have the same semantics as for integral
 (i.e., normal) pointers in that they convert integers to and from corresponding
@@ -745,23 +748,25 @@ expected properties, such as `ptrtoint(v)-ptrtoint(v) == 0`, don't hold for
 \"unstable\" pointer types. Similar restrictions apply to intrinsics that might
 examine the pointer bits, such as {ref}`llvm.ptrmask<int_ptrmask>`.
 
-The alignment information provided by the frontend for an \"unstable\" pointer
-(typically using attributes or metadata) must be valid for every possible
-representation of the pointer.
+The alignment information provided by the frontend for an \"unstable\"
+pointer (typically using attributes or metadata) must be valid for every
+possible representation of the
+pointer.
 
 #### Pointers with external state
 
 A further special case of non-integral pointers is ones that include external
-state (such as bounds information or a type tag) with a target-defined size. An
-example of such a type is a CHERI capability, where there is an additional
+state (such as bounds information or a type tag) with a target-defined size.
+An example of such a type is a CHERI capability, where there is an additional
 validity bit that is part of all pointer-typed registers, but is located in
 memory at an implementation-defined address separate from the pointer itself.
 Another example would be a fat-pointer scheme where pointers remain plain
 integers, but the associated bounds are stored in an out-of-band table.
 
 Unless also marked as \"unstable\", the bit-wise representation of pointers
-with external state is stable and `ptrtoint(x)` always yields a deterministic
-value. This means transformation passes are still permitted to insert new
+with external state is stable and `ptrtoint(x)` always yields a
+deterministic value. This means transformation passes are still permitted
+to insert new
 `ptrtoint` instructions.
 
 The following restrictions apply to IR level optimization passes:
@@ -788,12 +793,13 @@ Notionally, these external bits are part of the pointer, but since `inttoptr` /
 bits are not explicitly exposed, they are not included in the size specified in
 the {ref}`datalayout string <langref_datalayout>`.
 
-When a pointer type has external state, all roundtrips via memory must be
-performed as loads and stores of the correct type since stores of other types
-may not propagate the external data. Therefore it is not legal to convert an
-existing load/store (or a `llvm.memcpy` / `llvm.memmove` intrinsic) of pointer
-types with external state to a load/store of an integer or byte type with the
-same bitwidth, as that may drop the external state.
+When a pointer type has external state, all roundtrips via memory must
+be performed as loads and stores of the correct type since stores of other
+types may not propagate the external data.
+Therefore it is not legal to convert an existing load/store (or a
+`llvm.memcpy` / `llvm.memmove` intrinsic) of pointer types with external
+state to a load/store of an integer or byte type with the same bitwidth, as that
+may drop the external state.
 
 (globalvars)=
 ### Global Variables
@@ -803,8 +809,8 @@ of run-time.
 
 Global variable definitions must be initialized with a sized value.
 
-Global variables in other translation units can also be declared, in which case
-they don't have an initializer.
+Global variables in other translation units can also be declared, in which
+case they don't have an initializer.
 
 Global variables can optionally specify a {ref}`linkage type <linkage>`.
 
@@ -832,20 +838,21 @@ define a pointer to their \"content\" type because they describe a region of
 memory, and all {ref}`allocated object<allocatedobjects>` in LLVM are accessed
 through pointers.
 
-Global variables can be marked with `unnamed_addr` which indicates that the
-address is not significant, only the content. Constants marked like this can be
-merged with other constants if they have the same initializer. Note that a
-constant with significant address *can* be merged with a `unnamed_addr`
-constant, the result being a constant whose address is significant.
+Global variables can be marked with `unnamed_addr` which indicates
+that the address is not significant, only the content. Constants marked
+like this can be merged with other constants if they have the same
+initializer. Note that a constant with significant address *can* be
+merged with a `unnamed_addr` constant, the result being a constant
+whose address is significant.
 
-If the `local_unnamed_addr` attribute is given, the address is known to not be
-significant within the module.
+If the `local_unnamed_addr` attribute is given, the address is known to
+not be significant within the module.
 
-A global variable may be declared to reside in a target-specific numbered
-address space. For targets that support them, address spaces may affect how
-optimizations are performed and/or what target instructions are used to access
-the variable. The default address space is zero. The address space qualifier
-must precede any other attributes.
+A global variable may be declared to reside in a target-specific
+numbered address space. For targets that support them, address spaces
+may affect how optimizations are performed and/or what target
+instructions are used to access the variable. The default address space
+is zero. The address space qualifier must precede any other attributes.
 
 LLVM allows an explicit section to be specified for globals. If the target
 supports it, it will emit globals to the section specified. Additionally, the
@@ -864,12 +871,13 @@ code model used to compile the translation unit. The allowed values are
 the future to specify global data layout that doesn't cleanly fit into a
 specific code model.
 
-By default, global initializers are optimized by assuming that global variables
-defined within the module are not modified from their initial values before the
-start of the global initializer. This is true even for variables potentially
-accessible from outside the module, including those with external linkage or
-appearing in `@llvm.used` or dllexported variables. This assumption may be
-suppressed by marking the variable with `externally_initialized`.
+By default, global initializers are optimized by assuming that global
+variables defined within the module are not modified from their
+initial values before the start of the global initializer. This is
+true even for variables potentially accessible from outside the
+module, including those with external linkage or appearing in
+`@llvm.used` or dllexported variables. This assumption may be suppressed
+by marking the variable with `externally_initialized`.
 
 An explicit alignment may be specified for a global, which must be a power of
 2. If not present, or if the alignment is set to zero, the alignment of the
@@ -883,11 +891,11 @@ this iteration. For TLS variables, the module flag `MaxTLSAlign`, if present,
 limits the alignment to the given value. Optimizers are not allowed to impose a
 stronger alignment on these variables. The maximum alignment is `1 << 32`.
 
-For global variable declarations, as well as definitions that may be replaced
-at link time (`linkonce`, `weak`, `extern_weak` and `common` linkage types),
-the allocation size and alignment of the definition it resolves to must be
-greater than or equal to that of the declaration or replaceable definition,
-otherwise the behavior is undefined.
+For global variable declarations, as well as definitions that may be
+replaced at link time (`linkonce`, `weak`, `extern_weak` and `common`
+linkage types), the allocation size and alignment of the definition it resolves
+to must be greater than or equal to that of the declaration or replaceable
+definition, otherwise the behavior is undefined.
 
 Globals can also have a {ref}`DLL storage class <dllstorageclass>`, an optional
 {ref}`runtime preemption specifier <runtime_preemption_model>`, an optional
@@ -902,9 +910,10 @@ intrinsics returning multiple values. Generally, structs containing scalable
 vectors are not considered \"sized\" and cannot be used in loads, stores,
 allocas, or GEPs. The only exception to this rule is for structs that contain
 scalable vectors of the same type (e.g., `{<vscale x 2 x i32>, <vscale x 2 x
-i32>}` contains the same type while `{<vscale x 2 x i32>, <vscale x 2 x i64>}`
-doesn't). These kinds of structs (we may call them homogeneous scalable vector
-structs) are considered sized and can be used in loads, stores, allocas, but
+i32>}` contains the same type while `{<vscale x 2 x i32>, <vscale x 2 x
+i64>}` doesn't). These kinds of structs (we may call them homogeneous scalable
+vector structs) are considered sized and can be used in loads, stores,
+allocas, but
 not GEPs.
 
 Globals with `toc-data` attribute set are stored in TOC of XCOFF. Their
@@ -959,8 +968,8 @@ LLVM function definitions consist of the \"`define`\" keyword, an
 optional {ref}`linkage type <linkage>`, an optional {ref}`runtime preemption
 specifier <runtime_preemption_model>`, an optional {ref}`visibility
 style <visibility>`, an optional {ref}`DLL storage class <dllstorageclass>`,
-an optional {ref}`calling convention <callingconv>`, an optional
-`unnamed_addr` attribute, a return type, an optional
+an optional {ref}`calling convention <callingconv>`,
+an optional `unnamed_addr` attribute, a return type, an optional
 {ref}`parameter attribute <paramattrs>` for the return type, a function
 name, a (possibly empty) argument list (each with optional {ref}`parameter
 attributes <paramattrs>`), optional {ref}`function attributes <fnattrs>`,
@@ -1027,28 +1036,30 @@ basic blocks (i.e., there can not be any branches to the entry block of a
 function). Because the block can have no predecessors, it also cannot have any
 {ref}`PHI nodes <i_phi>`.
 
-LLVM allows an explicit section to be specified for functions. If the target
-supports it, it will emit functions to the section specified. Additionally, the
-function can be placed in a COMDAT.
+LLVM allows an explicit section to be specified for functions. If the
+target supports it, it will emit functions to the section specified.
+Additionally, the function can be placed in a COMDAT.
 
-An explicit minimum alignment (`align`) may be specified for a function. If not
-present, or if the alignment is set to zero, the alignment of the function is
-set according to the preferred alignment rules described below. If an explicit
-minimum alignment is specified, the function is forced to have at least that
-much alignment. All alignments must be a power of 2.
+An explicit minimum alignment (`align`) may be specified for a
+function. If not present, or if the alignment is set to zero, the
+alignment of the function is set according to the preferred alignment
+rules described below. If an explicit minimum alignment is specified, the
+function is forced to have at least that much alignment. All alignments
+must be a power of 2.
 
-An explicit preferred alignment (`prefalign`) may also be specified for a
-function (definitions only, and must be a power of 2). If a function does not
-have a preferred alignment attribute, the preferred alignment is determined in
-a target-specific way. The preferred alignment, if provided, is treated as a
-hint; the final alignment of the function will generally be set to a value
-somewhere between the minimum alignment and the preferred alignment.
+An explicit preferred alignment (`prefalign`) may also be specified for
+a function (definitions only, and must be a power of 2). If a function
+does not have a preferred alignment attribute, the preferred alignment
+is determined in a target-specific way. The preferred alignment, if
+provided, is treated as a hint; the final alignment of the function will
+generally be set to a value somewhere between the minimum alignment and
+the preferred alignment.
 
-If the `unnamed_addr` attribute is given, the address is known to not be
-significant and two identical functions can be merged.
+If the `unnamed_addr` attribute is given, the address is known to not
+be significant and two identical functions can be merged.
 
-If the `local_unnamed_addr` attribute is given, the address is known to not be
-significant within the module.
+If the `local_unnamed_addr` attribute is given, the address is known to
+not be significant within the module.
 
 If an explicit address space is not given, it will default to the program
 address space from the {ref}`datalayout string<langref_datalayout>`.
@@ -1056,11 +1067,11 @@ address space from the {ref}`datalayout string<langref_datalayout>`.
 (langref_aliases)=
 ### Aliases
 
-Aliases, unlike function or variables, don't create any new data. They are just
-a new symbol and metadata for an existing position.
+Aliases, unlike function or variables, don't create any new data. They
+are just a new symbol and metadata for an existing position.
 
-Aliases have a name and an aliasee that is either a global value or a constant
-expression.
+Aliases have a name and an aliasee that is either a global value or a
+constant expression.
 
 Aliases may have an optional {ref}`linkage type <linkage>`, an optional
 {ref}`runtime preemption specifier <runtime_preemption_model>`, an optional
@@ -1081,25 +1092,25 @@ Aliases that are not `unnamed_addr` are guaranteed to have the same address as
 the aliasee expression. `unnamed_addr` ones are only guaranteed to point to the
 same content.
 
-If the `local_unnamed_addr` attribute is given, the address is known to not be
-significant within the module.
+If the `local_unnamed_addr` attribute is given, the address is known to
+not be significant within the module.
 
-Since aliases are only a second name, some restrictions apply, of which some
-can only be checked when producing an object file:
+Since aliases are only a second name, some restrictions apply, of which
+some can only be checked when producing an object file:
 
--   The expression defining the aliasee must be computable at assembly time.
-    Since it is just a name, no relocations can be used.
--   No alias in the expression can be weak as the possibility of the
-    intermediate alias being overridden cannot be represented in an object
-    file.
--   If the alias has the `available_externally` linkage, the aliasee must be an
-    `available_externally` global value; otherwise the aliasee can be an
-    expression but no global value in the expression can be a declaration,
-    since that would require a relocation, which is not possible.
--   If either the alias or the aliasee may be replaced by a symbol outside the
-    module at link time or runtime, any optimization cannot replace the alias
-    with the aliasee, since the behavior may be different. The alias may be
-    used as a name guaranteed to point to the content in the current module.
+- The expression defining the aliasee must be computable at assembly
+  time. Since it is just a name, no relocations can be used.
+- No alias in the expression can be weak as the possibility of the
+  intermediate alias being overridden cannot be represented in an
+  object file.
+- If the alias has the `available_externally` linkage, the aliasee must be an
+  `available_externally` global value; otherwise the aliasee can be an
+  expression but no global value in the expression can be a declaration, since
+  that would require a relocation, which is not possible.
+- If either the alias or the aliasee may be replaced by a symbol outside the
+  module at link time or runtime, any optimization cannot replace the alias with
+  the aliasee, since the behavior may be different. The alias may be used as a
+  name guaranteed to point to the content in the current module.
 
 (langref_ifunc)=
 ### IFuncs
@@ -1131,8 +1142,8 @@ provide input on how the linker deduplicates comdats with the same key in two
 different object files. A comdat must be included or omitted as a unit.
 Discarding the whole comdat is allowed but discarding a subset is not.
 
-A global object may be a member of at most one comdat. Aliases are placed in
-the same COMDAT that their aliasee computes to, if any.
+A global object may be a member of at most one comdat. Aliases are placed in the
+same COMDAT that their aliasee computes to, if any.
 
 Syntax:
 
@@ -1183,13 +1194,13 @@ define void @bar() comdat($foo) {
 ```
 
 In a COFF object file, this will create a COMDAT section with selection kind
-`IMAGE_COMDAT_SELECT_LARGEST` containing the contents of the `@foo` symbol and
-another COMDAT section with selection kind `IMAGE_COMDAT_SELECT_ASSOCIATIVE`
-which is associated with the first COMDAT section and contains the contents of
-the `@bar` symbol.
+`IMAGE_COMDAT_SELECT_LARGEST` containing the contents of the `@foo` symbol
+and another COMDAT section with selection kind
+`IMAGE_COMDAT_SELECT_ASSOCIATIVE` which is associated with the first COMDAT
+section and contains the contents of the `@bar` symbol.
 
-As a syntactic sugar the `$name` can be omitted if the name is the same as the
-global name:
+As a syntactic sugar the `$name` can be omitted if the name is the same as
+the global name:
 
 ``` llvm
 $foo = comdat any
@@ -1197,16 +1208,17 @@ $foo = comdat any
 @bar = global i32 3, comdat($foo)
 ```
 
-There are some restrictions on the properties of the global object. It, or an
-alias to it, must have the same name as the COMDAT group when targeting COFF.
+There are some restrictions on the properties of the global object.
+It, or an alias to it, must have the same name as the COMDAT group when
+targeting COFF.
 The contents and size of this object may be used during link-time to determine
-which COMDAT groups get selected depending on the selection kind. Because the
-name of the object must match the name of the COMDAT group, the linkage of the
-global object must not be local; local symbols can get renamed if a collision
-occurs in the symbol table.
+which COMDAT groups get selected depending on the selection kind.
+Because the name of the object must match the name of the COMDAT group, the
+linkage of the global object must not be local; local symbols can get renamed
+if a collision occurs in the symbol table.
 
-The combined use of COMDATS and section attributes may yield surprising
-results. For example:
+The combined use of COMDATS and section attributes may yield surprising results.
+For example:
 
 ``` llvm
 $foo = comdat any
@@ -1220,22 +1232,23 @@ with the same name. This is necessary because both globals belong to different
 COMDAT groups and COMDATs, at the object file level, are represented by
 sections.
 
-Note that certain IR constructs like global variables and functions may create
-COMDATs in the object file in addition to any which are specified using COMDAT
-IR. This arises when the code generator is configured to emit globals in
-individual sections (e.g., when `-data-sections` or `-function-sections` is
-supplied to `llc`).
+Note that certain IR constructs like global variables and functions may
+create COMDATs in the object file in addition to any which are specified using
+COMDAT IR. This arises when the code generator is configured to emit globals
+in individual sections (e.g., when `-data-sections` or `-function-sections`
+is supplied to `llc`).
 
 (namedmetadatastructure)=
 ### Named Metadata
 
-Named metadata is a collection of metadata. {ref}`Metadata nodes <metadata>`
-(but not metadata strings) are the only valid operands for a named metadata.
+Named metadata is a collection of metadata. {ref}`Metadata
+nodes <metadata>` (but not metadata strings) are the only valid
+operands for a named metadata.
 
-1.  Named metadata are represented as a string of characters with the metadata
-    prefix. The rules for metadata names are the same as for identifiers, but
-    quoted names are not allowed. `"\xx"` type escapes are still valid, which
-    allows any character to be part of a name.
+1.  Named metadata are represented as a string of characters with the
+    metadata prefix. The rules for metadata names are the same as for
+    identifiers, but quoted names are not allowed. `"\xx"` type escapes
+    are still valid, which allows any character to be part of a name.
 
 Syntax:
 
@@ -1250,12 +1263,12 @@ Syntax:
 ### Parameter Attributes
 
 The return type and each parameter of a function type may have a set of
-*parameter attributes* associated with them. Parameter attributes are used to
-communicate additional information about the result or parameters of a
-function. Parameter attributes are considered to be part of the function, not
-of the function type, so functions with different parameter attributes can have
-the same function type. Parameter attributes can be placed both on function
-declarations/definitions, and at call-sites.
+*parameter attributes* associated with them. Parameter attributes are
+used to communicate additional information about the result or
+parameters of a function. Parameter attributes are considered to be part
+of the function, not of the function type, so functions with different
+parameter attributes can have the same function type. Parameter attributes can
+be placed both on function declarations/definitions, and at call-sites.
 
 Parameter attributes are either simple keywords or strings that follow the
 specified type. Multiple parameter attributes, when required, are separated by
@@ -1273,8 +1286,8 @@ call i32 @atoi(i8 zeroext %x)
 call signext i8 @returns_signed_char()
 ```
 
-Note that any attributes for the function result (`nonnull`, `signext`) come
-before the result type.
+Note that any attributes for the function result (`nonnull`,
+`signext`) come before the result type.
 
 Parameter attributes can be broadly separated into two kinds: ABI attributes
 that affect how values are passed to/from functions, like `zeroext`, `inreg`,
@@ -1288,16 +1301,16 @@ call-site and function: The intersection of their implied semantics applies.
 Optimization attributes can also be freely dropped.
 
 If an integer argument to a function is not marked signext/zeroext/noext, the
-kind of extension used is target-specific. Some targets depend for correctness
-on the kind of extension to be explicitly specified.
+kind of extension used is target-specific. Some targets depend for
+correctness on the kind of extension to be explicitly specified.
 
 Currently, only the following parameter attributes are defined:
 
 `zeroext`
 
-:   This indicates to the code generator that the parameter or return value
-    should be zero-extended to the extent required by the target's ABI by the
-    caller (for a parameter) or the callee (for a return value).
+:   This indicates to the code generator that the parameter or return
+    value should be zero-extended to the extent required by the target's
+    ABI by the caller (for a parameter) or the callee (for a return value).
 
 `signext`
 
@@ -1308,11 +1321,11 @@ Currently, only the following parameter attributes are defined:
 
 `noext`
 
-:   This indicates to the code generator that the parameter or return value has
-    the high bits undefined, as for a struct in a register, and therefore does
-    not need to be sign or zero extended. This is the same as default behavior
-    and is only actually used (by some targets) to validate that one of the
-    attributes is always present.
+:   This indicates to the code generator that the parameter or return
+    value has the high bits undefined, as for a struct in a register, and
+    therefore does not need to be sign or zero extended. This is the same
+    as default behavior and is only actually used (by some targets) to
+    validate that one of the attributes is always present.
 
 `inreg`
 
@@ -1344,22 +1357,24 @@ Currently, only the following parameter attributes are defined:
 (attr_byref)=
 `byref(<ty>)`
 
-> The `byref` argument attribute allows specifying the pointee memory type of
-> an argument. This is similar to `byval`, but does not imply a copy is made
-> anywhere, or that the argument is passed on the stack. This implies the
-> pointer is dereferenceable up to the storage size of the type.
+> The `byref` argument attribute allows specifying the pointee
+> memory type of an argument. This is similar to `byval`, but does
+> not imply a copy is made anywhere, or that the argument is passed
+> on the stack. This implies the pointer is dereferenceable up to
+> the storage size of the type.
 >
 > It is not generally permissible to introduce a write to a `byref` pointer.
 > The pointer may have any address space and may be read only.
 >
 > This is not a valid attribute for return values.
 >
-> The alignment for a `byref` parameter can be explicitly specified by
-> combining it with the `align` attribute, similar to `byval`. If the alignment
-> is not specified, then the code generator makes a target-specific assumption.
+> The alignment for a `byref` parameter can be explicitly
+> specified by combining it with the `align` attribute, similar to
+> `byval`. If the alignment is not specified, then the code generator
+> makes a target-specific assumption.
 >
-> This is intended for representing ABI constraints, and is not intended to be
-> inferred for optimization use.
+> This is intended for representing ABI constraints, and is not
+> intended to be inferred for optimization use.
 
 (attr_preallocated)=
 
@@ -1373,8 +1388,8 @@ Currently, only the following parameter attributes are defined:
     non `musttail` calls, or the corresponding caller parameter in `musttail`
     calls, although it is ignored during codegen.
 
-    A non `musttail` function call with a `preallocated` attribute in any
-    parameter must have a `"preallocated"` operand bundle. A `musttail`
+    A non `musttail` function call with a `preallocated` attribute in
+    any parameter must have a `"preallocated"` operand bundle. A `musttail`
     function call cannot have a `"preallocated"` operand bundle.
 
     The preallocated attribute requires a type argument.
@@ -1388,18 +1403,19 @@ Currently, only the following parameter attributes are defined:
 (attr_inalloca)=
 `inalloca(<ty>)`
 
-> The `inalloca` argument attribute allows the caller to take the address of
-> outgoing stack arguments. An `inalloca` argument must be a pointer to stack
-> memory produced by an `alloca` instruction. The alloca, or argument
-> allocation, must also be tagged with the inalloca keyword. Only the last
-> argument may have the `inalloca` attribute, and that argument is guaranteed
-> to be passed in memory.
+> The `inalloca` argument attribute allows the caller to take the
+> address of outgoing stack arguments. An `inalloca` argument must
+> be a pointer to stack memory produced by an `alloca` instruction.
+> The alloca, or argument allocation, must also be tagged with the
+> inalloca keyword. Only the last argument may have the `inalloca`
+> attribute, and that argument is guaranteed to be passed in memory.
 >
-> An argument allocation may be used by a call at most once because the call
-> may deallocate it. The `inalloca` attribute cannot be used in conjunction
-> with other attributes that affect argument storage, like `inreg`, `nest`,
-> `sret`, or `byval`. The `inalloca` attribute also disables LLVM's implicit
-> lowering of large aggregate return values, which means that frontend authors
+> An argument allocation may be used by a call at most once because
+> the call may deallocate it. The `inalloca` attribute cannot be
+> used in conjunction with other attributes that affect argument
+> storage, like `inreg`, `nest`, `sret`, or `byval`. The
+> `inalloca` attribute also disables LLVM's implicit lowering of
+> large aggregate return values, which means that frontend authors
 > must lower them with `sret` pointers.
 >
 > When the call site is reached, the argument allocation must have been the
@@ -1436,10 +1452,11 @@ Currently, only the following parameter attributes are defined:
 > assign it particular semantics. This will be documented on individual
 > intrinsics.
 >
-> The attribute may only be applied to pointer typed arguments or return values
-> of intrinsic calls. It cannot be applied to non-intrinsic calls, and cannot
-> be applied to parameters on function declarations. For non-opaque pointers,
-> the type passed to `elementtype` must match the pointer element type.
+> The attribute may only be applied to pointer typed arguments or return
+> values of intrinsic calls. It cannot be applied to non-intrinsic calls,
+> and cannot be applied to parameters on function declarations.
+> For non-opaque pointers, the type passed to `elementtype` must match
+> the pointer element type.
 
 (attr_align)=
 
@@ -1473,16 +1490,16 @@ Currently, only the following parameter attributes are defined:
     met. For further details, please see the discussion of the NoAlias response
     in {ref}`alias analysis <Must, May, or No>`.
 
-    Note that this definition of `noalias` is intentionally similar to the
-    definition of `restrict` in C99 for function arguments.
+    Note that this definition of `noalias` is intentionally similar
+    to the definition of `restrict` in C99 for function arguments.
 
-    For function return values, C99's `restrict` is not meaningful, while
-    LLVM's `noalias` is. Furthermore, the semantics of the `noalias` attribute
-    on return values are stronger than the semantics of the attribute when used
-    on function arguments. On function return values, the `noalias` attribute
-    indicates that the function acts like a system memory allocation function,
-    returning a pointer to allocated storage disjoint from the storage for any
-    other object accessible to the caller.
+    For function return values, C99's `restrict` is not meaningful,
+    while LLVM's `noalias` is. Furthermore, the semantics of the `noalias`
+    attribute on return values are stronger than the semantics of the attribute
+    when used on function arguments. On function return values, the `noalias`
+    attribute indicates that the function acts like a system memory allocation
+    function, returning a pointer to allocated storage disjoint from the
+    storage for any other object accessible to the caller.
 
 (captures_attr)=
 
@@ -1503,8 +1520,8 @@ Currently, only the following parameter attributes are defined:
         pointer only for reads after the function returns.
 
     Additionally, it is possible to specify that some components are only
-    captured in certain locations. Currently only the return value (`ret`) and
-    other (default) locations are supported.
+    captured in certain locations. Currently only the return value (`ret`)
+    and other (default) locations are supported.
 
     The {ref}`pointer capture section <pointercapture>` discusses these
     semantics in more detail.
@@ -1519,14 +1536,14 @@ Currently, only the following parameter attributes are defined:
         captured, but only for read-only access.
     -   `captures(ret: address, provenance)`: Pointer captured through return
         value only.
-    -   `captures(address_is_null, ret: address, provenance)`: The whole
-        pointer is captured through the return value, and additionally whether
-        the pointer is null is captured in some other way.
+    -   `captures(address_is_null, ret: address, provenance)`: The whole pointer
+        is captured through the return value, and additionally whether the pointer
+        is null is captured in some other way.
 
 `nofree`
 
-:   This indicates that the callee does not free the pointer argument. This is
-    not a valid attribute for return values.
+:   This indicates that the callee does not free the pointer argument. This is not
+    a valid attribute for return values.
 
 (nest)=
 
@@ -1589,8 +1606,8 @@ Currently, only the following parameter attributes are defined:
 
 `swiftself`
 
-:   This indicates that the parameter is the self/context parameter. This is
-    not a valid attribute for return values and can only be applied to one
+:   This indicates that the parameter is the self/context parameter. This is not
+    a valid attribute for return values and can only be applied to one
     parameter.
 
 (swiftasync)=
@@ -1606,12 +1623,12 @@ Currently, only the following parameter attributes are defined:
 
 :   This attribute is motivated to model and optimize Swift error handling. It
     can be applied to a parameter with pointer-to-pointer type or a
-    pointer-sized alloca. At the call site, the actual argument that
-    corresponds to a `swifterror` parameter has to come from a `swifterror`
-    alloca or the `swifterror` parameter of the caller. A `swifterror` value
-    (either the parameter or the alloca) can only be loaded and stored from, or
-    used as a `swifterror` argument. This is not a valid attribute for return
-    values and can only be applied to one parameter.
+    pointer-sized alloca. At the call site, the actual argument that corresponds
+    to a `swifterror` parameter has to come from a `swifterror` alloca or
+    the `swifterror` parameter of the caller. A `swifterror` value (either
+    the parameter or the alloca) can only be loaded and stored from, or used as
+    a `swifterror` argument. This is not a valid attribute for return values
+    and can only be applied to one parameter.
 
     These constraints allow the calling convention to optimize access to
     `swifterror` variables by associating them with a specific register at call
@@ -1637,8 +1654,8 @@ Currently, only the following parameter attributes are defined:
     undefined. Note that this does not refer to padding introduced by the
     type's storage representation.
 
-    If memory sanitizer is enabled, `noundef` becomes an ABI attribute and must
-    match between the call-site and the function definition.
+    If memory sanitizer is enabled, `noundef` becomes an ABI attribute and
+    must match between the call-site and the function definition.
 
 (nofpclass)=
 
@@ -1653,8 +1670,9 @@ Currently, only the following parameter attributes are defined:
     value. For example, a bitmask of 3 indicates the parameter may not be a
     NaN.
 
-    If the value is a floating-point class indicated by the `nofpclass` test
-    mask, a {ref}`poison value <poisonvalues>` is passed or returned instead.
+    If the value is a floating-point class indicated by the
+    `nofpclass` test mask, a {ref}`poison value <poisonvalues>` is
+    passed or returned instead.
 
 ```{code-block} text
 :caption: The following invariants hold
@@ -1664,8 +1682,9 @@ Currently, only the following parameter attributes are defined:
 nofpclass(all) => poison
 ```
 
-> In textual IR, various string names are supported for readability and can be
-> combined. For example `nofpclass(nan pinf nzero)` evaluates to a mask of 547.
+> In textual IR, various string names are supported for readability
+> and can be combined. For example `nofpclass(nan pinf nzero)`
+> evaluates to a mask of 547.
 >
 > This does not depend on the floating-point environment. For example, a
 > function parameter marked `nofpclass(zero)` indicates no zero inputs. If this
@@ -1741,20 +1760,20 @@ nofpclass(all) => poison
 
 `allocalign`
 
-:   The function parameter marked with this attribute is the alignment in bytes
-    of the newly allocated block returned by this function. The returned value
-    must either have the specified alignment or be the null pointer. The return
-    value MAY be more aligned than the requested alignment, but not less
-    aligned. Invalid (e.g., non-power-of-2) alignments are permitted for the
-    allocalign parameter, so long as the returned pointer is null. This
-    attribute may only be applied to integer parameters.
+:   The function parameter marked with this attribute is the alignment in bytes of the
+    newly allocated block returned by this function. The returned value must either have
+    the specified alignment or be the null pointer. The return value MAY be more aligned
+    than the requested alignment, but not less aligned. Invalid (e.g., non-power-of-2)
+    alignments are permitted for the allocalign parameter, so long as the returned pointer
+    is null. This attribute may only be applied to integer parameters.
 
 `allocptr`
 
-:   The function parameter marked with this attribute is the pointer that will
-    be manipulated by the allocator. For a realloc-like function the pointer
-    will be invalidated upon success (but the same address may be returned),
-    for a free-like function the pointer will always be invalidated.
+:   The function parameter marked with this attribute is the pointer
+    that will be manipulated by the allocator. For a realloc-like
+    function the pointer will be invalidated upon success (but the
+    same address may be returned), for a free-like function the
+    pointer will always be invalidated.
 
 `readnone`
 
@@ -1801,10 +1820,10 @@ nofpclass(all) => poison
     {ref}`atomic optimization guide <Optimization outside atomic>`
 
     The \"other attributes\" that imply dereferenceability are
-    `dereferenceable_or_null` (if the pointer is non-null) and the `sret`,
-    `byval`, `byref`, `inalloca`, `preallocated` family of attributes. Note
-    that not all of these combinations are useful, e.g. `byval` arguments are
-    known to be writable even without this attribute.
+    `dereferenceable_or_null` (if the pointer is non-null) and the
+    `sret`, `byval`, `byref`, `inalloca`, `preallocated` family of
+    attributes. Note that not all of these combinations are useful, e.g.
+    `byval` arguments are known to be writable even without this attribute.
 
     The `writable` attribute cannot be combined with `readnone`, `readonly` or
     a `memory` attribute that does not contain `argmem: write`.
@@ -1842,8 +1861,8 @@ nofpclass(all) => poison
 
     This attribute is a list of constant ranges in ascending order with no
     overlapping or consecutive list elements. `LoN/HiN` are 64-bit integers,
-    and negative values are allowed in case the argument points partway into an
-    allocation. An empty list is not allowed.
+    and negative values are allowed in case the argument points partway into
+    an allocation. An empty list is not allowed.
 
     On a `byval` argument, `initializes` refers to the given parts of the
     callee copy being overwritten. A `byval` callee can never initialize the
@@ -1891,9 +1910,9 @@ nofpclass(all) => poison
 
 `range(<ty> <a>, <b>)`
 
-:   This attribute expresses the possible range of the parameter or return
-    value. If the value is not in the specified range, it is converted to
-    poison. The arguments passed to `range` have the following properties:
+:   This attribute expresses the possible range of the parameter or return value.
+    If the value is not in the specified range, it is converted to poison.
+    The arguments passed to `range` have the following properties:
 
     -   The type must match the scalar type of the parameter or return value.
     -   The pair `a,b` represents the range `[a,b)`.
@@ -1902,8 +1921,8 @@ nofpclass(all) => poison
     -   The empty range is represented using `0,0`.
     -   Otherwise, `a` and `b` are not allowed to be equal.
 
-    This attribute may only be applied to parameters or return values with
-    integer or vector of integer types.
+    This attribute may only be applied to parameters or return values with integer
+    or vector of integer types.
 
     For vector-typed parameters, the range is applied element-wise.
 
@@ -1927,11 +1946,12 @@ which can interoperate with a collector provided externally.
 (prefixdata)=
 ### Prefix Data
 
-Prefix data is data associated with a function which the code generator will
-emit immediately before the function's entrypoint. The purpose of this feature
-is to allow frontends to associate language-specific runtime metadata with
-specific functions and make it available through the function pointer while
-still allowing the function pointer to be called.
+Prefix data is data associated with a function which the code
+generator will emit immediately before the function's entrypoint.
+The purpose of this feature is to allow frontends to associate
+language-specific runtime metadata with specific functions and make it
+available through the function pointer while still allowing the
+function pointer to be called.
 
 To access the data for a given function, a program may bitcast the function
 pointer to a pointer to the constant's type and dereference index -1. This
@@ -1956,9 +1976,9 @@ not a multiple of the alignment size, the function's entrypoint will not be
 aligned. If alignment of the function's entrypoint is desired, padding must be
 added to the prefix data.
 
-A function may have prefix data but no body. This has similar semantics to the
-`available_externally` linkage in that the data may be used by the optimizers
-but will not be emitted in the object file.
+A function may have prefix data but no body. This has similar semantics
+to the `available_externally` linkage in that the data may be used by the
+optimizers but will not be emitted in the object file.
 
 (prologuedata)=
 ### Prologue Data
@@ -1968,13 +1988,13 @@ inserted prior to the function body. This can be used for enabling function
 hot-patching and instrumentation.
 
 To maintain the semantics of ordinary function calls, the prologue data must
-have a particular format. Specifically, it must begin with a sequence of bytes
-which decode to a sequence of machine instructions, valid for the module's
-target, which transfer control to the point immediately succeeding the prologue
-data, without performing any other visible action. This allows the inliner and
-other passes to reason about the semantics of the function definition without
-needing to reason about the prologue data. Obviously this makes the format of
-the prologue data highly target dependent.
+have a particular format. Specifically, it must begin with a sequence of
+bytes which decode to a sequence of machine instructions, valid for the
+module's target, which transfer control to the point immediately succeeding
+the prologue data, without performing any other visible action. This allows
+the inliner and other passes to reason about the semantics of the function
+definition without needing to reason about the prologue data. Obviously this
+makes the format of the prologue data highly target dependent.
 
 A trivial example of valid prologue data for the x86 architecture is `i8 144`,
 which encodes the `nop` instruction:
@@ -1993,8 +2013,8 @@ x86_64 architecture, where the first two bytes encode `jmp .+10`:
 define void @f() prologue %0 <{ i8 235, i8 8, ptr @md}> { ... }
 ```
 
-A function may have prologue data but no body. This has similar semantics to
-the `available_externally` linkage in that the data may be used by the
+A function may have prologue data but no body. This has similar semantics
+to the `available_externally` linkage in that the data may be used by the
 optimizers but will not be emitted in the object file.
 
 (personalityfn)=
@@ -2009,8 +2029,8 @@ for exception handling.
 Attribute groups are groups of attributes that are referenced by objects within
 the IR. They are important for keeping `.ll` files readable, because a lot of
 functions will use the same set of attributes. In the degenerate case of a
-`.ll` file that corresponds to a single `.c` file, the single attribute group
-will capture the important command line flags used to build that file.
+`.ll` file that corresponds to a single `.c` file, the single attribute
+group will capture the important command line flags used to build that file.
 
 An attribute group is a module-level object. To use an attribute group, an
 object references the attribute group's ID (e.g., `#37`). An object may refer
@@ -2080,20 +2100,23 @@ define void @f() "no-sse" { ... }
 
     The first three options are mutually exclusive, and the remaining options
     describe more details of how the function behaves. The remaining options
-    are invalid for \"free\"-type functions.
+    are invalid for \"free\"-type
+    functions.
 
     Calls to functions annotated with `allockind` are subject to allocation
     elision: Calls to allocator functions can be removed, and the allocation
     served from a \"virtual\" allocator instead. Notably, this is allowed even
     if the allocator calls have side-effects. In other words, for each
     allocation there is a non-deterministic choice between calling the
-    allocator as usual, or using a virtual, side-effect-free allocator instead.
+    allocator as usual, or using a virtual,
+    side-effect-free allocator instead.
 
-    If multiple allocation functions operate on the same allocation, allocation
-    elision is only allowed for pairs of \"alloc\" and \"free\" with the same
-    `"alloc-family"` attribute. For this purpose, a \"realloc\" call may be
-    decomposed into \"alloc\" and \"free\" operations, as long as at least one
-    of them will be elided.
+    If multiple allocation functions operate on the same allocation,
+    allocation elision is only allowed for pairs of \"alloc\" and \"free\" with
+    the same `"alloc-family"` attribute. For this purpose, a \"realloc\" call
+    may be decomposed into \"alloc\" and \"free\" operations, as long as at
+    least one of them will
+    be elided.
 
 `"alloc-variant-zeroed"="FUNCTION"`
 
@@ -2107,17 +2130,17 @@ define void @f() "no-sse" { ... }
 :   This attribute indicates that the annotated function will always return at
     least a given number of bytes (or null). Its arguments are zero-indexed
     parameter numbers; if one argument is provided, then it's assumed that at
-    least `CallSite.Args[EltSizeParam]` bytes will be available at the returned
-    pointer. If two are provided, then it's assumed that
+    least `CallSite.Args[EltSizeParam]` bytes will be available at the
+    returned pointer. If two are provided, then it's assumed that
     `CallSite.Args[EltSizeParam] * CallSite.Args[NumEltsParam]` bytes are
     available. The referenced parameters must be integer types. No assumptions
     are made about the contents of the returned block of memory.
 
 `alwaysinline`
 
-:   This attribute indicates that the inliner should attempt to inline this
-    function into callers whenever possible, ignoring any active inlining size
-    threshold for this caller.
+:   This attribute indicates that the inliner should attempt to inline
+    this function into callers whenever possible, ignoring any active
+    inlining size threshold for this caller.
 
 `builtin`
 
@@ -2150,8 +2173,8 @@ define void @f() "no-sse" { ... }
 
 `disable_sanitizer_instrumentation`
 
-:   When instrumenting code with sanitizers, it can be important to skip
-    certain functions to ensure no instrumentation is applied to them.
+:   When instrumenting code with sanitizers, it can be important to skip certain
+    functions to ensure no instrumentation is applied to them.
 
     This attribute is not always similar to absent `sanitize_<name>`
     attributes: depending on the specific sanitizer, code can be inserted into
@@ -2224,10 +2247,11 @@ define void @f() "no-sse" { ... }
 `memory(...)`
 
 :   This attribute specifies the possible memory effects of the call-site or
-    function. It allows specifying the possible access kinds (`none`, `read`,
-    `write`, or `readwrite`) for the possible memory location kinds (`argmem`,
-    `inaccessiblemem`, `errnomem`, `target_mem0`, `target_mem1`, as well as a
-    default). It is best understood by example:
+    function. It allows specifying the possible access kinds (`none`,
+    `read`, `write`, or `readwrite`) for the possible memory location
+    kinds (`argmem`, `inaccessiblemem`, `errnomem`, `target_mem0`,
+    `target_mem1`, as well as a default).
+    It is best understood by example:
 
     -   `memory(none)`: Does not access any memory.
     -   `memory(read)`: May read (but not write) any memory.
@@ -2247,12 +2271,12 @@ define void @f() "no-sse" { ... }
 
     -   `readwrite`: Any kind of access to the location is allowed.
     -   `read`: The location is only read. Writing to the location is immediate
-        undefined behavior. This includes the case where the location is read
-        from and then the same value is written back.
-    -   `write`: Only writes to the location are observable outside the
-        function call. However, the function may still internally read the
-        location after writing it, as this is not observable. Reading the
-        location prior to writing it results in a poison value.
+        undefined behavior. This includes the case where the location is read from
+        and then the same value is written back.
+    -   `write`: Only writes to the location are observable outside the function
+        call. However, the function may still internally read the location after
+        writing it, as this is not observable. Reading the location prior to
+        writing it results in a poison value.
     -   `none`: No reads or writes to the location are observed outside the
         function. It is always valid to read and write allocas, and to read
         global constants, even if `memory(none)` is used, as these effects are
@@ -2264,26 +2288,28 @@ define void @f() "no-sse" { ... }
         to the function.
     -   `inaccessiblemem`: This refers to accesses to memory which is not
         accessible by the current module (before return from the function \--
-        an allocator function may return newly accessible memory while only
-        accessing inaccessible memory itself). Inaccessible memory is often
-        used to model control dependencies of intrinsics.
+        an allocator function may return newly accessible memory while
+        only accessing inaccessible memory itself). Inaccessible memory is often
+        used to model control dependencies of
+        intrinsics.
     -   `errnomem`: This refers to accesses to the `errno` variable.
     -   `target_mem#` : These refer to target specific state that cannot be
-        accessed by any other means. \# is a number between 0 and 1 inclusive.
-        Note: The target_mem locations are experimental and intended for
-        internal testing only. They must not be used in production code.
+        accessed by any other means. \# is a number between 0 and 1
+        inclusive. Note: The target_mem locations are experimental and intended
+        for internal testing only. They must not be used in
+        production code.
     -   The default access kind (specified without a location prefix) applies
         to all locations that haven't been specified explicitly, including
         those that don't currently have a dedicated location kind (e.g.,
         accesses to globals or captured pointers).
 
-    If the `memory` attribute is not specified, then `memory(readwrite)` is
-    implied (all memory effects are possible).
+    If the `memory` attribute is not specified, then `memory(readwrite)`
+    is implied (all memory effects are possible).
 
-    The memory effects of a call can be computed as `CallSiteEffects &
-    (FunctionEffects | OperandBundleEffects)`. Thus, the call-site annotation
-    takes precedence over the potential effects described by either the
-    function annotation or the operand bundles.
+    The memory effects of a call can be computed as
+    `CallSiteEffects & (FunctionEffects | OperandBundleEffects)`. Thus, the
+    call-site annotation takes precedence over the potential effects described
+    by either the function annotation or the operand bundles.
 
 `minsize`
 
@@ -2295,9 +2321,9 @@ define void @f() "no-sse" { ... }
 
 `naked`
 
-:   This attribute disables prologue / epilogue emission for the function. This
-    can have very system-specific consequences. The arguments of a `naked`
-    function can not be referenced through IR values.
+:   This attribute disables prologue / epilogue emission for the
+    function. This can have very system-specific consequences. The arguments of
+    a `naked` function can not be referenced through IR values.
 
 `"no-inline-line-tables"`
 
@@ -2317,9 +2343,9 @@ define void @f() "no-sse" { ... }
 
 :   This indicates that the callee function at a call site is not recognized as
     a built-in function. LLVM will retain the original call and not replace it
-    with equivalent code based on the semantics of the built-in function,
-    unless the call site uses the `builtin` attribute. This is valid at call
-    sites and on function declarations and definitions.
+    with equivalent code based on the semantics of the built-in function, unless
+    the call site uses the `builtin` attribute. This is valid at call sites
+    and on function declarations and definitions.
 
 `nocallback`
 
@@ -2354,16 +2380,16 @@ define void @f() "no-sse" { ... }
 `nofree`
 
 :   This function attribute indicates that the function does not, directly or
-    transitively, call a memory-deallocation function (`free`, for example) on
-    a memory allocation which existed before the call.
+    transitively, call a memory-deallocation function (`free`, for example)
+    on a memory allocation which existed before the call.
 
-    As a result, uncaptured pointers that are known to be dereferenceable prior
-    to a call to a function with the `nofree` attribute are still known to be
-    dereferenceable after the call. The capturing condition is necessary in
-    environments where the function might communicate the pointer to another
-    thread which then deallocates the memory. Alternatively, `nosync` would
-    ensure such communication cannot happen and even captured pointers cannot
-    be freed by the function.
+    As a result, uncaptured pointers that are known to be dereferenceable
+    prior to a call to a function with the `nofree` attribute are still
+    known to be dereferenceable after the call. The capturing condition is
+    necessary in environments where the function might communicate the
+    pointer to another thread which then deallocates the memory. Alternatively,
+    `nosync` would ensure such communication cannot happen and even captured
+    pointers cannot be freed by the function.
 
     A `nofree` function is explicitly allowed to free memory which it allocated
     or (if not `nosync`) arrange for another thread to free memory on its
@@ -2374,10 +2400,10 @@ define void @f() "no-sse" { ... }
 `noimplicitfloat`
 
 :   Disallows implicit floating-point code. This inhibits optimizations that
-    use floating-point code and floating-point registers for operations that
-    are not nominally floating-point. LLVM instructions that perform
-    floating-point operations or require access to floating-point registers may
-    still cause floating-point code to be generated.
+    use floating-point code and floating-point registers for operations that are
+    not nominally floating-point. LLVM instructions that perform floating-point
+    operations or require access to floating-point registers may still cause
+    floating-point code to be generated.
 
     Also inhibits optimizations that create SIMD/vector code and registers from
     scalar code such as vectorization or memcpy/memset optimization. This
@@ -2402,9 +2428,9 @@ define void @f() "no-sse" { ... }
 
 `nonlazybind`
 
-:   This attribute suppresses lazy symbol binding for the function. This may
-    make calls to the function faster, at the cost of extra program startup
-    time if the function is not called during program startup.
+:   This attribute suppresses lazy symbol binding for the function. This
+    may make calls to the function faster, at the cost of extra program
+    startup time if the function is not called during program startup.
 
 `noprofile`
 
@@ -2422,8 +2448,8 @@ define void @f() "no-sse" { ... }
 
 `noredzone`
 
-:   This attribute indicates that the code generator should not use a red zone,
-    even if the target-specific ABI normally permits it.
+:   This attribute indicates that the code generator should not use a
+    red zone, even if the target-specific ABI normally permits it.
 
 `indirect-tls-seg-refs`
 
@@ -2433,10 +2459,10 @@ define void @f() "no-sse" { ... }
 
 `noreturn`
 
-:   This function attribute indicates that the function never returns normally,
-    hence through a return instruction. This produces undefined behavior at
-    runtime if the function ever does dynamically return. Annotated functions
-    may still raise an exception, i.a., `nounwind` is not implied.
+:   This function attribute indicates that the function never returns
+    normally, hence through a return instruction. This produces undefined
+    behavior at runtime if the function ever does dynamically return. Annotated
+    functions may still raise an exception, i.a., `nounwind` is not implied.
 
 `norecurse`
 
@@ -2454,20 +2480,21 @@ fn -> other_fn -> other_fn ; fn is norecurse
 
 `willreturn`
 
-:   This function attribute indicates that a call of this function will either
-    exhibit undefined behavior or comes back and continues execution at a point
-    in the existing call stack that includes the current invocation. Annotated
-    functions may still raise an exception, i.a., `nounwind` is not implied. If
-    an invocation of an annotated function does not return control back to a
-    point in the call stack, the behavior is undefined.
+:   This function attribute indicates that a call of this function will
+    either exhibit undefined behavior or comes back and continues execution
+    at a point in the existing call stack that includes the current invocation.
+    Annotated functions may still raise an exception, i.a., `nounwind` is not implied.
+    If an invocation of an annotated function does not return control back
+    to a point in the call stack, the behavior is undefined.
 
 `nosync`
 
 :   This function attribute indicates that the function does not communicate
-    (synchronize) with another thread through memory or other well-defined
-    means. Synchronization is considered possible in the presence of `atomic`
-    accesses that enforce an order, thus not \"unordered\" and \"monotonic\",
-    `volatile` accesses, as well as `convergent` function calls.
+    (synchronize) with another thread through memory or other well-defined means.
+    Synchronization is considered possible in the presence of `atomic` accesses
+    that enforce an order, thus not \"unordered\" and \"monotonic\", `volatile`
+    accesses, as well as `convergent`
+    function calls.
 
     Note that `convergent` operations can involve communication that is
     considered to be not through memory and does not necessarily imply an
@@ -2480,16 +2507,16 @@ fn -> other_fn -> other_fn ; fn is norecurse
 `nounwind`
 
 :   This function attribute indicates that the function never raises an
-    exception. If the function does raise an exception, its runtime behavior is
-    undefined. However, functions marked nounwind may still trap or generate
-    asynchronous exceptions. Exception handling schemes that are recognized by
-    LLVM to handle asynchronous exceptions, such as SEH, will still provide
-    their implementation defined semantics.
+    exception. If the function does raise an exception, its runtime
+    behavior is undefined. However, functions marked nounwind may still
+    trap or generate asynchronous exceptions. Exception handling schemes
+    that are recognized by LLVM to handle asynchronous exceptions, such
+    as SEH, will still provide their implementation defined semantics.
 
 `nosanitize_bounds`
 
-:   This attribute indicates that bounds checking sanitizer instrumentation is
-    disabled for this function.
+:   This attribute indicates that bounds checking sanitizer instrumentation
+    is disabled for this function.
 
 `nosanitize_coverage`
 
@@ -2526,10 +2553,10 @@ fn -> other_fn -> other_fn ; fn is norecurse
     attribute is also incompatible with the `minsize`, `optsize`, and
     `optdebug` attributes.
 
-    This attribute requires the `noinline` attribute to be specified on the
-    function as well, so the function is never inlined into any caller. Only
-    functions with the `alwaysinline` attribute are valid candidates for
-    inlining into the body of this function.
+    This attribute requires the `noinline` attribute to be specified on
+    the function as well, so the function is never inlined into any caller.
+    Only functions with the `alwaysinline` attribute are valid
+    candidates for inlining into the body of this function.
 
 `optsize`
 
@@ -2551,24 +2578,24 @@ fn -> other_fn -> other_fn ; fn is norecurse
     >
     >     `"prologue-short-redirect"` is currently only supported on x86-64.
 
-    This attribute by itself does not imply restrictions on inter-procedural
-    optimizations. All of the semantic effects the patching may have to be
-    separately conveyed via the linkage type.
+    This attribute by itself does not imply restrictions on
+    inter-procedural optimizations. All of the semantic effects the
+    patching may have to be separately conveyed via the linkage type.
 
 `"probe-stack"`
 
-:   This attribute indicates that the function will trigger a guard region in
-    the end of the stack. It ensures that accesses to the stack must be no
-    further apart than the size of the guard region to a previous access of the
-    stack. It takes one required string value, the name of the stack probing
-    function that will be called.
+:   This attribute indicates that the function will trigger a guard region
+    in the end of the stack. It ensures that accesses to the stack must be
+    no further apart than the size of the guard region to a previous
+    access of the stack. It takes one required string value, the name of
+    the stack probing function that will be called.
 
-    If a function that has a `"probe-stack"` attribute is inlined into a
-    function with another `"probe-stack"` attribute, the resulting function has
-    the `"probe-stack"` attribute of the caller. If a function that has a
-    `"probe-stack"` attribute is inlined into a function that has no
-    `"probe-stack"` attribute at all, the resulting function has the
-    `"probe-stack"` attribute of the callee.
+    If a function that has a `"probe-stack"` attribute is inlined into
+    a function with another `"probe-stack"` attribute, the resulting
+    function has the `"probe-stack"` attribute of the caller. If a
+    function that has a `"probe-stack"` attribute is inlined into a
+    function that has no `"probe-stack"` attribute at all, the resulting
+    function has the `"probe-stack"` attribute of the callee.
 
 `"stack-probe-size"`
 
@@ -2609,18 +2636,18 @@ fn -> other_fn -> other_fn ; fn is norecurse
 
 `sanitize_address`
 
-:   This attribute indicates that AddressSanitizer checks (dynamic address
-    safety analysis) are enabled for this function.
+:   This attribute indicates that AddressSanitizer checks
+    (dynamic address safety analysis) are enabled for this function.
 
 `sanitize_memory`
 
-:   This attribute indicates that MemorySanitizer checks (dynamic detection of
-    accesses to uninitialized memory) are enabled for this function.
+:   This attribute indicates that MemorySanitizer checks (dynamic detection
+    of accesses to uninitialized memory) are enabled for this function.
 
 `sanitize_thread`
 
-:   This attribute indicates that ThreadSanitizer checks (dynamic thread safety
-    analysis) are enabled for this function.
+:   This attribute indicates that ThreadSanitizer checks
+    (dynamic thread safety analysis) are enabled for this function.
 
 `sanitize_hwaddress`
 
@@ -2647,8 +2674,8 @@ fn -> other_fn -> other_fn ; fn is norecurse
 
 `sanitize_alloc_token`
 
-:   This attribute indicates that implicit allocation token instrumentation is
-    enabled for this function.
+:   This attribute indicates that implicit allocation token instrumentation
+    is enabled for this function.
 
 `speculative_load_hardening`
 
@@ -2672,30 +2699,32 @@ fn -> other_fn -> other_fn ; fn is norecurse
 `speculatable`
 
 :   This function attribute indicates that the function does not have any
-    effects besides calculating its result and does not have undefined
-    behavior. Note that `speculatable` is not enough to conclude that along any
+    effects besides calculating its result and does not have undefined behavior.
+    Note that `speculatable` is not enough to conclude that along any
     particular execution path the number of calls to this function will not be
-    externally observable. This attribute is only valid on functions and
-    declarations, not on individual call sites. If a function is incorrectly
-    marked as speculatable and really does exhibit undefined behavior, the
-    undefined behavior may be observed even if the call site is dead code.
+    externally observable. This attribute is only valid on functions
+    and declarations, not on individual call sites. If a function is
+    incorrectly marked as speculatable and really does exhibit
+    undefined behavior, the undefined behavior may be observed even
+    if the call site is dead code.
 
 `ssp`
 
-:   This attribute indicates that the function should emit a stack smashing
-    protector. It is in the form of a \"canary\" \-\-- a random value placed on
-    the stack before the local variables that's checked upon return from the
-    function to see if it has been overwritten. A heuristic is used to
-    determine if a function needs stack protectors or not. The heuristic used
-    will enable protectors for functions with:
+:   This attribute indicates that the function should emit a stack
+    smashing protector. It is in the form of a \"canary\" \-\-- a random
+    value placed on the stack before the local variables that's
+    checked upon return from the function to see if it has been
+    overwritten. A heuristic is used to determine if a function needs
+    stack protectors or not. The heuristic used will enable protectors
+    for functions with:
 
     -   Character arrays larger than `ssp-buffer-size` (default 8).
     -   Aggregates containing character arrays larger than `ssp-buffer-size`.
     -   Calls to alloca() with variable sizes or constant sizes greater than
         `ssp-buffer-size`.
 
-    Variables that are identified as requiring a protector will be arranged on
-    the stack such that they are adjacent to the stack protector guard.
+    Variables that are identified as requiring a protector will be arranged
+    on the stack such that they are adjacent to the stack protector guard.
 
     If a function with an `ssp` attribute is inlined into a calling function,
     the attribute is not carried over to the calling function.
@@ -2704,22 +2733,22 @@ fn -> other_fn -> other_fn ; fn is norecurse
 
 :   This attribute indicates that the function should emit a stack smashing
     protector. This attribute causes a strong heuristic to be used when
-    determining if a function needs stack protectors. The strong heuristic will
-    enable protectors for functions with:
+    determining if a function needs stack protectors. The strong heuristic
+    will enable protectors for functions with:
 
     -   Arrays of any size and type
     -   Aggregates containing an array of any size and type.
     -   Calls to alloca().
     -   Local variables that have had their address taken.
 
-    Variables that are identified as requiring a protector will be arranged on
-    the stack such that they are adjacent to the stack protector guard. The
-    specific layout rules are:
+    Variables that are identified as requiring a protector will be arranged
+    on the stack such that they are adjacent to the stack protector guard.
+    The specific layout rules are:
 
-    1.  Large arrays and structures containing large arrays (`>=
-        ssp-buffer-size`) are closest to the stack protector.
-    2.  Small arrays and structures containing small arrays (`<
-        ssp-buffer-size`) are 2nd closest to the protector.
+    1.  Large arrays and structures containing large arrays
+        (`>= ssp-buffer-size`) are closest to the stack protector.
+    2.  Small arrays and structures containing small arrays
+        (`< ssp-buffer-size`) are 2nd closest to the protector.
     3.  Variables that have had their address taken are 3rd closest to the
         protector.
 
@@ -2735,20 +2764,20 @@ fn -> other_fn -> other_fn ; fn is norecurse
     smashing protector. This overrides the `ssp` and `sspstrong` function
     attributes.
 
-    Variables that are identified as requiring a protector will be arranged on
-    the stack such that they are adjacent to the stack protector guard. The
-    specific layout rules are:
+    Variables that are identified as requiring a protector will be arranged
+    on the stack such that they are adjacent to the stack protector guard.
+    The specific layout rules are:
 
-    1.  Large arrays and structures containing large arrays (`>=
-        ssp-buffer-size`) are closest to the stack protector.
-    2.  Small arrays and structures containing small arrays (`<
-        ssp-buffer-size`) are 2nd closest to the protector.
+    1.  Large arrays and structures containing large arrays
+        (`>= ssp-buffer-size`) are closest to the stack protector.
+    2.  Small arrays and structures containing small arrays
+        (`< ssp-buffer-size`) are 2nd closest to the protector.
     3.  Variables that have had their address taken are 3rd closest to the
         protector.
 
-    If a function with an `sspreq` attribute is inlined into a calling function
-    which has an `ssp` or `sspstrong` attribute, the calling function's
-    attribute will be upgraded to `sspreq`.
+    If a function with an `sspreq` attribute is inlined into a calling
+    function which has an `ssp` or `sspstrong` attribute, the calling
+    function's attribute will be upgraded to `sspreq`.
 
 (strictfp)=
 
@@ -2758,8 +2787,8 @@ fn -> other_fn -> other_fn ; fn is norecurse
     requires strict floating-point semantics. LLVM will not attempt any
     optimizations that require assumptions about the floating-point rounding
     mode or that might alter the state of floating-point status flags that
-    might otherwise be set or cleared by calling this function. LLVM will not
-    introduce any new floating-point instructions that may trap.
+    might otherwise be set or cleared by calling this function. LLVM will
+    not introduce any new floating-point instructions that may trap.
 
 (denormal_fpenv)=
 
@@ -2776,19 +2805,20 @@ fn -> other_fn -> other_fn ; fn is norecurse
 
     If this is attribute is not specified, the default is `ieee|ieee`.
 
-    If the output mode is `preservesign`, or `positivezero`, denormal outputs
-    may be flushed to zero by standard floating-point operations. It is not
-    mandated that flushing to zero occurs, but if a denormal output is flushed
-    to zero, it must respect the sign mode. Not all targets support all modes.
+    If the output mode is `preservesign`, or `positivezero`,
+    denormal outputs may be flushed to zero by standard floating-point
+    operations. It is not mandated that flushing to zero occurs, but if
+    a denormal output is flushed to zero, it must respect the sign
+    mode. Not all targets support all modes.
 
     If the mode is `dynamic`, the behavior is derived from the dynamic state of
     the floating-point environment. Transformations which depend on the
     behavior of denormal values should not be performed.
 
-    While this indicates the expected floating point mode the function will be
-    executed with, this does not make any attempt to ensure the mode is
-    consistent. User or platform code is expected to set the floating point
-    mode appropriately before function entry.
+    While this indicates the expected floating point mode the function
+    will be executed with, this does not make any attempt to ensure
+    the mode is consistent. User or platform code is expected to set
+    the floating point mode appropriately before function entry.
 
     This may optionally specify a second pair, prefixed with `float:`. This
     provides an override for the behavior of 32-bit float type (or vectors of
@@ -2800,12 +2830,13 @@ fn -> other_fn -> other_fn ; fn is norecurse
     converted to 0 as if by `@llvm.canonicalize` during lowering for
     correctness.
 
-    This may optionally specify a second pair, prefixed with `float:`. This
-    provides an override for the behavior of 32-bit float type. (or vectors of
-    32-bit floats). If this is present, this overrides the base handling of the
-    default mode. Not all targets support separately setting the denormal mode
-    per type, and no attempt is made to diagnose unsupported uses. Currently
-    this attribute is respected by the AMDGPU and NVPTX backends.
+    This may optionally specify a second pair, prefixed with
+    `float:`. This provides an override for the behavior of 32-bit
+    float type. (or vectors of 32-bit floats). If this is present,
+    this overrides the base handling of the default mode. Not all
+    targets support separately setting the denormal mode per type, and
+    no attempt is made to diagnose unsupported uses. Currently this
+    attribute is respected by the AMDGPU and NVPTX backends.
 
 Examples:
 
@@ -2818,8 +2849,8 @@ Examples:
 
 :   This attribute indicates that the function will delegate to some other
     function with a tail call. The prototype of a thunk should not be used for
-    optimization purposes. The caller is expected to cast the thunk prototype
-    to match the thunk target prototype.
+    optimization purposes. The caller is expected to cast the thunk prototype to
+    match the thunk target prototype.
 
 `uwtable[(sync|async)]`
 
@@ -2835,9 +2866,10 @@ Examples:
 `nocf_check`
 
 :   This attribute indicates that no control-flow check will be performed on
-    the attributed entity. It disables -fcf-protection=\<\> for a specific
-    entity to fine grain the HW control flow protection mechanism. The flag is
-    target independent and currently appertains to a function or function
+    the attributed entity. It disables -fcf-protection=\<\> for a
+    specific entity to fine grain the HW control flow protection mechanism.
+    The flag is target independent and currently appertains to a function or
+    function
     pointer.
 
 `shadowcallstack`
@@ -2853,15 +2885,15 @@ Examples:
 
 :   This attribute indicates that the function is required to return, unwind,
     or interact with the environment in an observable way e.g., via a volatile
-    memory access, I/O, or other synchronization. The `mustprogress` attribute
-    is intended to model the requirements of the first section of
+    memory access, I/O, or other synchronization. The `mustprogress`
+    attribute is intended to model the requirements of the first section of
     \[intro.progress\] of the C++ Standard. As a consequence, a loop in a
     function with the `mustprogress` attribute can be assumed to terminate if
     it does not interact with the environment in an observable way, and
     terminating loops without side-effects can be removed. If a `mustprogress`
     function does not satisfy this contract, the behavior is undefined. If a
-    `mustprogress` function calls a function not marked `mustprogress`, and
-    that function never returns, the program is well-defined even if there
+    `mustprogress` function calls a function not marked `mustprogress`,
+    and that function never returns, the program is well-defined even if there
     isn't any other observable progress. Note that `willreturn` implies
     `mustprogress`.
 
@@ -2985,17 +3017,17 @@ supported:
 
 `preallocated(<ty>)`
 
-:   This attribute is required on calls to `llvm.call.preallocated.arg` and
-    cannot be used on any other call. See
+:   This attribute is required on calls to `llvm.call.preallocated.arg`
+    and cannot be used on any other call. See
     {ref}`llvm.call.preallocated.arg<int_call_preallocated_arg>` for more
     details.
 
 (glattrs)=
 ### Global Attributes
 
-Attributes may be set to communicate additional information about a global
-variable. Unlike {ref}`function attributes <fnattrs>`, attributes on a global
-variable are grouped into a single {ref}`attribute group <attrgrp>`.
+Attributes may be set to communicate additional information about a global variable.
+Unlike {ref}`function attributes <fnattrs>`, attributes on a global variable
+are grouped into a single {ref}`attribute group <attrgrp>`.
 
 `no_sanitize_address`
 
@@ -3050,10 +3082,11 @@ Syntax:
     bundle operand ::= SSA value | metadata string
     tag ::= string constant
 
-Operand bundles are **not** part of a function's signature, and a given
-function may be called from multiple places with different kinds of operand
-bundles. This reflects the fact that the operand bundles are conceptually a
-part of the `call` (or `invoke`), not the callee being dispatched to.
+Operand bundles are **not** part of a function's signature, and a
+given function may be called from multiple places with different kinds
+of operand bundles. This reflects the fact that the operand bundles
+are conceptually a part of the `call` (or `invoke`), not the
+callee being dispatched to.
 
 Operand bundles are a generic mechanism intended to support
 runtime-introspection-like functionality for managed languages. While the exact
@@ -3064,42 +3097,47 @@ semantics of a program. These restrictions are described as the semantics of an
 describable within these restrictions, LLVM does not need to have special
 knowledge of the operand bundle to not miscompile programs containing it.
 
--   The bundle operands for an unknown operand bundle escape in unknown ways
-    before control is transferred to the callee or invokee.
+-   The bundle operands for an unknown operand bundle escape in unknown
+    ways before control is transferred to the callee or invokee.
 -   Calls and invokes with operand bundles have unknown read / write effect on
     the heap on entry and exit (even if the call target specifies a `memory`
     attribute), unless they're overridden with callsite specific attributes.
--   An operand bundle at a call site cannot change the implementation of the
-    called function. Inter-procedural optimizations work as usual as long as
-    they take into account the first two properties.
+-   An operand bundle at a call site cannot change the implementation
+    of the called function. Inter-procedural optimizations work as
+    usual as long as they take into account the first two properties.
 
 More specific types of operand bundles are described below.
 
 (deopt_opbundles)=
 #### Deoptimization Operand Bundles
 
-Deoptimization operand bundles are characterized by the `"deopt"` operand
-bundle tag. These operand bundles represent an alternate \"safe\" continuation
-for the call site they're attached to, and can be used by a suitable runtime to
-deoptimize the compiled frame at the specified call site. There can be at most
-one `"deopt"` operand bundle attached to a call site. Exact details of
-deoptimization are out of scope for the language reference, but it usually
-involves rewriting a compiled frame into a set of interpreted frames.
+Deoptimization operand bundles are characterized by the `"deopt"`
+operand bundle tag. These operand bundles represent an alternate
+\"safe\" continuation for the call site they're attached to, and can
+be used by a suitable runtime to deoptimize the compiled frame at
+the specified call site. There can be at most one `"deopt"`
+operand bundle attached to a call site. Exact details of
+deoptimization are out of scope for the language reference, but
+it usually involves rewriting a compiled frame into a set of
+interpreted frames.
 
-From the compiler's perspective, deoptimization operand bundles make the call
-sites they're attached to at least `readonly`. They read through all of their
-pointer typed operands (even if they're not otherwise escaped) and the entire
-visible heap. Deoptimization operand bundles do not capture their operands
-except during deoptimization, in which case control will not be returned to the
+From the compiler's perspective, deoptimization operand bundles make
+the call sites they're attached to at least `readonly`. They read
+through all of their pointer typed operands (even if they're not
+otherwise escaped) and the entire visible heap. Deoptimization
+operand bundles do not capture their operands except during
+deoptimization, in which case control will not be returned to the
 compiled frame.
 
-The inliner knows how to inline through calls that have deoptimization operand
-bundles. Just like inlining through a normal call site involves composing the
-normal and exceptional continuations, inlining through a call site with a
-deoptimization operand bundle needs to appropriately compose the \"safe\"
-deoptimization continuation. The inliner does this by prepending the parent's
-deoptimization continuation to every deoptimization continuation in the inlined
-body. E.g. inlining `@f` into `@g` in the following example
+The inliner knows how to inline through calls that have deoptimization
+operand bundles. Just like inlining through a normal call site
+involves composing the normal and exceptional continuations, inlining
+through a call site with a deoptimization operand bundle needs to
+appropriately compose the \"safe\" deoptimization continuation.
+The inliner does this by prepending the parent's
+deoptimization continuation to every deoptimization continuation in
+the inlined body. E.g. inlining `@f` into `@g` in the
+following example
 
 ``` llvm
 define void @f() {
@@ -3135,10 +3173,11 @@ continuation.
 (ob_funclet)=
 #### Funclet Operand Bundles
 
-Funclet operand bundles are characterized by the `"funclet"` operand bundle
-tag. These operand bundles indicate that a call site is within a particular
-funclet. There can be at most one `"funclet"` operand bundle attached to a call
-site and it must have exactly one bundle operand.
+Funclet operand bundles are characterized by the `"funclet"`
+operand bundle tag. These operand bundles indicate that a call site
+is within a particular funclet. There can be at most one
+`"funclet"` operand bundle attached to a call site and it must have
+exactly one bundle operand.
 
 If any funclet EH pads have been \"entered\" but not \"exited\" (per the
 {ref}`description in the EH doc <wineh-constraints>`), it is undefined behavior
@@ -3188,8 +3227,8 @@ restricted form:
 
     "<tag>"([ <holds for value> [, <attribute argument>] ])
 
--   The tag of the operand bundle is usually the name of the attribute that can
-    be assumed to hold. It can also be `ignore`; this tag doesn't contain any
+-   The tag of the operand bundle is usually the name of the attribute that can be
+    assumed to hold. It can also be `ignore`; this tag doesn't contain any
     information and should be ignored.
 -   The first argument, if present, is the value for which the attribute holds.
 -   The second argument, if present, is an argument of the attribute.
@@ -3209,8 +3248,8 @@ allows the optimizer to assume that at location of call to {ref}`llvm.assume
 call void @llvm.assume(i1 true) ["cold"(), "nonnull"(ptr %val)]
 ```
 
-allows the optimizer to assume that the {ref}`llvm.assume <int_assume>` call
-location is cold and that `%val` may not be null.
+allows the optimizer to assume that the {ref}`llvm.assume <int_assume>`
+call location is cold and that `%val` may not be null.
 
 Just like for the argument of {ref}`llvm.assume <int_assume>`, if any of the
 provided guarantees are violated at runtime the behavior is undefined.
@@ -3249,26 +3288,27 @@ using operand bundles to express the property can still have benefits:
 
 -   Attributes that can be expressed via operand bundles are directly the
     property that the optimizer uses and cares about. Encoding attributes as
-    operand bundles removes the need for an instruction sequence that
-    represents the property (e.g., `icmp ne ptr %p, null` for `nonnull`) and
-    for the optimizer to deduce the property from that instruction sequence.
+    operand bundles removes the need for an instruction sequence that represents
+    the property (e.g., `icmp ne ptr %p, null` for `nonnull`) and for the
+    optimizer to deduce the property from that instruction sequence.
 -   Expressing the property using operand bundles makes it easy to identify the
     use of the value as a use in an {ref}`llvm.assume <int_assume>`. This then
-    simplifies and improves heuristics, e.g., for use \"use-sensitive\"
+    simplifies and improves heuristics, e.g., for use
+    \"use-sensitive\"
     optimizations.
 
 (ob_preallocated)=
 #### Preallocated Operand Bundles
 
-Preallocated operand bundles are characterized by the `"preallocated"` operand
-bundle tag. These operand bundles allow separation of the allocation of the
-call argument memory from the call site. This is necessary to pass
+Preallocated operand bundles are characterized by the `"preallocated"`
+operand bundle tag. These operand bundles allow separation of the allocation
+of the call argument memory from the call site. This is necessary to pass
 non-trivially copyable objects by value in a way that is compatible with MSVC
 on some targets. There can be at most one `"preallocated"` operand bundle
-attached to a call site and it must have exactly one bundle operand, which is a
-token generated by `@llvm.call.preallocated.setup`. A call with this operand
-bundle should not adjust the stack before entering the function, as that will
-have been done by one of the `@llvm.call.preallocated.*` intrinsics.
+attached to a call site and it must have exactly one bundle operand, which is
+a token generated by `@llvm.call.preallocated.setup`. A call with this
+operand bundle should not adjust the stack before entering the function, as
+that will have been done by one of the `@llvm.call.preallocated.*` intrinsics.
 
 ``` llvm
 %foo = type { i64, i32 }
@@ -3324,8 +3364,8 @@ Authentication](PointerAuth.md#operand-bundle) document.
 (ob_kcfi)=
 #### KCFI Operand Bundles
 
-A `"kcfi"` operand bundle on an indirect call indicates that the call will be
-preceded by a runtime type check, which validates that the call target is
+A `"kcfi"` operand bundle on an indirect call indicates that the call will
+be preceded by a runtime type check, which validates that the call target is
 prefixed with a {ref}`type identifier<md_kcfi_type>` that matches the operand
 bundle attribute. For example:
 
@@ -3353,19 +3393,20 @@ A `"deactivation-symbol"` operand bundle is valid on the following instructions
     return value of type `ptr`.
 -   Call to `llvm.ptrauth.sign` or `llvm.ptrauth.auth` intrinsics.
 
-This operand bundle specifies that if the deactivation symbol is defined to a
-valid value for the target, the marked instruction will return the value of its
-first argument instead of calling the specified function or intrinsic. This is
-achieved with `PATCHINST` relocations on the target instructions (see the
-AArch64 psABI for details).
+This operand bundle specifies that if the deactivation symbol is defined
+to a valid value for the target, the marked instruction will return the
+value of its first argument instead of calling the specified function
+or intrinsic. This is achieved with `PATCHINST` relocations on the
+target instructions (see the AArch64 psABI for details).
 
 (moduleasm)=
 ### Module-Level Inline Assembly
 
-Modules may contain \"module-level inline asm\" blocks, which corresponds to
-the GCC \"file scope inline asm\" blocks. These blocks are internally
-concatenated by LLVM and treated as a single unit, but may be separated in the
-`.ll` file if desired. The syntax is very simple:
+Modules may contain \"module-level inline asm\" blocks, which
+corresponds to the GCC \"file scope inline asm\" blocks. These blocks
+are internally concatenated by LLVM and treated as a single unit, but
+may be separated in the `.ll` file if desired. The syntax
+is very simple:
 
 ``` llvm
 module asm "inline asm code goes here"
@@ -3376,8 +3417,8 @@ The strings can contain any character by escaping non-printable characters. The
 escape sequence used is simply \"\\xx\" where \"xx\" is the two digit hex code
 for the number.
 
-Note that the assembly string *must* be parseable by LLVM's integrated
-assembler (unless it is disabled), even when emitting a `.s` file.
+Note that the assembly string *must* be parseable by LLVM's integrated assembler
+(unless it is disabled), even when emitting a `.s` file.
 
 (langref_datalayout)=
 ### Data Layout
@@ -3413,11 +3454,12 @@ layout. The specifications accepted are as follows:
 
 `P<address space>`
 
-:   Specifies the address space that corresponds to program memory. Harvard
-    architectures can use this to specify what space LLVM should place things
-    such as functions into. If omitted, the program memory space defaults to
-    the default address space of 0, which corresponds to a Von Neumann
-    architecture that has code and data in the same space.
+:   Specifies the address space that corresponds to program memory.
+    Harvard architectures can use this to specify what space LLVM
+    should place things such as functions into. If omitted, the
+    program memory space defaults to the default address space of 0,
+    which corresponds to a Von Neumann architecture that has code
+    and data in the same space.
 
 (globals_addrspace)=
 
@@ -3434,8 +3476,8 @@ layout. The specifications accepted are as follows:
 
 `A<address space>`
 
-:   Specifies the address space of objects created by '`alloca`'. Defaults to
-    the default address space of 0.
+:   Specifies the address space of objects created by '`alloca`'.
+    Defaults to the default address space of 0.
 
 `p[<flags>][<as>][(<name>)]:<size>:<abi>[:<pref>[:<idx>]]`
 
@@ -3487,9 +3529,9 @@ layout. The specifications accepted are as follows:
 
 `a:<abi>[:<pref>]`
 
-:   This specifies the alignment for an object of aggregate type. In addition
-    to the usual requirements for alignment values, the value of `<abi>` can
-    also be zero, which means one byte alignment.
+:   This specifies the alignment for an object of aggregate type.
+    In addition to the usual requirements for alignment values,
+    the value of `<abi>` can also be zero, which means one byte alignment.
 
 `F<type><abi>`
 
@@ -3515,8 +3557,8 @@ layout. The specifications accepted are as follows:
         a `_` prefix.
     -   `x`: Windows x86 COFF mangling: Private symbols get the usual prefix.
         Regular C symbols get a `_` prefix. Functions with `__stdcall`,
-        `__fastcall`, and `__vectorcall` have custom mangling that appends `@N`
-        where N is the number of bytes used to pass parameters. C++ symbols
+        `__fastcall`, and `__vectorcall` have custom mangling that appends
+        `@N` where N is the number of bytes used to pass parameters. C++ symbols
         starting with `?` are not mangled in any way.
     -   `w`: Windows COFF mangling: Similar to `x`, except that normal C
         symbols do not receive a `_` prefix.
@@ -3606,22 +3648,22 @@ into the IR with respect to these default specifications.
 (langref_triple)=
 ### Target Triple
 
-A module may specify a target triple string that describes the target host. The
-syntax for the target triple is simply:
+A module may specify a target triple string that describes the target
+host. The syntax for the target triple is simply:
 
 ``` llvm
 target triple = "x86_64-apple-macosx10.7.0"
 ```
 
-The *target triple* string consists of a series of identifiers delimited by the
-minus sign character ('-'). The canonical forms are:
+The *target triple* string consists of a series of identifiers delimited
+by the minus sign character ('-'). The canonical forms are:
 
     ARCHITECTURE-VENDOR-OPERATING_SYSTEM
     ARCHITECTURE-VENDOR-OPERATING_SYSTEM-ENVIRONMENT
 
-This information is passed along to the backend so that it generates code for
-the proper architecture. It's possible to override this on the command line
-with the `-mtriple` command-line option.
+This information is passed along to the backend so that it generates
+code for the proper architecture. It's possible to override this on the
+command line with the `-mtriple` command-line option.
 
 (allocatedobjects)=
 ### Allocated Objects
@@ -3637,8 +3679,8 @@ undefined behavior.
 The following properties hold for all allocated objects, otherwise the behavior
 is undefined:
 
--   no allocated object may cross the unsigned address space boundary
-    (including the pointer after the end of the object),
+-   no allocated object may cross the unsigned address space boundary (including
+    the pointer after the end of the object),
 -   the size of all allocated objects must be non-negative and not exceed the
     largest signed integer that fits into the index type.
 
@@ -3659,10 +3701,10 @@ left or to shrink, nor can they have holes.
 ### Object Lifetime
 
 A lifetime of an {ref}`allocated object<allocatedobjects>` is a property that
-decides its accessibility. Unless stated otherwise, an allocated object is
-alive since its allocation, and dead after its deallocation. It is undefined
-behavior to access an allocated object that isn't alive, but operations that
-don't dereference it such as {ref}`getelementptr <i_getelementptr>`,
+decides its accessibility. Unless stated otherwise, an allocated object is alive
+since its allocation, and dead after its deallocation. It is undefined behavior
+to access an allocated object that isn't alive, but operations that don't
+dereference it such as {ref}`getelementptr <i_getelementptr>`,
 {ref}`ptrtoint <i_ptrtoint>` and {ref}`icmp <i_icmp>` return a valid result.
 This explains code motion of these instructions across operations that impact
 the object's lifetime. A stack object's lifetime can be explicitly specified
@@ -3699,8 +3741,8 @@ rules:
 A pointer value is *based* on another pointer value according to the following
 rules:
 
--   A pointer value formed from a scalar `getelementptr` operation is *based*
-    on the pointer-typed operand of the `getelementptr`.
+-   A pointer value formed from a scalar `getelementptr` operation is *based* on
+    the pointer-typed operand of the `getelementptr`.
 -   The pointer in lane *l* of the result of a vector `getelementptr` operation
     is *based* on the pointer in lane *l* of the vector-of-pointers-typed
     operand of the `getelementptr`.
@@ -3710,13 +3752,15 @@ rules:
     pointer's value.
 -   The \"*based* on\" relationship is transitive.
 
-Note that this definition of *\"based\"* is intentionally similar to the
-definition of *\"based\"* in C99, though it is slightly weaker.
+Note that this definition of *\"based\"* is intentionally similar to
+the definition of *\"based\"* in C99, though it is slightly
+weaker.
 
-LLVM IR does not associate types with memory. The result type of a `load`
-merely indicates the size and alignment of the memory from which to load, as
-well as the interpretation of the value. The first operand type of a `store`
-similarly only indicates the size and alignment of the store.
+LLVM IR does not associate types with memory. The result type of a
+`load` merely indicates the size and alignment of the memory from
+which to load, as well as the interpretation of the value. The first
+operand type of a `store` similarly only indicates the size and
+alignment of the store.
 
 Consequently, type-based alias analysis, aka TBAA, aka `-fstrict-aliasing`, is
 not applicable to general unadorned LLVM IR. {ref}`Metadata <metadata>` may be
@@ -3751,10 +3795,10 @@ define i1 @f(ptr %a) {
 }
 ```
 
-The function does not capture the provenance of the pointer, because the `icmp`
-instruction only operates on the pointer address. The following function
-captures both the address and provenance of the pointer, as both may be read
-from `@glb` after the function returns:
+The function does not capture the provenance of the pointer, because the
+`icmp` instruction only operates on the pointer address. The following
+function captures both the address and provenance of the pointer, as both
+may be read from `@glb` after the function returns:
 
 ``` llvm
 @glb = global ptr null
@@ -3780,8 +3824,8 @@ function, provenance capture refers exclusively to the ability to perform
 accesses *after* the function returns. Memory accesses within the function
 itself are not considered pointer captures.
 
-We can further say that the capture only occurs through a specific location. In
-the following example, the pointer (both address and provenance) is captured
+We can further say that the capture only occurs through a specific location.
+In the following example, the pointer (both address and provenance) is captured
 through the return value only:
 
 ``` llvm
@@ -3791,10 +3835,10 @@ define ptr @f(ptr %a) {
 }
 ```
 
-However, we always consider direct inspection of the pointer address (e.g.,
-using `ptrtoint`) to be location-independent. The following example is *not*
-considered a return-only capture, even though the `ptrtoint` ultimately only
-contributes to the return value:
+However, we always consider direct inspection of the pointer address
+(e.g., using `ptrtoint`) to be location-independent. The following example
+is *not* considered a return-only capture, even though the `ptrtoint`
+ultimately only contributes to the return value:
 
 ``` llvm
 @lookup = constant [4 x i8] [i8 0, i8 1, i8 2, i8 3]
@@ -3811,7 +3855,8 @@ This definition is chosen to allow capture analysis to continue with the return
 value in the usual fashion.
 
 The following describes possible ways to capture a pointer in more detail,
-where unqualified uses of the word \"capture\" refer to capturing both address
+where unqualified uses of the word \"capture\" refer to capturing both
+address
 and provenance.
 
 1.  The call stores any bit of the pointer carrying information into a place,
@@ -3887,32 +3932,33 @@ their order of execution relative to other volatile operations. The optimizers
 operations. This is not Java's \"volatile\" and has no cross-thread
 synchronization behavior.
 
-A volatile load or store may have additional target-specific semantics. Any
-volatile operation can have side effects, and any volatile operation can read
-and/or modify state which is not accessible via a regular load or store in this
-module. Volatile operations may use addresses which do not point to memory
-(like MMIO registers). This means the compiler may not use a volatile operation
-to prove a non-volatile access to that address has defined behavior. This
-includes addresses typically forbidden, such as the pointer with bit-value 0.
+A volatile load or store may have additional target-specific semantics.
+Any volatile operation can have side effects, and any volatile operation
+can read and/or modify state which is not accessible via a regular load
+or store in this module. Volatile operations may use addresses which do
+not point to memory (like MMIO registers). This means the compiler may
+not use a volatile operation to prove a non-volatile access to that
+address has defined behavior. This includes addresses typically forbidden,
+such as the pointer with bit-value 0.
 
-The allowed side-effects for volatile accesses are limited. If a non-volatile
-store to a given address would be legal, a volatile operation may modify the
-memory at that address. A volatile operation may not modify any other memory
-accessible by the module being compiled. A volatile operation may not call any
-code in the current module.
+The allowed side-effects for volatile accesses are limited. If a
+non-volatile store to a given address would be legal, a volatile
+operation may modify the memory at that address. A volatile operation
+may not modify any other memory accessible by the module being compiled.
+A volatile operation may not call any code in the current module.
 
 In general (without target-specific context), the address space of a volatile
 operation may not be changed. Different address spaces may have different
 trapping behavior when dereferencing an invalid pointer.
 
-Volatile operations are permitted to trap. The compiler may not assume that
-execution will continue after a volatile operation.
+Volatile operations are permitted to trap. The compiler may not assume
+that execution will continue after a volatile operation.
 
-IR-level volatile loads and stores cannot safely be optimized into
-`llvm.memcpy` or `llvm.memmove` intrinsics even when those intrinsics are
-flagged volatile. Likewise, the backend should never split or merge
-target-legal volatile load/store instructions. Similarly, IR-level volatile
-loads and stores cannot change from integer to floating-point or vice versa.
+IR-level volatile loads and stores cannot safely be optimized into `llvm.memcpy`
+or `llvm.memmove` intrinsics even when those intrinsics are flagged volatile.
+Likewise, the backend should never split or merge target-legal volatile
+load/store instructions. Similarly, IR-level volatile loads and stores cannot
+change from integer to floating-point or vice versa.
 
 ```{admonition} Rationale
 
@@ -3922,10 +3968,10 @@ Platforms may rely on volatile loads and stores of natively supported data width
 (memmodel)=
 ### Memory Model for Concurrent Operations
 
-The LLVM IR does not define any way to start parallel threads of execution or
-to register signal handlers. Nonetheless, there are platform-specific ways to
-create them, and we define LLVM IR's behavior in their presence. This model is
-inspired by the C++ memory model.
+The LLVM IR does not define any way to start parallel threads of
+execution or to register signal handlers. Nonetheless, there are
+platform-specific ways to create them, and we define LLVM IR's behavior
+in their presence. This model is inspired by the C++ memory model.
 
 For a more informal introduction to this model, see the {doc}`Atomics`.
 
@@ -3933,13 +3979,13 @@ We define a *happens-before* partial order as the least partial order that
 
 -   Is a superset of single-thread program order, and
 -   When `a` *synchronizes-with* `b`, includes an edge from `a` to `b`.
-    *Synchronizes-with* pairs are introduced by platform-specific techniques,
-    like pthread locks, thread creation, thread joining, etc., and by atomic
-    instructions. (See also {ref}`Atomic Memory Ordering Constraints
-    <ordering>`).
+    *Synchronizes-with* pairs are introduced by platform-specific
+    techniques, like pthread locks, thread creation, thread joining,
+    etc., and by atomic instructions. (See also {ref}`Atomic Memory Ordering
+    Constraints <ordering>`).
 
-Note that program order does not introduce *happens-before* edges between a
-thread and signals executing inside that thread.
+Note that program order does not introduce *happens-before* edges
+between a thread and signals executing inside that thread.
 
 Every (defined) read operation (load instructions, memcpy, atomic
 loads/read-modify-writes, etc.) R reads a series of bytes written by (defined)
@@ -4003,11 +4049,11 @@ For a simpler introduction to the ordering constraints, see the {doc}`Atomics`.
 `unordered`
 
 :   The set of values that can be read is governed by the happens-before
-    partial order. A value cannot be read unless some operation wrote it. This
-    is intended to provide a guarantee strong enough to model Java's
-    non-volatile shared variables. This ordering cannot be specified for
-    read-modify-write operations; it is not strong enough to make them atomic
-    in any interesting way.
+    partial order. A value cannot be read unless some operation wrote
+    it. This is intended to provide a guarantee strong enough to model
+    Java's non-volatile shared variables. This ordering cannot be
+    specified for read-modify-write operations; it is not strong enough
+    to make them atomic in any interesting way.
 
 `monotonic`
 
@@ -4036,32 +4082,34 @@ For a simpler introduction to the ordering constraints, see the {doc}`Atomics`.
 
 `release`
 
-:   In addition to the guarantees of `monotonic`, if this operation writes a
-    value which is subsequently read by an `acquire` operation, it
-    *synchronizes-with* that operation. Furthermore, this occurs even if the
-    value written by a `release` operation has been modified by a
-    read-modify-write operation before being read. (Such a set of operations
-    comprises a *release sequence*). This corresponds to the C/C++
+:   In addition to the guarantees of `monotonic`, if this operation
+    writes a value which is subsequently read by an `acquire`
+    operation, it *synchronizes-with* that operation. Furthermore,
+    this occurs even if the value written by a `release` operation
+    has been modified by a read-modify-write operation before being
+    read. (Such a set of operations comprises a *release
+    sequence*). This corresponds to the C/C++
     `memory_order_release`.
 
 `acq_rel` (acquire+release)
 
-:   Acts as both an `acquire` and `release` operation on its address. This
-    corresponds to the C/C++ `memory_order_acq_rel`.
+:   Acts as both an `acquire` and `release` operation on its
+    address. This corresponds to the C/C++ `memory_order_acq_rel`.
 
 `seq_cst` (sequentially consistent)
 
-:   In addition to the guarantees of `acq_rel` (`acquire` for an operation that
-    only reads, `release` for an operation that only writes), there is a global
-    total order on all sequentially-consistent operations on all addresses. If
-    an address is only accessed through sequentially-consistent operations,
-    each sequentially-consistent read of that address sees the last preceding
-    write to the same address in this global order. This corresponds to the
-    C/C++ `memory_order_seq_cst` and Java `volatile`.
+:   In addition to the guarantees of `acq_rel` (`acquire` for an
+    operation that only reads, `release` for an operation that only
+    writes), there is a global total order on all
+    sequentially-consistent operations on all addresses. If an address
+    is only accessed through sequentially-consistent operations, each
+    sequentially-consistent read of that address sees the last preceding
+    write to the same address in this global order. This corresponds to
+    the C/C++ `memory_order_seq_cst` and Java `volatile`.
 
-    Note: this global total order is *not* guaranteed to be fully consistent
-    with the *happens-before* partial order if non-`seq_cst` accesses are
-    involved. See the C++ standard
+    Note: this global total order is *not* guaranteed to be fully
+    consistent with the *happens-before* partial order if
+    non-`seq_cst` accesses are involved. See the C++ standard
     [\[atomics.order\]](https://wg21.link/atomics.order) section for more
     details on the exact guarantees.
 
@@ -4102,7 +4150,8 @@ A floating-point NaN value consists of a sign bit, a quiet/signaling bit, and a
 payload (which makes up the rest of the mantissa except for the quiet/signaling
 bit). LLVM assumes that the quiet/signaling bit being set to `1` indicates a
 quiet NaN (QNaN), and a value of `0` indicates a signaling NaN (SNaN). In the
-following we will hence just call it the \"quiet bit\".
+following we will hence just call it the \"quiet
+bit\".
 
 The representation bits of a floating-point value do not mutate arbitrarily; in
 particular, if there is no floating-point operation being performed, NaN signs,
@@ -4120,10 +4169,12 @@ NaN value is returned: the result has a non-deterministic sign; the quiet bit
 and payload are non-deterministically chosen from the following set of options:
 
 -   The quiet bit is set and the payload is all-zero. (\"Preferred NaN\" case)
--   The quiet bit is set and the payload is copied from any input operand that
-    is a NaN. (\"Quieting NaN propagation\" case)
+-   The quiet bit is set and the payload is copied from any input operand that is
+    a NaN. (\"Quieting NaN propagation\"
+    case)
 -   The quiet bit and payload are copied from any input operand that is a NaN.
-    (\"Unchanged NaN propagation\" case)
+    (\"Unchanged NaN propagation\"
+    case)
 -   The quiet bit is set and the payload is picked from a target-specific set
     of \"extra\" possible NaN payloads. The set can depend on the input operand
     values. This set is empty on x86 and ARM, but can be non-empty on other
@@ -4132,15 +4183,17 @@ and payload are non-deterministically chosen from the following set of options:
     contains all possible payloads; otherwise, it is empty. On SPARC, this set
     consists of the all-one payload.)
 
-In particular, if all input NaNs are quiet (or if there are no input NaNs),
-then the output NaN is definitely quiet. Signaling NaN outputs can only occur
-if they are provided as an input value. For example, \"fmul SNaN, 1.0\" may be
-simplified to SNaN rather than QNaN. Similarly, if all input NaNs are preferred
-(or if there are no input NaNs) and the target does not have any \"extra\" NaN
-payloads, then the output NaN is guaranteed to be preferred.
+In particular, if all input NaNs are quiet (or if there are no input NaNs), then
+the output NaN is definitely quiet. Signaling NaN outputs can only occur if they
+are provided as an input value. For example, \"fmul SNaN, 1.0\" may be
+simplified to SNaN rather than QNaN. Similarly, if all input NaNs are
+preferred (or if there are no input NaNs) and the target does not have any
+\"extra\" NaN payloads, then the output NaN is
+guaranteed to be preferred.
 
 Floating-point math operations are allowed to treat all NaNs as if they were
-quiet NaNs. For example, \"pow(1.0, SNaN)\" may be simplified to 1.0.
+quiet NaNs. For example, \"pow(1.0, SNaN)\" may be simplified to
+1.0.
 
 Code that requires different behavior than this should use the
 {ref}`Constrained Floating-Point Intrinsics <constrainedfp>`. In particular,
@@ -4169,8 +4222,8 @@ specification on some architectures:
 This section defines the semantics for core floating-point operations on types
 that use a format specified by IEEE 754. These types are: `half`, `float`,
 `double`, and `fp128`, which correspond to the binary16, binary32, binary64,
-and binary128 formats, respectively. The \"core\" operations are those defined
-in section 5 of IEEE 754, which all have corresponding LLVM operations.
+and binary128 formats, respectively. The \"core\" operations are those defined in
+section 5 of IEEE 754, which all have corresponding LLVM operations.
 
 The value returned by those operations matches that of the corresponding IEEE
 754 operation executed in the {ref}`default LLVM floating-point environment
@@ -4250,8 +4303,8 @@ input instruction.
 In the following example, the floating-point expression in the body of `@orig`
 has `contract` and `reassoc` in common, and thus if it is rewritten into the
 expression in the body of `@target`, all of the new instructions get those two
-flags and only those flags as a result. Since the `arcp` is present on only one
-of the instructions in the expression, it is not present in the transformed
+flags and only those flags as a result. Since the `arcp` is present on only
+one of the instructions in the expression, it is not present in the transformed
 expression. Furthermore, this reassociation here is only legal because both the
 instructions had the `reassoc` flag; if only one had it, it would not be legal
 to make the transformation.
@@ -4271,8 +4324,8 @@ define double @target(double %a, double %b, double %c) {
 ```
 
 These rules do not apply to the other fast-math flags. Whether or not a flag
-like `nnan` is present on any or all of the rewritten instructions is based on
-whether or not it is possible for said instruction to have a NaN input or
+like `nnan` is present on any or all of the rewritten instructions is based
+on whether or not it is possible for said instruction to have a NaN input or
 output, given the original flags.
 
 `arcp`
@@ -4288,8 +4341,8 @@ output, given the original flags.
 
 :   Allow floating-point contraction (e.g., fusing a multiply followed by an
     addition into a fused multiply-and-add). This does not enable reassociation
-    to form arbitrary contractions. For example, `(a*b) + (c*d) + e` can not be
-    transformed into `(a*b) + ((c*d) + e)` to create two fma operations.
+    to form arbitrary contractions. For example, `(a*b) + (c*d) + e` can not
+    be transformed into `(a*b) + ((c*d) + e)` to create two fma operations.
 
 (fastmath_afn)=
 
@@ -4309,9 +4362,9 @@ output, given the original flags.
 ### Use-list Order Directives
 
 Use-list directives encode the in-memory order of each use-list, allowing the
-order to be recreated. `<order-indexes>` is a comma-separated list of indexes
-that are assigned to the referenced value's uses. The referenced value's
-use-list is immediately sorted by these indexes.
+order to be recreated. `<order-indexes>` is a comma-separated list of
+indexes that are assigned to the referenced value's uses. The referenced
+value's use-list is immediately sorted by these indexes.
 
 Use-list directives may appear at function scope or global scope. They are not
 instructions, and have no effect on the semantics of the IR. When they're at
@@ -4357,9 +4410,9 @@ will be the name of the compiled source file when compiling from source through
 the clang front end, for example. It is then preserved through the IR and
 bitcode.
 
-This is currently necessary to generate a consistent unique global identifier
-for local functions used in profile data, which prepends the source file name
-to the local function name.
+This is currently necessary to generate a consistent unique global
+identifier for local functions used in profile data, which prepends the
+source file name to the local function name.
 
 The syntax for the source file name is simply:
 
@@ -4402,8 +4455,9 @@ Overview
 
 The function type can be thought of as a function signature. It consists of a
 return type and a list of formal parameter types. The return type of a function
-type is a void type or first class type \-\-- except for {ref}`label <t_label>`
-and {ref}`metadata <t_metadata>` types.
+type is a void type or first class type \-\-- except for {ref}`label
+<t_label>` and {ref}`metadata
+<t_metadata>` types.
 
 Syntax
 
@@ -4548,8 +4602,8 @@ Overview
 The x86_amx type represents a value held in an AMX tile register on an x86
 machine. The operations allowed on it are quite limited. Only a few intrinsics
 are allowed: stride load and store, zero and dot product. No instruction is
-allowed for this type. There are no arguments, arrays, pointers, vectors or
-constants of this type.
+allowed for this type. There are no arguments, arrays, pointers, vectors
+or constants of this type.
 
 Syntax
 
@@ -4595,9 +4649,9 @@ in address space 0, unless the function is marked with the
 non-dereferenceable address may have defined behavior (according to the
 target), and in this case the attribute is not needed even for address 0.
 
-If an object can be proven accessible through a pointer with a different
-address space, the access may be modified to use that address space. Exceptions
-apply if the operation is `volatile`.
+If an object can be proven accessible through a pointer with a
+different address space, the access may be modified to use that
+address space. Exceptions apply if the operation is `volatile`.
 
 Prior to LLVM 15, pointer types also specified a pointee type, such as `i8*`,
 `[4 x i32]*` or `i32 (i32*)*`. In LLVM 15, such \"typed pointers\" are still
@@ -4682,12 +4736,12 @@ integer to memory.
 A bitcast from a vector type to a scalar integer type will see the elements
 being packed together (without padding). The order in which elements are
 inserted in the integer depends on endianness. For little endian element zero
-is put in the least significant bits of the integer, and for big endian element
-zero is put in the most significant bits.
+is put in the least significant bits of the integer, and for big endian
+element zero is put in the most significant bits.
 
-Using a vector such as `<i4 1, i4 2, i4 3, i4 5>` as an example, together with
-the analogy that we can replace a vector store by a bitcast followed by an
-integer store, we get this for big endian:
+Using a vector such as `<i4 1, i4 2, i4 3, i4 5>` as an example, together
+with the analogy that we can replace a vector store by a bitcast followed by
+an integer store, we get this for big endian:
 
 ``` llvm
 %val = bitcast <4 x i4> <i4 1, i4 2, i4 3, i4 5> to i16
@@ -4721,10 +4775,10 @@ store i16 %val, ptr %ptr
 ;    [%ptr + 1]: 01010011  (0x53)
 ```
 
-When `<N*M>` isn't evenly divisible by the byte size the exact memory layout is
-unspecified (just like it is for an integral type of the same size). This is
-because different targets could put the padding at different positions when the
-type size is smaller than the type's store size.
+When `<N*M>` isn't evenly divisible by the byte size the exact memory layout
+is unspecified (just like it is for an integral type of the same size). This
+is because different targets could put the padding at different positions when
+the type size is smaller than the type's store size.
 
 Syntax
 
@@ -4733,15 +4787,15 @@ Syntax
     < <# elements> x <elementtype> >          ; Fixed-length vector
     < vscale x <# elements> x <elementtype> > ; Scalable vector
 
-The number of elements is a constant integer value larger than 0; elementtype
-may be any integer, floating-point, pointer type, or a sized target extension
-type that has the `CanBeVectorElement` property. Vectors of size zero are not
-allowed. For scalable vectors, the total number of elements is a constant
-multiple (called vscale) of the specified number of elements; vscale is a
-positive power-of-two integer that is unknown at compile time and the same
-hardware-dependent constant for all scalable vectors at run time. The size of a
-specific scalable vector type is thus constant within IR, even if the exact
-size in bytes cannot be determined until run time.
+The number of elements is a constant integer value larger than 0;
+elementtype may be any integer, floating-point, pointer type, or a sized
+target extension type that has the `CanBeVectorElement` property. Vectors
+of size zero are not allowed. For scalable vectors, the total number of
+elements is a constant multiple (called vscale) of the specified number
+of elements; vscale is a positive power-of-two integer that is unknown at
+compile time and the same hardware-dependent constant for all scalable vectors
+at run time. The size of a specific scalable vector type is thus constant within
+IR, even if the exact size in bytes cannot be determined until run time.
 
 Examples
 
@@ -4795,8 +4849,8 @@ Overview
 
 :
 
-The metadata type represents embedded metadata. No derived types may be created
-from metadata except for {ref}`function <t_function>` arguments.
+The metadata type represents embedded metadata. No derived types may be
+created from metadata except for {ref}`function <t_function>` arguments.
 
 Syntax
 
@@ -4819,8 +4873,8 @@ Overview
 :
 
 The array type is a very simple derived type that arranges elements
-sequentially in memory. The array type requires a size (number of elements) and
-an underlying data type.
+sequentially in memory. The array type requires a size (number of
+elements) and an underlying data type.
 
 Syntax
 
@@ -4871,18 +4925,20 @@ pointer to a field with the '`getelementptr`' instruction. Structures in
 registers are accessed using the '`extractvalue`' and '`insertvalue`'
 instructions.
 
-Structures may optionally be \"packed\" structures, which indicate that the
-alignment of the struct is one byte, and that there is no padding between the
-elements. In non-packed structs, padding between field types is inserted as
-defined by the DataLayout string in the module, which is required to match what
-the underlying code generator expects.
+Structures may optionally be \"packed\" structures, which indicate
+that the alignment of the struct is one byte, and that there is no
+padding between the elements. In non-packed structs, padding between
+field types is inserted as defined by the DataLayout string in the
+module, which is required to match what the underlying code
+generator expects.
 
-Structures can either be \"literal\" or \"identified\". A literal structure is
-defined inline with other types (e.g., `[2 x {i32, i32}]`) whereas identified
-types are always defined at the top level with a name. Literal types are
-uniqued by their contents and can never be recursive or opaque since there is
-no way to write one. Identified types can be opaqued and are never uniqued.
-Identified types must not be recursive.
+Structures can either be \"literal\" or \"identified\". A literal
+structure is defined inline with other types (e.g., `[2 x {i32, i32}]`)
+whereas identified types are always defined at the top level with
+a name. Literal types are uniqued by their contents and can never be
+recursive or opaque since there is no way to write one. Identified
+types can be opaqued and are never uniqued. Identified types must not
+be recursive.
 
 Syntax
 
@@ -4903,8 +4959,8 @@ Examples
 
 ## Constants
 
-LLVM has several different basic types of constants. This section describes
-them all and their syntax.
+LLVM has several different basic types of constants. This section
+describes them all and their syntax.
 
 (constants)=
 ### Simple Constants
@@ -4930,8 +4986,8 @@ them all and their syntax.
 **Byte constants**
 
 :   Byte constants are used to initialize global variables of the {ref}`byte
-    <t_byte>` type. These are strictly equivalent to integer constants: `store
-    b8 42, ptr %p` is equivalent to `store i8 42, ptr %p`.
+    <t_byte>` type. These are strictly equivalent to integer constants:
+    `store b8 42, ptr %p` is equivalent to `store i8 42, ptr %p`.
 
 **Floating-point constants**
 
@@ -4946,13 +5002,13 @@ them all and their syntax.
 
 **Null pointer constants**
 
-:   The identifier '`null`' is recognized as a null pointer constant and must
-    be of {ref}`pointer type <t_pointer>`.
+:   The identifier '`null`' is recognized as a null pointer constant
+    and must be of {ref}`pointer type <t_pointer>`.
 
 **Token constants**
 
-:   The identifier '`none`' is recognized as an empty token constant and must
-    be of {ref}`token type <t_token>`.
+:   The identifier '`none`' is recognized as an empty token constant
+    and must be of {ref}`token type <t_token>`.
 
 Floating-point constants support the following kinds of strings:
 
@@ -4981,23 +5037,24 @@ necessary for the size of the floating-point number. |
 
 There is a legacy syntax for hexadecimal floating-point literals that will be
 removed in the future. In this format, constants are represented as their
-underlying integer representation as in the `f0x3c00` syntax, but instead use
-slightly different prefixes. `float` and `double` use `0x` followed by 16
-hexadecimal digits representing the equivalent `double` value bitcast to an
-integer type. `bfloat` uses `0xR` followed by 4 hexadecimal digits. `half` uses
-`0xH` followed by 4 hexadecimal digits. `x86_fp80` uses `0xK` followed by 20
-hexadecimal digits. `ppc_fp128` uses `0xM` followed by 32 hexadecimal digits.
-`fp128` uses `0xL` followed by 32 hexadecimal digits. For the last two types
-only, the bits are not fully written in big-endian order but rather with the
-low 64 bits written in big-endian then the high 64 bits written in big-endian.
+underlying integer representation as in the `f0x3c00` syntax, but instead
+use slightly different prefixes. `float` and `double` use `0x` followed
+by 16 hexadecimal digits representing the equivalent `double` value bitcast
+to an integer type. `bfloat` uses `0xR` followed by 4 hexadecimal digits.
+`half` uses `0xH` followed by 4 hexadecimal digits. `x86_fp80` uses
+`0xK` followed by 20 hexadecimal digits. `ppc_fp128` uses `0xM`
+followed by 32 hexadecimal digits. `fp128` uses `0xL` followed by 32
+hexadecimal digits. For the last two types only, the bits are not fully
+written in big-endian order but rather with the low 64 bits written in
+big-endian then the high 64 bits written in big-endian.
 
 There are no constants of type x86_amx.
 
 (complexconstants)=
 ### Complex Constants
 
-Complex constants are a (potentially recursive) combination of simple constants
-and smaller complex constants.
+Complex constants are a (potentially recursive) combination of simple
+constants and smaller complex constants.
 
 **Structure constants**
 
@@ -5020,11 +5077,12 @@ and smaller complex constants.
 
 **Vector constants**
 
-:   Vector constants are represented with notation similar to vector type
-    definitions (a comma separated list of elements, surrounded by
-    less-than/greater-than's (`<>`)). For example: \"`< i32 42, i32 11, i32 74,
-    i32 100 >`\". Vector constants must have {ref}`vector type <t_vector>`, and
-    the number and types of elements must match those specified by the type.
+:   Vector constants are represented with notation similar to vector
+    type definitions (a comma separated list of elements, surrounded by
+    less-than/greater-than's (`<>`)). For example:
+    \"`< i32 42, i32 11, i32 74, i32 100 >`\". Vector constants
+    must have {ref}`vector type <t_vector>`, and the number and types of
+    elements must match those specified by the type.
 
     When creating a vector whose elements have the same constant value, the
     preferred syntax is `splat (<Ty> Val)`. For example: \"`splat (i32 11)`\".
@@ -5065,20 +5123,20 @@ example, the following is a legal LLVM file:
 (undefvalues)=
 ### Undefined Values
 
-The string '`undef`' can be used anywhere a constant is expected, and indicates
-that the user of the value may receive an unspecified bit-pattern. Undefined
-values may be of any type (other than '`label`' or '`void`') and be used
-anywhere a constant is permitted.
+The string '`undef`' can be used anywhere a constant is expected, and
+indicates that the user of the value may receive an unspecified
+bit-pattern. Undefined values may be of any type (other than '`label`'
+or '`void`') and be used anywhere a constant is permitted.
 
 ````{note}
 
 A '`poison`' value (described in the next section) should be used instead of '`undef`' whenever possible. Poison values are stronger than undef, and enable more optimizations. Just the existence of '`undef`' blocks certain optimizations (see the examples below).
 ````
 
-Undefined values are useful because they indicate to the compiler that the
-program is well defined no matter what value is used. This gives the compiler
-more freedom to optimize. Here are some examples of (potentially surprising)
-transformations that are valid (in pseudo IR):
+Undefined values are useful because they indicate to the compiler that
+the program is well defined no matter what value is used. This gives the
+compiler more freedom to optimize. Here are some examples of
+(potentially surprising) transformations that are valid (in pseudo IR):
 
 ``` llvm
 %A = add %X, undef
@@ -5090,8 +5148,8 @@ Safe:
 %C = undef
 ```
 
-This is safe because all of the output bits are affected by the undef bits. Any
-output bit can have a zero or one depending on the input bits.
+This is safe because all of the output bits are affected by the undef
+bits. Any output bit can have a zero or one depending on the input bits.
 
 ``` llvm
 %A = or %X, undef
@@ -5107,13 +5165,14 @@ Unsafe:
 %B = undef
 ```
 
-These logical operations have bits that are not always affected by the input.
-For example, if `%X` has a zero bit, then the output of the '`and`' operation
-will always be a zero for that bit, no matter what the corresponding bit from
-the '`undef`' is. As such, it is unsafe to optimize or assume that the result
-of the '`and`' is '`undef`'. However, it is safe to assume that all bits of the
-'`undef`' could be 0, and optimize the '`and`' to 0. Likewise, it is safe to
-assume that all the bits of the '`undef`' operand to the '`or`' could be set,
+These logical operations have bits that are not always affected by the
+input. For example, if `%X` has a zero bit, then the output of the
+'`and`' operation will always be a zero for that bit, no matter what
+the corresponding bit from the '`undef`' is. As such, it is unsafe to
+optimize or assume that the result of the '`and`' is '`undef`'.
+However, it is safe to assume that all bits of the '`undef`' could be
+0, and optimize the '`and`' to 0. Likewise, it is safe to assume that
+all the bits of the '`undef`' operand to the '`or`' could be set,
 allowing the '`or`' to be folded to -1.
 
 ``` llvm
@@ -5130,13 +5189,14 @@ Unsafe:
 %C = undef
 ```
 
-This set of examples shows that undefined '`select`' conditions can go *either
-way*, but they have to come from one of the two operands. In the `%A` example,
-if `%X` and `%Y` were both known to have a clear low bit, then `%A` would have
-to have a cleared low bit. However, in the `%C` example, the optimizer is
-allowed to assume that the '`undef`' operand could be the same as `%Y` if `%Y`
-is provably not '`poison`', allowing the whole '`select`' to be eliminated.
-This is because '`poison`' is stronger than '`undef`'.
+This set of examples shows that undefined '`select`'
+conditions can go *either way*, but they have to come from one
+of the two operands. In the `%A` example, if `%X` and `%Y` were
+both known to have a clear low bit, then `%A` would have to have a
+cleared low bit. However, in the `%C` example, the optimizer is
+allowed to assume that the '`undef`' operand could be the same as
+`%Y` if `%Y` is provably not '`poison`', allowing the whole '`select`'
+to be eliminated. This is because '`poison`' is stronger than '`undef`'.
 
 ``` llvm
 %A = xor undef, undef
@@ -5247,9 +5307,9 @@ poison can be stopped with the {ref}`freeze instruction <i_freeze>`.
 It is correct to replace a poison value with an {ref}`undef value
 <undefvalues>` or any value of the type.
 
-This means that immediate undefined behavior occurs if a poison value is used
-as an instruction operand that has any values that trigger undefined behavior.
-Notably this includes (but is not limited to):
+This means that immediate undefined behavior occurs if a poison value is
+used as an instruction operand that has any values that trigger undefined
+behavior. Notably this includes (but is not limited to):
 
 -   The pointer operand of a {ref}`load <i_load>`, {ref}`store <i_store>` or
     any other pointer dereferencing instruction (independent of address space).
@@ -5289,11 +5349,11 @@ end:
 (welldefinedvalues)=
 ### Well-Defined Values
 
-Given a program execution, a value is *well defined* if the value does not have
-an undef bit and is not poison in the execution. An aggregate value or vector
-is well defined if its elements are well defined. The padding of an aggregate
-isn't considered, since it isn't visible without storing it into memory and
-loading it with a different type.
+Given a program execution, a value is *well defined* if the value does not
+have an undef bit and is not poison in the execution.
+An aggregate value or vector is well defined if its elements are well defined.
+The padding of an aggregate isn't considered, since it isn't visible
+without storing it into memory and loading it with a different type.
 
 A constant of a {ref}`single value <t_single_value>`, non-vector type is well
 defined if it is neither '`undef`' constant nor '`poison`' constant. The result
@@ -5305,11 +5365,11 @@ operand.
 
 `blockaddress(@function, %block)`
 
-The '`blockaddress`' constant computes the address of the specified basic block
-in the specified function.
+The '`blockaddress`' constant computes the address of the specified
+basic block in the specified function.
 
-It always has a `ptr addrspace(P)` type, where `P` is the address space of the
-function containing `%block` (usually `addrspace(0)`).
+It always has a `ptr addrspace(P)` type, where `P` is the address space
+of the function containing `%block` (usually `addrspace(0)`).
 
 Taking the address of the entry block is illegal.
 
@@ -5322,19 +5382,19 @@ the bits are not inspected. This allows `ptrtoint` and arithmetic to be
 performed on these values so long as the original value is reconstituted before
 the `indirectbr` instruction.
 
-Finally, some targets may provide defined semantics when using the value as the
-operand to an inline assembly, but that is target specific.
+Finally, some targets may provide defined semantics when using the value
+as the operand to an inline assembly, but that is target specific.
 
 (dso_local_equivalent)=
 ### DSO Local Equivalent
 
 `dso_local_equivalent @func`
 
-A '`dso_local_equivalent`' constant represents a function which is functionally
-equivalent to a given function, but is always defined in the current linkage
-unit. The resulting pointer has the same type as the underlying function. The
-resulting pointer is permitted, but not required, to be different from a
-pointer to the function, and it may have different values in different
+A '`dso_local_equivalent`' constant represents a function which is
+functionally equivalent to a given function, but is always defined in the
+current linkage unit. The resulting pointer has the same type as the underlying
+function. The resulting pointer is permitted, but not required, to be different
+from a pointer to the function, and it may have different values in different
 translation units.
 
 The target function may not have `extern_weak` linkage.
@@ -5494,12 +5554,13 @@ flag that indicates whether or not the inline asm expression has side effects,
 and a flag indicating whether the function containing the asm needs to align
 its stack conservatively.
 
-The compiler may not assume that the actual code executed at runtime matches
-the contents of the template string. Correctness-critical analyses must base
-their results only on the list of operand constraints and the flags \-- not the
-contents of the template string. This ensures correct behavior if the assembly
-code emitted by this expression is altered later, e.g. via self-modifying code,
-as long as the code keeps upholding the requirements of the operand constraints
+The compiler may not assume that the actual code executed at runtime matches the
+contents of the template string. Correctness-critical analyses must base their
+results only on the list of operand constraints and the flags \-- not
+the contents of the template string. This ensures correct behavior if the
+assembly code emitted by this expression is altered later, e.g. via
+self-modifying code, as long as the code keeps upholding the requirements of
+the operand constraints
 and the flags.
 
 The template string supports argument substitution of the operands using
@@ -5573,10 +5634,10 @@ present:
 call void asm alignstack "eieio", ""()
 ```
 
-Inline asms also support using non-standard assembly dialects. The assumed
-dialect is ATT. When the '`inteldialect`' keyword is present, the inline asm is
-using the Intel dialect. Currently, ATT and Intel are the only supported
-dialects. An example is:
+Inline asms also support using non-standard assembly dialects. The
+assumed dialect is ATT. When the '`inteldialect`' keyword is present,
+the inline asm is using the Intel dialect. Currently, ATT and Intel are
+the only supported dialects. An example is:
 
 ``` llvm
 call void asm inteldialect "eieio", ""()
@@ -5589,8 +5650,8 @@ must be used, so that the compiler emits unwinding information:
 call void asm unwind "call func", ""()
 ```
 
-If the inline asm unwinds the stack and isn't marked with the '`unwind`'
-keyword, the behavior is undefined.
+If the inline asm unwinds the stack and isn't marked with
+the '`unwind`' keyword, the behavior is undefined.
 
 If multiple keywords appear, the '`sideeffect`' keyword must come first, the
 '`alignstack`' keyword second, the '`inteldialect`' keyword third, and the
@@ -5608,21 +5669,21 @@ second, etc.
 
 There are three different types of constraints, which are distinguished by a
 prefix symbol in front of the constraint code: Output, Input, and Clobber. The
-constraints must always be given in that order: outputs first, then inputs,
-then clobbers. They cannot be intermingled.
+constraints must always be given in that order: outputs first, then inputs, then
+clobbers. They cannot be intermingled.
 
 There are also three different categories of constraint codes:
 
 -   Register constraint. This is either a register class, or a fixed physical
-    register. This kind of constraint will allocate a register, and if
-    necessary, bitcast the argument or result to the appropriate type.
+    register. This kind of constraint will allocate a register, and if necessary,
+    bitcast the argument or result to the appropriate type.
 -   Memory constraint. This kind of constraint is for use with an instruction
-    taking a memory operand. Different constraints allow for different
-    addressing modes used by the target.
--   Immediate value constraint. This kind of constraint is for an integer or
-    other immediate value which can be rendered directly into an instruction.
-    The various target-specific constraints allow the selection of a value in
-    the proper range for the instruction you wish to use it with.
+    taking a memory operand. Different constraints allow for different addressing
+    modes used by the target.
+-   Immediate value constraint. This kind of constraint is for an integer or other
+    immediate value which can be rendered directly into an instruction. The
+    various target-specific constraints allow the selection of a value in the
+    proper range for the instruction you wish to use it with.
 
 ##### Output constraints
 
@@ -5645,11 +5706,12 @@ tied to this output).
 ##### Input constraints
 
 Input constraints do not have a prefix \-- just the constraint codes. Each
-input constraint will consume one argument from the call instruction. It is not
-permitted for the asm to write to any input register or memory location (unless
-that input is tied to an output). Note also that multiple inputs may all be
-assigned to the same register, if LLVM can determine that they necessarily all
-contain the same value.
+input constraint will consume one argument from the call instruction. It
+is not permitted for the asm to write to any input register or memory location
+(unless that input is tied to an output). Note also that multiple inputs
+may all be assigned to the same register, if LLVM can determine that they
+necessarily all contain
+the same value.
 
 Instead of providing a Constraint Code, input constraints may also \"tie\"
 themselves to an output constraint, by providing an integer as the constraint
@@ -5662,28 +5724,30 @@ register for output, and use that register as an input as well (it being the
 
 It is permitted to tie an input to an \"early-clobber\" output. In that case,
 no *other* input may share the same register as the input tied to the
-early-clobber (even when the other input has the same value).
+early-clobber (even when the other input has
+the same value).
 
 You may only tie an input to an output which has a register constraint, not a
 memory constraint. Only a single input may be tied to an output.
 
-There is also an \"interesting\" feature which deserves a bit of explanation:
-if a register class constraint allocates a register which is too small for the
+There is also an \"interesting\" feature which deserves a bit of explanation: if
+a register class constraint allocates a register which is too small for the
 value type operand provided as input, the input value will be split into
-multiple registers, and all of them passed to the inline asm.
+multiple registers, and all of them passed to the
+inline asm.
 
 However, this feature is often not as useful as you might think.
 
 Firstly, the registers are *not* guaranteed to be consecutive. So, on those
 architectures that have instructions which operate on multiple consecutive
 instructions, this is not an appropriate way to support them. (e.g., the 32-bit
-SparcV8 has a 64-bit load, which instruction takes a single 32-bit register.
-The hardware then loads into both the named register, and the next register.
-This feature of inline asm would not be useful to support that.)
+SparcV8 has a 64-bit load, which instruction takes a single 32-bit register. The
+hardware then loads into both the named register, and the next register. This
+feature of inline asm would not be useful to support that.)
 
-A few of the targets provide a template string modifier allowing explicit
-access to the second register of a two-register operand (e.g., MIPS `L`, `M`,
-and `D`). On such an architecture, you can actually access the second allocated
+A few of the targets provide a template string modifier allowing explicit access
+to the second register of a two-register operand (e.g., MIPS `L`, `M`, and
+`D`). On such an architecture, you can actually access the second allocated
 register (yet, still, not any subsequent ones). But, in that case, you're still
 probably better off simply splitting the value into two separate operands, for
 clarity. (e.g., see the description of the `A` constraint on X86, which,
@@ -5693,23 +5757,24 @@ use)
 ##### Indirect inputs and outputs
 
 Indirect output or input constraints can be specified by the \"`*`\" modifier
-(which goes after the \"`=`\" in case of an output). This indicates that the
-asm will write to or read from the contents of an *address* provided as an
-input argument. (Note that in this way, indirect outputs act more like an
-*input* than an output: just like an input, they consume an argument of the
-call expression, rather than producing a return value. An indirect output
-constraint is an \"output\" only in that the asm is expected to write to the
-contents of the input memory location, instead of just read from it).
+(which goes after the \"`=`\" in case of an output). This indicates that the asm
+will write to or read from the contents of an *address* provided as an input
+argument. (Note that in this way, indirect outputs act more like an *input* than
+an output: just like an input, they consume an argument of the call expression,
+rather than producing a return value. An indirect output constraint is an
+\"output\" only in that the asm is expected to write to the contents of the
+input memory location, instead of just read
+from it).
 
 This is most typically used for memory constraint, e.g., \"`=*m`\", to pass the
 address of a variable as a value.
 
-It is also possible to use an indirect *register* constraint, but only on
-output (e.g., \"`=*r`\"). This will cause LLVM to allocate a register for an
-output value normally, and then, separately emit a store to the address
-provided as input, after the provided inline asm. (It's not clear what value
-this functionality provides, compared to writing the store explicitly after the
-asm statement, and it can only produce worse code, since it bypasses many
+It is also possible to use an indirect *register* constraint, but only on output
+(e.g., \"`=*r`\"). This will cause LLVM to allocate a register for an output
+value normally, and then, separately emit a store to the address provided as
+input, after the provided inline asm. (It's not clear what value this
+functionality provides, compared to writing the store explicitly after the asm
+statement, and it can only produce worse code, since it bypasses many
 optimization passes. I would recommend not using it.)
 
 Call arguments for indirect constraints must have pointer type and must specify
@@ -5750,26 +5815,27 @@ character followed by two letters (e.g., \"`^wc`\"), or \"`{`\" register-name
 The one and two letter constraint codes are typically chosen to be the same as
 GCC's constraint codes.
 
-A single constraint may include one or more constraint codes in it, leaving it
-up to LLVM to choose which one to use. This is included mainly for
+A single constraint may include one or more constraint codes in it, leaving
+it up to LLVM to choose which one to use. This is included mainly for
 compatibility with the translation of GCC inline asm coming from clang.
 
-There are two ways to specify alternatives, and either or both may be used in
-an inline asm constraint list:
+There are two ways to specify alternatives, and either or both may be used in an
+inline asm constraint list:
 
-1)  Append the codes to each other, making a constraint code set. E.g. \"`im`\"
-or \"`{eax}m`\". This means \"choose any of the options in the set\". The
-choice of constraint is made independently for each constraint in the
+1) Append the codes to each other, making a constraint code set. E.g. \"`im`\"
+or \"`{eax}m`\". This means \"choose any of the options in the set\".
+The choice of constraint is made independently for each constraint in
+the
 constraint list.
-2)  Use \"`|`\" between constraint code sets, creating alternatives. Every
+2) Use \"`|`\" between constraint code sets, creating alternatives. Every
 constraint in the constraint list must have the same number of alternative
 sets. With this syntax, the same alternative in *all* of the items in the
 constraint list will be chosen together.
 
 Putting those together, you might have a two operand constraint string like
-`"rm|r,ri|rm"`. This indicates that if operand 0 is `r` or `m`, then operand 1
-may be one of `r` or `i`. If operand 0 is `r`, then operand 1 may be one of `r`
-or `m`. But, operand 0 and 1 cannot both be of type m.
+`"rm|r,ri|rm"`. This indicates that if operand 0 is `r` or `m`, then
+operand 1 may be one of `r` or `i`. If operand 0 is `r`, then operand 1
+may be one of `r` or `m`. But, operand 0 and 1 cannot both be of type m.
 
 However, the use of either of the alternatives features is *NOT* recommended,
 as LLVM is not able to make an intelligent choice about which one to use. (At
@@ -5785,19 +5851,19 @@ not at all what was intended.)
 
 ##### Supported Constraint Code List
 
-The constraint codes are, in general, expected to behave the same way they do
-in GCC. LLVM's support is often implemented on an 'as-needed' basis, to support
-C inline asm code which was supported by GCC. A mismatch in behavior between
-LLVM and GCC likely indicates a bug in LLVM.
+The constraint codes are, in general, expected to behave the same way they do in
+GCC. LLVM's support is often implemented on an 'as-needed' basis, to support C
+inline asm code which was supported by GCC. A mismatch in behavior between LLVM
+and GCC likely indicates a bug in LLVM.
 
 Some constraint codes are typically supported by all targets:
 
 -   `r`: A register in the target's general purpose register class.
 -   `m`: A memory address operand. It is target-specific what addressing modes
-    are supported, typical examples are register, or register + register
-    offset, or register + immediate offset (of some target-specific size).
--   `p`: An address operand. Similar to `m`, but used by \"load address\" type
-    instructions without touching memory.
+    are supported, typical examples are register, or register + register offset,
+    or register + immediate offset (of some target-specific size).
+-   `p`: An address operand. Similar to `m`, but used by \"load address\"
+    type instructions without touching memory.
 -   `i`: An integer constant (of target-specific width). Allows either a simple
     immediate, or a relocatable value.
 -   `n`: An integer constant \-- *not* including relocatable values.
@@ -5811,8 +5877,8 @@ Other constraints are target-specific:
 AArch64:
 
 -   `z`: An immediate integer 0. Outputs `WZR` or `XZR`, as appropriate.
--   `I`: An immediate integer valid for an `ADD` or `SUB` instruction, i.e., 0
-    to 4095 with optional shift by 12.
+-   `I`: An immediate integer valid for an `ADD` or `SUB` instruction,
+    i.e., 0 to 4095 with optional shift by 12.
 -   `J`: An immediate integer that, when negated, is valid for an `ADD` or
     `SUB` instruction, i.e., -1 to -4095 with optional left shift by 12.
 -   `K`: An immediate integer that is valid for the 'bitmask immediate 32' of a
@@ -5823,8 +5889,8 @@ AArch64:
     register. This is a superset of `K`: in addition to the bitmask immediate,
     also allows immediate integers which can be loaded with a single `MOVZ` or
     `MOVL` instruction.
--   `N`: An immediate integer for use with the `MOV` assembly alias on a 64-bit
-    register. This is a superset of `L`.
+-   `N`: An immediate integer for use with the `MOV` assembly alias on a
+    64-bit register. This is a superset of `L`.
 -   `Q`: Memory address operand must be in a single register (no offsets).
     (However, LLVM currently does this for the `m` constraint as well.)
 -   `r`: A 32 or 64-bit integer register (W\* or X\*).
@@ -5860,8 +5926,8 @@ AMDGPU:
 
 All ARM modes:
 
--   `Q`, `Um`, `Un`, `Uq`, `Us`, `Ut`, `Uv`, `Uy`: Memory address operand.
-    Treated the same as operand `m`, at the moment.
+-   `Q`, `Um`, `Un`, `Uq`, `Us`, `Ut`, `Uv`, `Uy`: Memory address
+    operand. Treated the same as operand `m`, at the moment.
 -   `Te`: An even general-purpose 32-bit integer register: `r0,r2,...,r12,r14`
 -   `To`: An odd general-purpose 32-bit integer register: `r1,r3,...,r11`
 
@@ -5955,8 +6021,8 @@ MIPS:
 -   `R`: A memory address operand. In MIPS-SE mode, allows a base address
     register plus a 9-bit signed offset. In MIPS mode, the same as constraint
     `m`.
--   `ZC`: A memory address operand, suitable for use in a `pref`, `ll`, or `sc`
-    instruction on the given subtarget (details vary).
+-   `ZC`: A memory address operand, suitable for use in a `pref`, `ll`, or
+    `sc` instruction on the given subtarget (details vary).
 -   `r`, `d`, `y`: A 32 or 64-bit GPR register.
 -   `f`: A 32 or 64-bit FPU register (`F0-F31`), or a 128-bit MSA register
     (`W0-W31`). In the case of MSA registers, it is recommended to use the `w`
@@ -6040,8 +6106,9 @@ Sparc:
 
 -   `I`: An immediate 13-bit signed integer.
 -   `r`: A 32-bit integer register.
--   `f`: Any floating-point register on SparcV8, or a floating-point register
-    in the \"low\" half of the registers on SparcV9.
+-   `f`: Any floating-point register on SparcV8, or a floating-point
+    register in the \"low\" half of the registers on
+    SparcV9.
 -   `e`: Any floating-point register. (Same as `f` on SparcV8.)
 
 SystemZ:
@@ -6060,8 +6127,8 @@ SystemZ:
 -   `T`: A memory address operand with a base address, a 20-bit immediate
     signed displacement, and an index register.
 -   `r` or `d`: A 32, 64, or 128-bit integer register.
--   `a`: A 32, 64, or 128-bit integer address register (excludes R0, which in
-    an address context evaluates as zero).
+-   `a`: A 32, 64, or 128-bit integer address register (excludes R0, which in an
+    address context evaluates as zero).
 -   `h`: A 32-bit value in the high part of a 64bit data register
     (LLVM-specific)
 -   `f`: A 16, 32, 64, or 128-bit floating-point register.
@@ -6078,22 +6145,23 @@ X86:
 -   `O`: An immediate integer between 0 and 127.
 -   `e`: An immediate 32-bit signed integer.
 -   `Z`: An immediate 32-bit unsigned integer.
--   `q`: An 8, 16, 32, or 64-bit register which can be accessed as an 8-bit `l`
-    integer register. On X86-32, this is the `a`, `b`, `c`, and `d` registers,
-    and on X86-64, it is all of the integer registers. When feature `egpr` and
-    `inline-asm-use-gpr32` are both on, it will be extended to gpr32.
--   `Q`: An 8, 16, 32, or 64-bit register which can be accessed as an 8-bit `h`
-    integer register. This is the `a`, `b`, `c`, and `d` registers.
--   `r` or `l`: An 8, 16, 32, or 64-bit integer register. When feature `egpr`
-    and `inline-asm-use-gpr32` are both on, it will be extended to gpr32.
--   `R`: An 8, 16, 32, or 64-bit \"legacy\" integer register \-- one which has
-    existed since i386, and can be accessed without the REX prefix.
+-   `q`: An 8, 16, 32, or 64-bit register which can be accessed as an 8-bit
+    `l` integer register. On X86-32, this is the `a`, `b`, `c`, and `d`
+    registers, and on X86-64, it is all of the integer registers. When feature
+    `egpr` and `inline-asm-use-gpr32` are both on, it will be extended to gpr32.
+-   `Q`: An 8, 16, 32, or 64-bit register which can be accessed as an 8-bit
+    `h` integer register. This is the `a`, `b`, `c`, and `d` registers.
+-   `r` or `l`: An 8, 16, 32, or 64-bit integer register. When feature
+    `egpr` and `inline-asm-use-gpr32` are both on, it will be extended to gpr32.
+-   `R`: An 8, 16, 32, or 64-bit \"legacy\" integer register \-- one which
+    has existed since i386, and can be accessed without the REX
+    prefix.
 -   `f`: A 32, 64, or 80-bit '387 FPU stack pseudo-register.
 -   `y`: A 64-bit MMX register, if MMX is enabled.
 -   `v`: If SSE is enabled: a 32 or 64-bit scalar operand, or 128-bit vector
     operand in a SSE register. If AVX is also enabled, can also be a 256-bit
-    vector operand in an AVX register. If AVX-512 is also enabled, can also be
-    a 512-bit vector operand in an AVX512 register. Otherwise, an error.
+    vector operand in an AVX register. If AVX-512 is also enabled, can also be a
+    512-bit vector operand in an AVX512 register. Otherwise, an error.
 -   `Ws`: A symbolic reference with an optional constant addend or a label
     reference.
 -   `x`: The same as `v`, except that when AVX-512 is enabled, the `x` code
@@ -6121,16 +6189,16 @@ XCore:
 In the asm template string, modifiers can be used on the operand reference,
 like \"`${0:n}`\".
 
-The modifiers are, in general, expected to behave the same way they do in GCC.
-LLVM's support is often implemented on an 'as-needed' basis, to support C
+The modifiers are, in general, expected to behave the same way they do in
+GCC. LLVM's support is often implemented on an 'as-needed' basis, to support C
 inline asm code which was supported by GCC. A mismatch in behavior between LLVM
 and GCC likely indicates a bug in LLVM.
 
 Target-independent:
 
 -   `a`: Print a memory reference. Targets might customize the output.
--   `c`: Print an immediate integer constant unadorned, without the
-    target-specific immediate punctuation (e.g., no `$` prefix).
+-   `c`: Print an immediate integer constant unadorned, without
+    the target-specific immediate punctuation (e.g., no `$` prefix).
 -   `n`: Negate and print immediate integer constant unadorned, without the
     target-specific immediate punctuation (e.g., no `$` prefix).
 -   `l`: Print as an unadorned label, without the target-specific label
@@ -6202,8 +6270,8 @@ MIPS:
 -   `M`: Print the high-order register of a two-register operand, or prints the
     address of the high-order word of a double-word memory operand.
 -   `D`: Print the second register of a two-register operand, or prints the
-    second word of a double-word memory operand. (On a big-endian system, `D`
-    is equivalent to `L`, and on little-endian system, `D` is equivalent to
+    second word of a double-word memory operand. (On a big-endian system, `D` is
+    equivalent to `L`, and on little-endian system, `D` is equivalent to
     `M`.)
 -   `w`: No effect. Provided for compatibility with GCC which requires this
     modifier in order to print MSA registers (`W0-W31`) with the `f`
@@ -6264,8 +6332,8 @@ X86:
     available, otherwise the 32-bit register name; do nothing on a memory
     operand.
 -   `n`: Negate and print an unadorned integer, or, for operands other than an
-    immediate integer (e.g., a relocatable symbol expression), print a '-'
-    before the operand. (The behavior for relocatable symbol expressions is a
+    immediate integer (e.g., a relocatable symbol expression), print a '-' before
+    the operand. (The behavior for relocatable symbol expressions is a
     target-specific behavior for this typically target-independent modifier)
 -   `H`: Print a memory reference with additional offset +8.
 -   `p`: Print a raw symbol name (without syntax-specific prefixes).
@@ -6403,15 +6471,15 @@ nodes, which can be looked up in the module symbol table. For example:
 !foo = !{!4, !3}
 ```
 
-Metadata can be used as function arguments. Here the `llvm.dbg.value` intrinsic
-is using three metadata arguments:
+Metadata can be used as function arguments. Here the `llvm.dbg.value`
+intrinsic is using three metadata arguments:
 
 ``` llvm
 call void @llvm.dbg.value(metadata !24, metadata !25, metadata !26)
 ```
 
-Metadata can be attached to an instruction. Here metadata `!21` is attached to
-the `add` instruction using the `!dbg` identifier:
+Metadata can be attached to an instruction. Here metadata `!21` is attached
+to the `add` instruction using the `!dbg` identifier:
 
 ``` llvm
 %indvar.next = add i64 %indvar, 1, !dbg !21
@@ -6421,8 +6489,8 @@ Instructions may not have multiple metadata attachments with the same
 identifier.
 
 Metadata can also be attached to a function or a global variable. Here metadata
-`!22` is attached to the `f1` and `f2` functions, and the globals `g1` and `g2`
-using the `!dbg` identifier:
+`!22` is attached to the `f1` and `f2` functions, and the globals `g1`
+and `g2` using the `!dbg` identifier:
 
 ``` llvm
 declare !dbg !22 void @f1()
@@ -6437,17 +6505,17 @@ define void @f2() !dbg !22 {
 Unlike instructions, global objects (functions and global variables) may have
 multiple metadata attachments with the same identifier.
 
-A transformation is required to drop any metadata attachment that it does not
-recognize or cannot preserve. Currently there is an exception for metadata
-attachment to globals for `!func_sanitize`, `!type`, `!absolute_symbol`,
-`!implicit.ref` and `!associated` which can't be unconditionally dropped unless
-the global is itself deleted.
+A transformation is required to drop any metadata attachment that it
+does not recognize or cannot preserve. Currently there is an
+exception for metadata attachment to globals for `!func_sanitize`,
+`!type`, `!absolute_symbol`, `!implicit.ref` and `!associated` which
+can't be unconditionally dropped unless the global is itself deleted.
 
-Metadata attached to a module using named metadata may not be dropped, with the
-exception of debug metadata (named metadata with the name `!llvm.dbg.*`).
+Metadata attached to a module using named metadata may not be dropped, with
+the exception of debug metadata (named metadata with the name `!llvm.dbg.*`).
 
-More information about specific metadata nodes recognized by the optimizers and
-code generator is found below.
+More information about specific metadata nodes recognized by the
+optimizers and code generator is found below.
 
 (specialized-metadata)=
 #### Specialized Metadata Nodes
@@ -6462,13 +6530,13 @@ metadata nodes are related to debug info.
 (DICompileUnit)=
 ##### DICompileUnit
 
-`DICompileUnit` nodes represent a compile unit. The `enums:`, `retainedTypes:`,
-`globals:`, `imports:` and `macros:` fields are tuples containing the debug
-info to be emitted along with the compile unit, regardless of code
-optimizations (some nodes are only emitted if there are references to them from
-instructions). The `debugInfoForProfiling:` field is a boolean indicating
-whether or not line-table discriminators are updated to provide more-accurate
-debug info for profiling results.
+`DICompileUnit` nodes represent a compile unit. The `enums:`,
+`retainedTypes:`, `globals:`, `imports:` and `macros:` fields are tuples
+containing the debug info to be emitted along with the compile unit, regardless
+of code optimizations (some nodes are only emitted if there are references to
+them from instructions). The `debugInfoForProfiling:` field is a boolean
+indicating whether or not line-table discriminators are updated to provide
+more-accurate debug info for profiling results.
 
 ``` text
 !0 = !DICompileUnit(language: DW_LANG_C99, file: !1, producer: "clang",
@@ -6498,9 +6566,9 @@ track of global variables, type information, and imported entities
 Files are sometimes used in `scope:` fields, and are the only valid target for
 `file:` fields.
 
-The `checksum:` and `checksumkind:` fields are optional. If one of these fields
-is present, then the other is required to be present as well. Valid values for
-`checksumkind:` field are: {CSK_MD5, CSK_SHA1, CSK_SHA256}
+The `checksum:` and `checksumkind:` fields are optional. If one of these
+fields is present, then the other is required to be present as well. Valid
+values for `checksumkind:` field are: {CSK_MD5, CSK_SHA1, CSK_SHA256}
 
 (DIBasicType)=
 ##### DIBasicType
@@ -6628,9 +6696,9 @@ derived types <DIDerivedTypeMember>` that reference the ODR-type in their
 `scope:` change uniquing rules.
 
 For a given `identifier:`, there should only be a single composite type that
-does not have `flags: DIFlagFwdDecl` set. LLVM tools that link modules together
-will unique such definitions at parse time via the `identifier:` field, even if
-the nodes are `distinct`.
+does not have `flags: DIFlagFwdDecl` set. LLVM tools that link modules
+together will unique such definitions at parse time via the `identifier:`
+field, even if the nodes are `distinct`.
 
 ``` text
 !0 = !DIEnumerator(name: "SixKind", value: 7)
@@ -6726,8 +6794,9 @@ inlined into the current one.
 (DISubrangeType)=
 ##### DISubrangeType
 
-`DISubrangeType` is similar to `DISubrange`, but it is also a `DIType`. It may
-be used as the type of an object, but could also be used as an array index.
+`DISubrangeType` is similar to `DISubrange`, but it is also a
+`DIType`. It may be used as the type of an object, but could also
+be used as an array index.
 
 Like `DISubrange`, it can hold a lower bound and count, or a lower bound and
 upper bound. A `DISubrangeType` refers to the underlying type of which it is a
@@ -6788,8 +6857,8 @@ language constructs. They are used (optionally) in {ref}`DICompositeType` and
 ##### DITemplateValueParameter
 
 `DITemplateValueParameter` nodes represent value parameters to generic source
-language constructs. `tag:` defaults to `DW_TAG_template_value_parameter`, but
-if specified can also be set to `DW_TAG_GNU_template_template_param` or
+language constructs. `tag:` defaults to `DW_TAG_template_value_parameter`,
+but if specified can also be set to `DW_TAG_GNU_template_template_param` or
 `DW_TAG_GNU_template_param_pack`. They are used (optionally) in
 {ref}`DICompositeType` and {ref}`DISubprogram` `templateParams:` fields.
 
@@ -6856,8 +6925,8 @@ at an {ref}`DISubroutineType`.
 When `spFlags: DISPFlagDefinition` is not present, subprograms describe a
 declaration in the type tree as opposed to a definition of a function. In this
 case, the `declaration` field must be empty. If the scope is a composite type
-with an ODR `identifier:` and that does not set `flags: DIFwdDecl`, then the
-subprogram declaration is uniqued based only on its `linkageName:` and
+with an ODR `identifier:` and that does not set `flags: DIFwdDecl`, then
+the subprogram declaration is uniqued based only on its `linkageName:` and
 `scope:`.
 
 ``` text
@@ -6935,8 +7004,8 @@ parameter, and it will be included in the `retainedNodes:` field of its
 
 `DIExpression` nodes represent expressions that are inspired by the DWARF
 expression language. They are used in {ref}`debug records <debug_records>`
-(such as `#dbg_declare` and `#dbg_value`) to describe how the referenced LLVM
-variable relates to the source language variable.
+(such as `#dbg_declare` and `#dbg_value`) to describe how the referenced
+LLVM variable relates to the source language variable.
 
 See {ref}`diexpression` for details.
 
@@ -6975,9 +7044,10 @@ store i32 %a, ptr %a.addr, align 4, !DIAssignID !2
 
 `DIArgList` nodes hold a list of constant or SSA value references. These are
 used in {ref}`debug records <debugrecords>` in combination with a
-`DIExpression` that uses the `DW_OP_LLVM_arg` operator. Because a `DIArgList`
-may refer to local values within a function, it must only be used as a function
-argument, must always be inlined, and cannot appear in named metadata.
+`DIExpression` that uses the
+`DW_OP_LLVM_arg` operator. Because a `DIArgList` may refer to local values
+within a function, it must only be used as a function argument, must always be
+inlined, and cannot appear in named metadata.
 
 ``` text
 #dbg_value(!DIArgList(i32 %a, i32 %b),
@@ -7022,8 +7092,8 @@ variables and subprograms) in the imported entity (such as module).
 
 `DIMacro` nodes represent definition or undefinition of a macro identifiers.
 The `name:` field is the macro identifier, followed by macro parameters when
-defining a function-like macro, and the `value` field is the token-string used
-to expand the macro identifier.
+defining a function-like macro, and the `value` field is the token-string
+used to expand the macro identifier.
 
 ``` text
 !2 = !DIMacro(macinfo: DW_MACINFO_define, line: 7, name: "foo(x)",
@@ -7053,8 +7123,8 @@ identifier. The `file:` field is the {ref}`DIFile` the label is present in. The
 where the label is declared.
 
 Furthermore, a label can be marked as artificial, i.e., compiler-generated,
-using `isArtificial:`. Such artificial labels are generated, e.g., by the
-`CoroSplit` pass. In addition, the `CoroSplit` pass also uses the
+using `isArtificial:`. Such artificial labels are generated, e.g., by
+the `CoroSplit` pass. In addition, the `CoroSplit` pass also uses the
 `coroSuspendIdx:` field to identify the coroutine suspend points.
 
 `scope:`, `name:`, `file:` and `line:` are mandatory. The remaining fields are
@@ -7105,10 +7175,10 @@ The `stringLocationExpression:` points to a `DIExpression` which describes the
 #### '`tbaa`' Metadata
 
 In LLVM IR, memory does not have types, so LLVM's own type system is not
-suitable for doing type based alias analysis (TBAA). Instead, metadata is added
-to the IR to describe a type system of a higher level language. This can be
-used to implement C/C++ strict type aliasing rules, but it can also be used to
-implement custom alias analysis behavior for other languages.
+suitable for doing type based alias analysis (TBAA). Instead, metadata is
+added to the IR to describe a type system of a higher level language. This
+can be used to implement C/C++ strict type aliasing rules, but it can also
+be used to implement custom alias analysis behavior for other languages.
 
 This description of LLVM's TBAA system is broken into two parts:
 {ref}`Semantics<tbaa_node_semantics>` talks about high level issues, and
@@ -7116,18 +7186,19 @@ This description of LLVM's TBAA system is broken into two parts:
 encoding of various entities.
 
 It is always possible to trace any TBAA node to a \"root\" TBAA node (details
-in the {ref}`Representation<tbaa_node_representation>` section). TBAA nodes
-with different roots have an unknown aliasing relationship, and LLVM
-conservatively infers `MayAlias` between them. The rules mentioned in this
-section only pertain to TBAA nodes living under the same root.
+in the {ref}`Representation<tbaa_node_representation>` section). TBAA
+nodes with different roots have an unknown aliasing relationship, and LLVM
+conservatively infers `MayAlias` between them. The rules mentioned in
+this section only pertain to TBAA nodes living under the same root.
 
 (tbaa_node_semantics)=
 ##### Semantics
 
-The TBAA metadata system, referred to as \"struct path TBAA\" (not to be
-confused with `tbaa.struct`), consists of the following high level concepts:
-*Type Descriptors*, further subdivided into scalar type descriptors and struct
-type descriptors; and *Access Tags*.
+The TBAA metadata system, referred to as \"struct path TBAA\" (not to
+be confused with `tbaa.struct`), consists of the following high
+level concepts: *Type Descriptors*, further subdivided into
+scalar type descriptors and struct type descriptors; and
+*Access Tags*.
 
 **Type descriptors** describe the type system of the higher level language
 being compiled. **Scalar type descriptors** describe types that do not contain
@@ -7139,11 +7210,11 @@ descriptors can either be struct type descriptors themselves or scalar type
 descriptors.
 
 **Access tags** are metadata nodes attached to load and store instructions.
-Access tags use type descriptors to describe the *location* being accessed in
-terms of the type system of the higher level language. Access tags are tuples
-consisting of a base type, an access type and an offset. The base type is a
-scalar type descriptor or a struct type descriptor, the access type is a scalar
-type descriptor, and the offset is a constant integer.
+Access tags use type descriptors to describe the *location* being accessed
+in terms of the type system of the higher level language. Access tags are
+tuples consisting of a base type, an access type and an offset. The base
+type is a scalar type descriptor or a struct type descriptor, the access
+type is a scalar type descriptor, and the offset is a constant integer.
 
 The access tag `(BaseTy, AccessTy, Offset)` can describe one of two things:
 
@@ -7207,15 +7278,15 @@ OuterStructTy = {"Outer", (FloatScalarTy, 0), (DoubleScalarTy, 4),
                  (InnerStructTy, 12)}
 ```
 
-with (e.g.) `ImmediateParent(OuterStructTy, 12)` = `(InnerStructTy, 0)`,
-`ImmediateParent(InnerStructTy, 0)` = `(IntScalarTy, 0)`, and
+with (e.g.) `ImmediateParent(OuterStructTy, 12)` = `(InnerStructTy,
+0)`, `ImmediateParent(InnerStructTy, 0)` = `(IntScalarTy, 0)`, and
 `ImmediateParent(IntScalarTy, 0)` = `(CharScalarTy, 0)`.
 
 (tbaa_node_representation)=
 ##### Representation
 
-The root node of a TBAA type hierarchy is an `MDNode` with 0 operands or with
-exactly one `MDString` operand.
+The root node of a TBAA type hierarchy is an `MDNode` with 0 operands or
+with exactly one `MDString` operand.
 
 Scalar type descriptors are represented as an `MDNode` s with two operands. The
 first operand is an `MDString` denoting the name of the struct type. LLVM does
@@ -7225,14 +7296,15 @@ said scalar type descriptor, which is either another scalar type descriptor or
 the TBAA root. Scalar type descriptors can have an optional third argument, but
 that must be the constant integer zero.
 
-Struct type descriptors are represented as `MDNode` s with an odd number of
-operands greater than 1. The first operand is an `MDString` denoting the name
-of the struct type. Like in scalar type descriptors the actual value of this
-name operand is irrelevant to LLVM. After the name operand, the struct type
-descriptors have a sequence of alternating `MDNode` and `ConstantInt` operands.
-With N starting from 1, the 2N - 1 th operand, an `MDNode`, denotes a contained
-field, and the 2N th operand, a `ConstantInt`, is the offset of the said
-contained field. The offsets must be in non-decreasing order.
+Struct type descriptors are represented as `MDNode` s with an odd number
+of operands greater than 1. The first operand is an `MDString` denoting
+the name of the struct type. Like in scalar type descriptors the actual
+value of this name operand is irrelevant to LLVM. After the name operand,
+the struct type descriptors have a sequence of alternating `MDNode` and
+`ConstantInt` operands. With N starting from 1, the 2N - 1 th operand,
+an `MDNode`, denotes a contained field, and the 2N th operand, a
+`ConstantInt`, is the offset of the said contained field. The offsets
+must be in non-decreasing order.
 
 Access tags are represented as `MDNode` s with either 3 or 4 operands. The
 first operand is an `MDNode` pointing to the node representing the base type.
@@ -7254,8 +7326,8 @@ a contiguous region of memory, which is more than strictly necessary for
 aggregate types which contain holes due to padding. Also, it doesn't contain
 any TBAA information about the fields of the aggregate.
 
-`!tbaa.struct` metadata can describe which memory subregions in a memcpy are
-padding and what the TBAA tags of the struct are.
+`!tbaa.struct` metadata can describe which memory subregions in a
+memcpy are padding and what the TBAA tags of the struct are.
 
 The current metadata format is very simple. `!tbaa.struct` metadata nodes are a
 list of operands which are in conceptual groups of three. For each group of
@@ -7266,23 +7338,23 @@ gives its size in bytes, and the third gives its tbaa tag. e.g.:
 !4 = !{ i64 0, i64 4, !1, i64 8, i64 4, !2 }
 ```
 
-This describes a struct with two fields. The first is at offset 0 bytes with
-size 4 bytes, and has tbaa tag !1. The second is at offset 8 bytes and has size
-4 bytes and has tbaa tag !2.
+This describes a struct with two fields. The first is at offset 0 bytes
+with size 4 bytes, and has tbaa tag !1. The second is at offset 8 bytes
+and has size 4 bytes and has tbaa tag !2.
 
-Note that the fields need not be contiguous. In this example, there is a 4 byte
-gap between the two fields. This gap represents padding which does not carry
-useful data and need not be preserved.
+Note that the fields need not be contiguous. In this example, there is a
+4 byte gap between the two fields. This gap represents padding which
+does not carry useful data and need not be preserved.
 
 #### '`noalias`' and '`alias.scope`' Metadata
 
 `noalias` and `alias.scope` metadata provide the ability to specify generic
 noalias memory-access sets. This means that some collection of memory access
-instructions (loads, stores, memory-accessing calls, etc.) that carry `noalias`
-metadata can specifically be specified not to alias with some other collection
-of memory access instructions that carry `alias.scope` metadata. If accesses
-from different collections alias, the behavior is undefined. Each type of
-metadata specifies a list of scopes where each scope has an id and a domain.
+instructions (loads, stores, memory-accessing calls, etc.) that carry
+`noalias` metadata can specifically be specified not to alias with some other
+collection of memory access instructions that carry `alias.scope` metadata. If
+accesses from different collections alias, the behavior is undefined. Each type
+of metadata specifies a list of scopes where each scope has an id and a domain.
 
 When evaluating an aliasing query, if for some domain, the set of scopes with
 that domain in one instruction's `alias.scope` list is a subset of (or equal
@@ -7344,10 +7416,11 @@ store float %0, ptr %arrayidx.i, align 4, !noalias !7
 (fpmath-metadata)=
 #### '`fpmath`' Metadata
 
-`fpmath` metadata may be attached to any instruction of floating-point type. It
-can be used to express the maximum acceptable error in the result of that
-instruction, in ULPs, thus potentially allowing the compiler to use a more
-efficient but less accurate method of computing it. ULP is defined as follows:
+`fpmath` metadata may be attached to any instruction of floating-point
+type. It can be used to express the maximum acceptable error in the
+result of that instruction, in ULPs, thus potentially allowing the
+compiler to use a more efficient but less accurate method of computing
+it. ULP is defined as follows:
 
 > If `x` is a real number that lies between two finite consecutive
 > floating-point numbers `a` and `b`, without being equal to one of them, then
@@ -7532,12 +7605,12 @@ declare !callback !0 dso_local void @__kmpc_fork_call(ptr, i32, ptr, ...)
 
 `exclude` metadata may be attached to a global variable to signify that its
 section should not be included in the final executable or shared library. This
-option is only valid for global variables with an explicit section targeting
-ELF or COFF. This is done using the `SHF_EXCLUDE` flag on ELF targets and the
-`IMAGE_SCN_LNK_REMOVE` and `IMAGE_SCN_MEM_DISCARDABLE` flags for COFF targets.
-Additionally, this metadata is only used as a flag, so the associated node must
-be empty. The explicit section should not conflict with any other sections that
-the user does not want removed after linking.
+option is only valid for global variables with an explicit section targeting ELF
+or COFF. This is done using the `SHF_EXCLUDE` flag on ELF targets and the
+`IMAGE_SCN_LNK_REMOVE` and `IMAGE_SCN_MEM_DISCARDABLE` flags for COFF
+targets. Additionally, this metadata is only used as a flag, so the associated
+node must be empty. The explicit section should not conflict with any other
+sections that the user does not want removed after linking.
 
 ``` text
 @object = private constant [1 x i8] c"\00", section ".foo" !exclude !0
@@ -7558,11 +7631,12 @@ it is attached to is completely unpredictable.
 (md_dereferenceable)=
 #### '`dereferenceable`' Metadata
 
-The existence of the `!dereferenceable` metadata on the instruction tells the
-optimizer that the value loaded is known to be dereferenceable, otherwise the
-behavior is undefined. The number of bytes known to be dereferenceable is
-specified by the integer value in the metadata node. This is analogous to the
-''dereferenceable'' attribute on parameters and return values.
+The existence of the `!dereferenceable` metadata on the instruction
+tells the optimizer that the value loaded is known to be dereferenceable,
+otherwise the behavior is undefined.
+The number of bytes known to be dereferenceable is specified by the integer
+value in the metadata node. This is analogous to the ''dereferenceable''
+attribute on parameters and return values.
 
 (md_dereferenceable_or_null)=
 #### '`dereferenceable_or_null`' Metadata
@@ -7578,8 +7652,8 @@ values.
 
 The `!captures` metadata can only be applied to `store` instructions with a
 pointer-typed value operand. It restricts the capturing behavior of the store
-value operand in the same way the `captures(...)` attribute would do on a call.
-See the {ref}`pointer capture section <pointercapture>` for a detailed
+value operand in the same way the `captures(...)` attribute would do on a
+call. See the {ref}`pointer capture section <pointercapture>` for a detailed
 discussion of capture semantics.
 
 The `!captures` metadata accepts a non-empty list of strings from the same set
@@ -7587,10 +7661,10 @@ as the {ref}`captures attribute <captures_attr>`: `!"address"`,
 `!"address_is_null"`, `!"provenance"` and `!"read_provenance"`. `!"none"` is
 not supported.
 
-For example `store ptr %x, ptr %y, !captures !{!"address"}` indicates that the
-copy of pointer `%x` stored to location `%y` will only be used to inspect its
-integral address value, and not dereferenced. Dereferencing the pointer would
-result in undefined behavior.
+For example `store ptr %x, ptr %y, !captures !{!"address"}` indicates that
+the copy of pointer `%x` stored to location `%y` will only be used to
+inspect its integral address value, and not dereferenced. Dereferencing the
+pointer would result in undefined behavior.
 
 Similarly `store ptr %x, ptr %y, !captures !{!"address", !"read_provenance"}`
 indicates that while reads through the stored pointer are allowed, writes would
@@ -7624,10 +7698,10 @@ preservation of otherwise identical metadata nodes. Since the loop-metadata
 node can be attached to multiple nodes, the 'distinct' keyword has become
 unnecessary.
 
-Prior to the property nodes, one or two `DILocation` (debug location) nodes can
-be present in the list. The first, if present, identifies the source-code
-location where the loop begins. The second, if present, identifies the
-source-code location where the loop ends.
+Prior to the property nodes, one or two `DILocation` (debug location)
+nodes can be present in the list. The first, if present, identifies the
+source-code location where the loop begins. The second, if present,
+identifies the source-code location where the loop ends.
 
 Loop metadata nodes cannot be used as unique identifiers. They are neither
 persistent for the same loop through transformations nor necessarily unique to
@@ -7635,34 +7709,34 @@ just one loop.
 
 #### '`llvm.loop.disable_nonforced`'
 
-This metadata disables all optional loop transformations unless explicitly
-instructed using other transformation metadata such as
-`llvm.loop.unroll.enable`. That is, no heuristic will try to determine whether
-a transformation is profitable. The purpose is to avoid that the loop is
-transformed to a different loop before an explicitly requested (forced)
-transformation is applied. For instance, loop fusion can make other
-transformations impossible. Mandatory loop canonicalizations such as loop
-rotation are still applied.
+This metadata disables all optional loop transformations unless
+explicitly instructed using other transformation metadata such as
+`llvm.loop.unroll.enable`. That is, no heuristic will try to determine
+whether a transformation is profitable. The purpose is to avoid that the
+loop is transformed to a different loop before an explicitly requested
+(forced) transformation is applied. For instance, loop fusion can make
+other transformations impossible. Mandatory loop canonicalizations such
+as loop rotation are still applied.
 
 It is recommended to use this metadata in addition to any `llvm.loop.*`
-transformation directive. Also, any loop should have at most one directive
-applied to it (and a sequence of transformations built using
-followup-attributes). Otherwise, which transformation will be applied depends
-on implementation details such as the pass pipeline order.
+transformation directive. Also, any loop should have at most one
+directive applied to it (and a sequence of transformations built using
+followup-attributes). Otherwise, which transformation will be applied
+depends on implementation details such as the pass pipeline order.
 
 See {ref}`transformation-metadata` for details.
 
 #### '`llvm.loop.vectorize`' and '`llvm.loop.interleave`'
 
-Metadata prefixed with `llvm.loop.vectorize` or `llvm.loop.interleave` are used
-to control per-loop vectorization and interleaving parameters such as
+Metadata prefixed with `llvm.loop.vectorize` or `llvm.loop.interleave` are
+used to control per-loop vectorization and interleaving parameters such as
 vectorization width and interleave count. These metadata should be used in
 conjunction with `llvm.loop` loop identification metadata. The
-`llvm.loop.vectorize` and `llvm.loop.interleave` metadata are only optimization
-hints and the optimizer will only interleave and vectorize loops if it believes
-it is safe to do so. The `llvm.loop.parallel_accesses` metadata which contains
-information about loop-carried memory dependencies can be helpful in
-determining the safety of these transformations.
+`llvm.loop.vectorize` and `llvm.loop.interleave` metadata are only
+optimization hints and the optimizer will only interleave and vectorize loops if
+it believes it is safe to do so. The `llvm.loop.parallel_accesses` metadata
+which contains information about loop-carried memory dependencies can be helpful
+in determining the safety of these transformations.
 
 #### '`llvm.loop.interleave.count`' Metadata
 
@@ -7695,8 +7769,8 @@ disables vectorization:
 This metadata selectively enables or disables creating predicated instructions
 for the loop, which can enable folding of the scalar epilogue loop into the
 main loop. The first operand is the string
-`llvm.loop.vectorize.predicate.enable` and the second operand is a bit. If the
-bit operand value is 1 predication is enabled. A value of 0 disables
+`llvm.loop.vectorize.predicate.enable` and the second operand is a bit. If
+the bit operand value is 1 predication is enabled. A value of 0 disables
 predication:
 
 ``` llvm
@@ -7722,9 +7796,9 @@ vectorization:
 
 #### '`llvm.loop.vectorize.width`' Metadata
 
-This metadata sets the target width of the vectorizer. The first operand is the
-string `llvm.loop.vectorize.width` and the second operand is an integer
-specifying the width. For example:
+This metadata sets the target width of the vectorizer. The first
+operand is the string `llvm.loop.vectorize.width` and the second
+operand is an integer specifying the width. For example:
 
 ``` llvm
 !0 = !{!"llvm.loop.vectorize.width", i32 4}
@@ -7755,11 +7829,12 @@ loop. See {ref}`Transformation Metadata <transformation-metadata>` for details.
 
 #### '`llvm.loop.unroll`'
 
-Metadata prefixed with `llvm.loop.unroll` are loop unrolling optimization hints
-such as the unroll factor. `llvm.loop.unroll` metadata should be used in
-conjunction with `llvm.loop` loop identification metadata. The
-`llvm.loop.unroll` metadata are only optimization hints and the unrolling will
-only be performed if the optimizer believes it is safe to do so.
+Metadata prefixed with `llvm.loop.unroll` are loop unrolling
+optimization hints such as the unroll factor. `llvm.loop.unroll`
+metadata should be used in conjunction with `llvm.loop` loop
+identification metadata. The `llvm.loop.unroll` metadata are only
+optimization hints and the unrolling will only be performed if the
+optimizer believes it is safe to do so.
 
 #### '`llvm.loop.unroll.count`' Metadata
 
@@ -7776,8 +7851,8 @@ partially unrolled.
 
 #### '`llvm.loop.unroll.disable`' Metadata
 
-This metadata disables loop unrolling. The metadata has a single operand which
-is the string `llvm.loop.unroll.disable`. For example:
+This metadata disables loop unrolling. The metadata has a single operand
+which is the string `llvm.loop.unroll.disable`. For example:
 
 ``` llvm
 !0 = !{!"llvm.loop.unroll.disable"}
@@ -7849,8 +7924,8 @@ specifying the unroll factor. For example:
 !0 = !{!"llvm.loop.unroll_and_jam.count", i32 4}
 ```
 
-If the trip count of the loop is less than the unroll count the loop will be
-partially unroll and jammed.
+If the trip count of the loop is less than the unroll count the loop
+will be partially unroll and jammed.
 
 #### '`llvm.loop.unroll_and_jam.disable`' Metadata
 
@@ -7905,8 +7980,8 @@ Attributes specified in the metadata is added to all
 #### '`llvm.loop.licm_versioning.disable`' Metadata
 
 This metadata indicates that the loop should not be versioned for the purpose
-of enabling loop-invariant code motion (LICM). The metadata has a single
-operand which is the string `llvm.loop.licm_versioning.disable`. For example:
+of enabling loop-invariant code motion (LICM). The metadata has a single operand
+which is the string `llvm.loop.licm_versioning.disable`. For example:
 
 ``` llvm
 !0 = !{!"llvm.loop.licm_versioning.disable"}
@@ -7914,15 +7989,15 @@ operand which is the string `llvm.loop.licm_versioning.disable`. For example:
 
 #### '`llvm.loop.distribute.enable`' Metadata
 
-Loop distribution allows splitting a loop into multiple loops. Currently, this
-is only performed if the entire loop cannot be vectorized due to unsafe memory
-dependencies. The transformation will attempt to isolate the unsafe
+Loop distribution allows splitting a loop into multiple loops. Currently,
+this is only performed if the entire loop cannot be vectorized due to unsafe
+memory dependencies. The transformation will attempt to isolate the unsafe
 dependencies into their own loop.
 
 This metadata can be used to selectively enable or disable distribution of the
 loop. The first operand is the string `llvm.loop.distribute.enable` and the
-second operand is a bit. If the bit operand value is 1 distribution is enabled.
-A value of 0 disables distribution:
+second operand is a bit. If the bit operand value is 1 distribution is
+enabled. A value of 0 disables distribution:
 
 ``` llvm
 !0 = !{!"llvm.loop.distribute.enable", i1 0}
@@ -7994,8 +8069,8 @@ loop's `branch_weights` metadata under the assumption that the latter still
 accurately encodes the program's original profile data. However, as passes
 transform existing loops and create new loops, they must be free to update and
 create `branch_weights` metadata in a way that maintains accurate block
-frequencies. Trip counts estimated from this new `branch_weights` metadata are
-not necessarily useful to the passes that consume estimated trip counts.
+frequencies. Trip counts estimated from this new `branch_weights` metadata
+are not necessarily useful to the passes that consume estimated trip counts.
 
 For this reason, when a pass transforms or creates loops, the pass should
 separately estimate new trip counts based on the estimated trip counts that
@@ -8003,19 +8078,19 @@ separately estimate new trip counts based on the estimated trip counts that
 pass should record the new estimates by calling
 `llvm::setLoopEstimatedTripCount`, which creates or updates
 `llvm.loop.estimated_trip_count` metadata. Once this metadata is present on a
-loop, `llvm::getLoopEstimatedTripCount` returns its value instead of estimating
-the trip count from the loop's `branch_weights` metadata.
+loop, `llvm::getLoopEstimatedTripCount` returns its value instead of
+estimating the trip count from the loop's `branch_weights` metadata.
 
 ##### Zero
 
 Some passes set `llvm.loop.estimated_trip_count` to 0. For example, after
 peeling 10 or more iterations from a loop with an estimated trip count of 10,
-`llvm.loop.estimated_trip_count` becomes 0 on the remaining loop. It indicates
-that, each time execution reaches the peeled iterations, execution is estimated
-to exit them without reaching the remaining loop's header.
+`llvm.loop.estimated_trip_count` becomes 0 on the remaining loop. It
+indicates that, each time execution reaches the peeled iterations, execution is
+estimated to exit them without reaching the remaining loop's header.
 
-Even if the probability of reaching a loop's header is low, if it is reached,
-it is the start of an iteration. Consequently, some passes historically assume
+Even if the probability of reaching a loop's header is low, if it is reached, it
+is the start of an iteration. Consequently, some passes historically assume
 that `llvm::getLoopEstimatedTripCount` always returns a positive count or
 `std::nullopt`. Thus, it returns `std::nullopt` when
 `llvm.loop.estimated_trip_count` is 0.
@@ -8036,11 +8111,11 @@ as it is not affected by the `llvm.loop.disable_nonforced` metadata.
 #### '`llvm.access.group`' Metadata
 
 `llvm.access.group` metadata can be attached to any instruction that
-potentially accesses memory. It can point to a single distinct metadata node,
-which we call access group. This node represents all memory access instructions
-referring to it via `llvm.access.group`. When an instruction belongs to
-multiple access groups, it can also point to a list of accesses groups,
-illustrated by the following example.
+potentially accesses memory. It can point to a single distinct metadata
+node, which we call access group. This node represents all memory access
+instructions referring to it via `llvm.access.group`. When an
+instruction belongs to multiple access groups, it can also point to a
+list of accesses groups, illustrated by the following example.
 
 ``` llvm
 %val = load i32, ptr %arrayidx, !llvm.access.group !0
@@ -8053,12 +8128,13 @@ illustrated by the following example.
 It is illegal for the list node to be empty since it might be confused with an
 access group.
 
-The access group metadata node must be 'distinct' to avoid collapsing multiple
-access groups by content. An access group metadata node must always be empty
-which can be used to distinguish an access group metadata node from a list of
-access groups. Being empty avoids the situation that the content must be
-updated which, because metadata is immutable by design, would required finding
-and updating all references to the access group node.
+The access group metadata node must be 'distinct' to avoid collapsing
+multiple access groups by content. An access group metadata node must
+always be empty which can be used to distinguish an access group
+metadata node from a list of access groups. Being empty avoids the
+situation that the content must be updated which, because metadata is
+immutable by design, would required finding and updating all references
+to the access group node.
 
 The access group can be used to refer to a memory access instruction without
 pointing to it directly (which is not possible in global metadata). Currently,
@@ -8071,13 +8147,14 @@ metadata nodes (see `llvm.access.group`). It denotes that no loop-carried
 memory dependence exist between it and other instructions in the loop with this
 metadata.
 
-Let `m1` and `m2` be two instructions that both have the `llvm.access.group`
-metadata to the access group `g1`, respectively `g2` (which might be
-identical). If a loop contains both access groups in its
-`llvm.loop.parallel_accesses` metadata, then the compiler can assume that there
-is no dependency between `m1` and `m2` carried by this loop. Instructions that
-belong to multiple access groups are considered having this property if at
-least one of the access groups matches the `llvm.loop.parallel_accesses` list.
+Let `m1` and `m2` be two instructions that both have the
+`llvm.access.group` metadata to the access group `g1`, respectively
+`g2` (which might be identical). If a loop contains both access groups
+in its `llvm.loop.parallel_accesses` metadata, then the compiler can
+assume that there is no dependency between `m1` and `m2` carried by
+this loop. Instructions that belong to multiple access groups are
+considered having this property if at least one of the access groups
+matches the `llvm.loop.parallel_accesses` list.
 
 If all memory-accessing instructions in a loop have `llvm.access.group`
 metadata that each refer to one of the access groups of a loop's
@@ -8085,13 +8162,13 @@ metadata that each refer to one of the access groups of a loop's
 memory dependencies and is considered to be a parallel loop. If there is a
 loop-carried dependency, the behavior is undefined.
 
-Note that if not all memory access instructions belong to an access group
-referred to by `llvm.loop.parallel_accesses`, then the loop must not be
-considered trivially parallel. Additional memory dependence analysis is
-required to make that determination. As a fail-safe mechanism, this causes
-loops that were originally parallel to be considered sequential (if
-optimization passes that are unaware of the parallel semantics insert new
-memory instructions into the loop body).
+Note that if not all memory access instructions belong to an access
+group referred to by `llvm.loop.parallel_accesses`, then the loop must
+not be considered trivially parallel. Additional
+memory dependence analysis is required to make that determination. As a
+fail-safe mechanism, this causes loops that were originally parallel to be considered
+sequential (if optimization passes that are unaware of the parallel semantics
+insert new memory instructions into the loop body).
 
 Example of a loop that is considered parallel due to its correct use of both
 `llvm.access.group` and `llvm.loop.parallel_accesses` metadata types.
@@ -8157,10 +8234,10 @@ be removed. This corresponds to the `mustprogress` function attribute.
 block that's an irreducible loop header (note that an irreducible loop has more
 than once header basic blocks.) If `irr_loop` metadata is attached to the
 terminator instruction of a basic block that is not really an irreducible loop
-header, the behavior is undefined. The intent of this metadata is to improve
-the accuracy of the block frequency propagation. For example, in the code
-below, the block `header0` may have a loop header weight (relative to the other
-headers of the irreducible loop) of 100:
+header, the behavior is undefined. The intent of this metadata is to improve the
+accuracy of the block frequency propagation. For example, in the code below, the
+block `header0` may have a loop header weight (relative to the other headers of
+the irreducible loop) of 100:
 
 ``` llvm
 header0:
@@ -8176,13 +8253,14 @@ Irreducible loop header weights are typically based on profile data.
 (md_invariant.group)=
 #### '`invariant.group`' Metadata
 
-The experimental `invariant.group` metadata may be attached to `load`/`store`
-instructions referencing a single metadata with no entries. The existence of
-the `invariant.group` metadata on the instruction tells the optimizer that
-every `load` and `store` to the same pointer operand can be assumed to load or
-store the same value (but see the `llvm.launder.invariant.group` intrinsic
-which affects when two pointers are considered the same). Pointers returned by
-bitcast or getelementptr with only zero indices are considered the same.
+The experimental `invariant.group` metadata may be attached to
+`load`/`store` instructions referencing a single metadata with no entries.
+The existence of the `invariant.group` metadata on the instruction tells
+the optimizer that every `load` and `store` to the same pointer operand
+can be assumed to load or store the same
+value (but see the `llvm.launder.invariant.group` intrinsic which affects
+when two pointers are considered the same). Pointers returned by bitcast or
+getelementptr with only zero indices are considered the same.
 
 Examples:
 
@@ -8215,8 +8293,8 @@ declare ptr @llvm.launder.invariant.group.p0(ptr)
 ```
 
 The `invariant.group` metadata must be dropped when replacing one pointer by
-another based on aliasing information. This is because `invariant.group` is
-tied to the SSA value of the pointer operand.
+another based on aliasing information. This is because `invariant.group` is tied
+to the SSA value of the pointer operand.
 
 ``` llvm
 %v = load i8, ptr %x, !invariant.group !0
@@ -8249,13 +8327,13 @@ compatibility, globals carrying this metadata should:
 -   Be in `@llvm.compiler.used`.
 -   If the referenced global variable is in a comdat, be in the same comdat.
 
-`!associated` can not express a many-to-one relationship. A global variable
-with the metadata should generally not be referenced by a function: the
-function may be inlined into other functions, leading to more references to the
-metadata. Ideally we would want to keep metadata alive as long as any inline
-location is alive, but this many-to-one relationship is not representable.
-Moreover, if the metadata is retained while the function is discarded, the
-linker will report an error of a relocation referencing a discarded section.
+`!associated` can not express a many-to-one relationship. A global variable with
+the metadata should generally not be referenced by a function: the function may
+be inlined into other functions, leading to more references to the metadata.
+Ideally we would want to keep metadata alive as long as any inline location is
+alive, but this many-to-one relationship is not representable. Moreover, if the
+metadata is retained while the function is discarded, the linker will report an
+error of a relocation referencing a discarded section.
 
 The metadata is often used with an explicit section consisting of valid C
 identifiers so that the runtime can find the metadata section with
@@ -8299,10 +8377,10 @@ also used to derive the basic block profile count. For more information, see
 (prof_node_VP)=
 ##### VP
 
-VP (value profile) metadata can be attached to instructions that have value
-profile information. Currently this is indirect calls (where it records the
-hottest callees) and calls to memory intrinsics, such as memcpy, memmove, and
-memset (where it records the hottest byte lengths).
+VP (value profile) metadata can be attached to instructions that have
+value profile information. Currently this is indirect calls (where it
+records the hottest callees) and calls to memory intrinsics, such as memcpy,
+memmove, and memset (where it records the hottest byte lengths).
 
 Each VP metadata node contains \"VP\" string, then a `uint32_t` value for the
 value profiling kind, a `uint64_t` value for the total number of times the
@@ -8333,9 +8411,9 @@ execution count that each of the respective prior target functions was called.
 #### '`annotation`' Metadata
 
 The `annotation` metadata can be used to attach a tuple of annotation strings
-or a tuple of a tuple of annotation strings to any instruction. This metadata
-does not impact the semantics of the program and may only be used to provide
-additional insight about the program and transformations to users.
+or a tuple of a tuple of annotation strings to any instruction. This metadata does
+not impact the semantics of the program and may only be used to provide additional
+insight about the program and transformations to users.
 
 Example:
 
@@ -8355,9 +8433,9 @@ Embedding tuple of strings example:
 #### '`func_sanitize`' Metadata
 
 The `func_sanitize` metadata is used to attach two values for the function
-sanitizer instrumentation. The first value is the ubsan function signature. The
-second value is the address of the proxy variable which stores the address of
-the RTTI descriptor. If {ref}`prologue <prologuedata>` and '`func_sanitize`'
+sanitizer instrumentation. The first value is the ubsan function signature.
+The second value is the address of the proxy variable which stores the address
+of the RTTI descriptor. If {ref}`prologue <prologuedata>` and '`func_sanitize`'
 are used at the same time, {ref}`prologue <prologuedata>` is emitted before
 '`func_sanitize`' in the output.
 
@@ -8374,9 +8452,9 @@ define void @_Z3funv() !func_sanitize !0 {
 (md_kcfi_type)=
 #### '`kcfi_type`' Metadata
 
-The `kcfi_type` metadata can be used to attach a type identifier to functions
-that can be called indirectly. The type data is emitted before the function
-entry in the assembly. Indirect calls with the {ref}`kcfi operand
+The `kcfi_type` metadata can be used to attach a type identifier to
+functions that can be called indirectly. The type data is emitted before the
+function entry in the assembly. Indirect calls with the {ref}`kcfi operand
 bundle<ob_kcfi>` will emit a check that compares the type identifier to the
 metadata.
 
@@ -8466,9 +8544,9 @@ cannot access objects allocated in a range of address spaces. It is attached to
 memory instructions, including {ref}`atomicrmw <i_atomicrmw>`, {ref}`cmpxchg
 <i_cmpxchg>`, and {ref}`call <i_call>` instructions.
 
-This follows the same form as {ref}`range metadata <range-metadata>`, except
-the field entries must be of type `i32`. The interpretation is the same numeric
-address spaces as applied to IR values.
+This follows the same form as {ref}`range metadata <range-metadata>`,
+except the field entries must be of type `i32`. The interpretation is
+the same numeric address spaces as applied to IR values.
 
 Example:
 
@@ -8485,28 +8563,29 @@ Example:
 !0 = !{i32 5, i32 6} ; Exclude addrspace(5) only
 ```
 
-This is intended for use on targets with a notion of generic address spaces,
-which at runtime resolve to different physical memory spaces. The
-interpretation of the address space values is target specific. The behavior is
-undefined if the runtime memory address does resolve to an object defined in
-one of the indicated address spaces.
+This is intended for use on targets with a notion of generic address
+spaces, which at runtime resolve to different physical memory
+spaces. The interpretation of the address space values is target specific.
+The behavior is undefined if the runtime memory address does
+resolve to an object defined in one of the indicated address spaces.
 
 #### '`mmra`' Metadata
 
 The `mmra` metadata represents target-defined properties on instructions that
 can be used to selectively relax constraints placed by the memory model.
 
-Refer to {doc}`MemoryModelRelaxationAnnotations` for more information on how
-this metadata affects the memory model of a given target.
+Refer to {doc}`MemoryModelRelaxationAnnotations` for more information on how this metadata
+affects the memory model of a given target.
 
 It is attached to memory instructions such as: {ref}`atomicrmw <i_atomicrmw>`,
 {ref}`cmpxchg <i_cmpxchg>`, {ref}`load <i_load>`, {ref}`store <i_store>`,
 {ref}`fence <i_fence>` and {ref}`call <i_call>` instructions that read or write
 memory.
 
-The metadata is structured as pairs of strings: a prefix, and suffix that form
-a MMRA \"tag\". The `!mmra` operand can either point to a pair of metadata
-strings, or a tuple containing multiple pairs of metadata strings.
+The metadata is structured as pairs of strings: a prefix, and suffix that form a MMRA
+\"tag\". The `!mmra` operand can either point to a pair of metadata strings, or a tuple
+containing multiple pairs of
+metadata strings.
 
 Example:
 
@@ -8547,11 +8626,11 @@ call ptr @malloc(i64 64), !alloc_token !0
 
 The `stack-protector` metadata may be attached to alloca instructions. An
 alloca instruction with this metadata and value `i32 0` will be skipped when
-deciding whether a given function requires a stack protector. The function may
-still use a stack protector, if other criteria determine it needs one.
+deciding whether a given function requires a stack protector. The function
+may still use a stack protector, if other criteria determine it needs one.
 
-The metadata contains an integer, where a 0 value opts the given alloca out of
-requiring a stack protector.
+The metadata contains an integer, where a 0 value opts the given alloca out
+of requiring a stack protector.
 
 ``` none
 %a = alloca [1000 x i8], align 1, !stack-protector !0
@@ -8562,10 +8641,10 @@ requiring a stack protector.
 #### '`implicit.ref`' Metadata
 
 The `implicit.ref` metadata may be attached to a function or global variable
-definition with a single argument that references a global object. This is
-typically used when there is some implicit dependence between the symbols that
-is otherwise opaque to the linker. One such example is metadata which is
-accessed by a runtime with associated `__start_<section_name>` and
+definition with a single argument that references a global object.
+This is typically used when there is some implicit dependence between the
+symbols that is otherwise opaque to the linker. One such example is metadata
+which is accessed by a runtime with associated `__start_<section_name>` and
 `__stop_<section_name>` symbols.
 
 It does not have any effect on non-XCOFF targets.
@@ -8573,8 +8652,8 @@ It does not have any effect on non-XCOFF targets.
 This metadata lowers to the .ref assembly directive which will add a relocation
 representing an implicit reference from the section the global belongs to, to
 the associated symbol. This link will keep the referenced symbol alive if the
-section is not garbage collected. More than one ref node can be attached to the
-same function or global variable.
+section is not garbage collected. More than one ref node can be attached
+to the same function or global variable.
 
 Example:
 
@@ -8614,8 +8693,8 @@ subsystems. The LLVM IR isn't sufficient to transmit this information. The
 flags are in the form of key / value pairs \-\-- much like a dictionary \-\--
 making it easy for any subsystem that cares about a flag to look it up.
 
-The `llvm.module.flags` metadata contains a list of metadata triplets. Each
-triplet has the following form:
+The `llvm.module.flags` metadata contains a list of metadata triplets.
+Each triplet has the following form:
 
 -   The first element is a *behavior* flag, which specifies the behavior when
     two (or more) modules are merged together, and it encounters two (or more)
@@ -8629,8 +8708,8 @@ When two (or more) modules are merged together, the resulting
 `llvm.module.flags` metadata is the union of the modules' flags. That is, for
 each unique metadata ID string, there will be exactly one entry in the merged
 modules `llvm.module.flags` metadata table, and the value for that entry will
-be determined by the merge behavior flag, as described below. The only
-exception is that entries with the *Require* behavior are always preserved.
+be determined by the merge behavior flag, as described below. The only exception
+is that entries with the *Require* behavior are always preserved.
 
 The following behaviors are supported:
 
@@ -8781,11 +8860,13 @@ attribute.
 
 ### Objective-C Garbage Collection Module Flags Metadata
 
-On the Mach-O platform, Objective-C stores metadata about garbage collection in
-a special section called \"image info\". The metadata consists of a version
-number and a bitmask specifying what types of garbage collection are supported
-(if any) by the file. If two or more modules are linked together their garbage
-collection metadata needs to be merged rather than appended together.
+On the Mach-O platform, Objective-C stores metadata about garbage
+collection in a special section called \"image info\". The
+metadata consists of a version number and a bitmask specifying what
+types of garbage collection are supported (if any) by the file. If
+two or more modules are linked together their garbage collection
+metadata needs to be merged rather than
+appended together.
 
 The Objective-C garbage collection module flags metadata consists of the
 following key-value pairs:
@@ -8800,18 +8881,19 @@ following key-value pairs:
 
 Some important flag interactions:
 
--   If a module with `Objective-C Garbage Collection` set to 0 is merged with a
-    module with `Objective-C Garbage Collection` set to 2, then the resulting
-    module has the `Objective-C Garbage Collection` flag set to 0.
--   A module with `Objective-C Garbage Collection` set to 0 cannot be merged
-    with a module with `Objective-C GC Only` set to 6.
+-   If a module with `Objective-C Garbage Collection` set to 0 is
+    merged with a module with `Objective-C Garbage Collection` set to
+    2, then the resulting module has the
+    `Objective-C Garbage Collection` flag set to 0.
+-   A module with `Objective-C Garbage Collection` set to 0 cannot be
+    merged with a module with `Objective-C GC Only` set to 6.
 
 ### C type width Module Flags Metadata
 
 The ARM backend emits a section into each generated object file describing the
 options that it was compiled with (in a compiler-independent way) to prevent
-linking incompatible objects, and to allow automatic library selection. Some of
-these options are not visible at the IR level, namely wchar_t width and enum
+linking incompatible objects, and to allow automatic library selection. Some
+of these options are not visible at the IR level, namely wchar_t width and enum
 width.
 
 To pass this information to the backend, these options are encoded in module
@@ -8910,8 +8992,8 @@ flags metadata, using the following key-value pairs:
 
 ## Embedded Objects Names Metadata
 
-Offloading compilations need to embed device code into the host section table
-to create a fat binary. This metadata node references each global that will be
+Offloading compilations need to embed device code into the host section table to
+create a fat binary. This metadata node references each global that will be
 embedded in the module. The primary use for this is to make referencing these
 globals more efficient in the IR. The metadata references nodes containing
 pointers to the global to be embedded followed by the section name it will be
@@ -8928,9 +9010,9 @@ allow source files to contain linker command-line options, and have these
 automatically be transmitted to the linker via object files.
 
 These flags are encoded in the IR using named metadata with the name
-`!llvm.linker.options`. Each operand is expected to be a metadata node which
-should be a list of other metadata nodes, each of which should be a list of
-metadata strings defining linker options.
+`!llvm.linker.options`. Each operand is expected to be a metadata node
+which should be a list of other metadata nodes, each of which should be a
+list of metadata strings defining linker options.
 
 For example, the following metadata section specifies two separate sets of
 linker options, presumably to link against `libz` and the `Cocoa` framework:
@@ -8951,9 +9033,9 @@ object file emitter. No other aspect of these options is defined by the IR.
 
 ## Dependent Libs Named Metadata
 
-Some targets support embedding of strings into object files to indicate a set
-of libraries to add to the link. Typically this is used in conjunction with
-language extensions which allow source files to explicitly declare the
+Some targets support embedding of strings into object files to indicate
+a set of libraries to add to the link. Typically this is used in conjunction
+with language extensions which allow source files to explicitly declare the
 libraries they depend on, and have these automatically be transmitted to the
 linker via object files.
 
@@ -8972,8 +9054,8 @@ The effect of the library specifiers are defined by the consuming linker.
 
 ## '`llvm.errno.tbaa`' Named Metadata
 
-The module-level `!llvm.errno.tbaa` metadata specifies the TBAA nodes used for
-accessing `errno`. These nodes are guaranteed to represent int-compatible
+The module-level `!llvm.errno.tbaa` metadata specifies the TBAA nodes used
+for accessing `errno`. These nodes are guaranteed to represent int-compatible
 accesses according to C/C++ strict aliasing rules. This should let LLVM alias
 analyses to reason about aliasing with `errno` when calling library functions
 that may set `errno`, allowing optimizations such as store-to-load forwarding
@@ -9021,9 +9103,9 @@ There are currently 3 types of summary entries in the LLVM assembly:
 ### Module Path Summary Entry
 
 Each module path summary entry lists a module containing global values included
-in the summary. For a single IR module there will be one such entry, but in a
-combined summary index produced during the thin link, there will be one module
-path entry per linked module with summary.
+in the summary. For a single IR module there will be one such entry, but
+in a combined summary index produced during the thin link, there will be
+one module path entry per linked module with summary.
 
 Example:
 
@@ -9149,10 +9231,10 @@ and looks like:
 param: 4, offset: [0, 5][, calls: ((Callee)[, (Callee)]*)]?
 ```
 
-where the first `param` is the number of the parameter it describes, `offset`
-is the inclusive range of offsets from the pointer parameter to bytes which can
-be accessed by the function. This range does not include accesses by function
-calls from `calls` list.
+where the first `param` is the number of the parameter it describes,
+`offset` is the inclusive range of offsets from the pointer parameter to bytes
+which can be accessed by the function. This range does not include accesses by
+function calls from `calls` list.
 
 where each `Callee` describes how parameter is forwarded into other functions
 and looks like:
@@ -9192,13 +9274,14 @@ We can expect the record like this:
 params: ((param: 0, offset: [0, 7]),(param: 2, offset: [5, 5], calls: ((callee: ^3, param: 1, offset: [-128, 127]))))
 ```
 
-The function may access just 8 bytes of the parameter %0 . `calls` is empty, so
-the parameter is either not used for function calls or `offset` already covers
-all accesses from nested function calls. Parameter %1 escapes, so access is
-unknown. The function itself can access just a single byte of the parameter %2.
-Additional access is possible inside of the `@bar` or `^3`. The function adds
-signed offset to the pointer and passes the result as the argument %1 into
-`^3`. This record itself does not tell us how `^3` will access the parameter.
+The function may access just 8 bytes of the parameter %0 . `calls` is empty,
+so the parameter is either not used for function calls or `offset` already
+covers all accesses from nested function calls.
+Parameter %1 escapes, so access is unknown.
+The function itself can access just a single byte of the parameter %2. Additional
+access is possible inside of the `@bar` or `^3`. The function adds signed
+offset to the pointer and passes the result as the argument %1 into `^3`.
+This record itself does not tell us how `^3` will access the parameter.
 Parameter %3 is not a pointer.
 
 (refs_summary)=
@@ -9246,8 +9329,8 @@ Where each VFuncId has the format:
 vFuncId: (TypeIdRef, offset: 16)
 ```
 
-Where each `TypeIdRef` refers to a {ref}`type id<typeid_summary>` by summary id
-or `GUID` preceded by a `guid:` tag.
+Where each `TypeIdRef` refers to a {ref}`type id<typeid_summary>`
+by summary id or `GUID` preceded by a `guid:` tag.
 
 ##### TypeCheckedLoadVCalls
 
@@ -9269,8 +9352,8 @@ Where each ConstVCall has the format:
 (VFuncId, args: (Arg[, Arg]*))
 ```
 
-and where each VFuncId has the format described for `TypeTestAssumeVCalls`, and
-each Arg is an integer argument number.
+and where each VFuncId has the format described for `TypeTestAssumeVCalls`,
+and each Arg is an integer argument number.
 
 ##### TypeCheckedLoadConstVCalls
 
@@ -9314,8 +9397,8 @@ wpdRes: (kind: singleImpl, singleImplName: "_ZN1A1nEi")
 wpdRes: (kind: indir)
 ```
 
-Additionally, each wpdRes has an optional `resByArg` field, which describes the
-resolutions for calls with all constant integer arguments:
+Additionally, each wpdRes has an optional `resByArg` field, which
+describes the resolutions for calls with all constant integer arguments:
 
 ``` text
 resByArg: (ResByArg[, ResByArg]*)
@@ -9327,12 +9410,12 @@ where ResByArg is:
 args: (Arg[, Arg]*), byArg: (kind: UniformRetVal[, info: 0][, byte: 0][, bit: 0])
 ```
 
-Where the `kind` can be `Indir`, `UniformRetVal`, `UniqueRetVal` or
-`VirtualConstProp`. The `info` field is only used if the kind is
-`UniformRetVal` (indicates the uniform return value), or `UniqueRetVal` (holds
-the return value associated with the unique vtable (0 or 1)). The `byte` and
-`bit` fields are only used if the target does not support the use of absolute
-symbols to store constants.
+Where the `kind` can be `Indir`, `UniformRetVal`, `UniqueRetVal`
+or `VirtualConstProp`. The `info` field is only used if the kind
+is `UniformRetVal` (indicates the uniform return value), or
+`UniqueRetVal` (holds the return value associated with the unique vtable
+(0 or 1)). The `byte` and `bit` fields are only used if the target does
+not support the use of absolute symbols to store constants.
 
 (intrinsicglobalvariables)=
 ## Intrinsic Global Variables
@@ -9361,13 +9444,14 @@ formed of bitcast or getelementptr. For example, a legal use of it is:
 ], section "llvm.metadata"
 ```
 
-If a symbol appears in the `@llvm.used` list, then the compiler, assembler, and
-linker are required to treat the symbol as if there is a reference to the
+If a symbol appears in the `@llvm.used` list, then the compiler, assembler,
+and linker are required to treat the symbol as if there is a reference to the
 symbol that it cannot see (which is why they have to be named). For example, if
 a variable has internal linkage and no references other than that from the
 `@llvm.used` list, it cannot be deleted. This is commonly used to represent
-references from inline asms and other things the compiler cannot \"see\", and
-corresponds to \"`attribute((used))`\" in GNU C.
+references from inline asms and other things the compiler cannot \"see\",
+and corresponds to \"`attribute((used))`\" in
+GNU C.
 
 On some targets, the code generator must emit a directive to the assembler or
 object file to prevent the assembler and linker from removing the symbol.
@@ -9380,8 +9464,8 @@ except that it only prevents the compiler from touching the symbol. On targets
 that support it, this allows an intelligent linker to optimize references to
 the symbol without being impeded as it would be by `@llvm.used`.
 
-This is a rare construct that should only be used in rare circumstances, and
-should not be exposed to source languages.
+This is a rare construct that should only be used in rare circumstances,
+and should not be exposed to source languages.
 
 (gv_llvmglobalctors)=
 ### The '`llvm.global_ctors`' Global Variable
@@ -9457,8 +9541,8 @@ The terminator instructions are: '{ref}`ret <i_ret>`', '{ref}`br <i_br>`',
 
 ##### Overview:
 
-The '`ret`' instruction is used to return control flow (and optionally a value)
-from a function back to the caller.
+The '`ret`' instruction is used to return control flow (and optionally
+a value) from a function back to the caller.
 
 There are two forms of the '`ret`' instruction: one that returns a value and
 then causes control flow, and one that just causes control flow to occur.
@@ -9507,16 +9591,17 @@ corresponding to a conditional branch and an unconditional branch.
 
 ##### Arguments:
 
-The conditional branch form of the '`br`' instruction takes a single '`i1`'
-value and two '`label`' values. The unconditional form of the '`br`'
-instruction takes a single '`label`' value as a target.
+The conditional branch form of the '`br`' instruction takes a single
+'`i1`' value and two '`label`' values. The unconditional form of the
+'`br`' instruction takes a single '`label`' value as a target.
 
 ##### Semantics:
 
-Upon execution of a conditional '`br`' instruction, the '`i1`' argument is
-evaluated. If the value is `true`, control flows to the '`iftrue`' `label`
-argument. If \"cond\" is `false`, control flows to the '`iffalse`' `label`
-argument. If '`cond`' is `poison` or `undef`, this instruction has undefined
+Upon execution of a conditional '`br`' instruction, the '`i1`'
+argument is evaluated. If the value is `true`, control flows to the
+'`iftrue`' `label` argument. If \"cond\" is `false`, control flows
+to the '`iffalse`' `label` argument.
+If '`cond`' is `poison` or `undef`, this instruction has undefined
 behavior.
 
 ##### Example:
@@ -9597,13 +9682,13 @@ be derived from a {ref}`blockaddress <blockaddress>` constant.
 
 ##### Arguments:
 
-The '`address`' argument is the address of the label to jump to. The rest of
-the arguments indicate the full set of possible destinations that the address
-may point to. Blocks are allowed to occur multiple times in the destination
-list, though this isn't particularly useful.
+The '`address`' argument is the address of the label to jump to. The
+rest of the arguments indicate the full set of possible destinations
+that the address may point to. Blocks are allowed to occur multiple
+times in the destination list, though this isn't particularly useful.
 
-This destination list is required so that dataflow analysis has an accurate
-understanding of the CFG.
+This destination list is required so that dataflow analysis has an
+accurate understanding of the CFG.
 
 ##### Semantics:
 
@@ -9654,9 +9739,10 @@ be lost through normal code motion.
 
 This instruction requires several arguments:
 
-1.  The optional \"cconv\" marker indicates which {ref}`calling convention
-    <callingconv>` the call should use. If none is specified, the call defaults
-    to using C calling conventions.
+1.  The optional \"cconv\" marker indicates which
+    {ref}`calling convention <callingconv>` the call should
+    use. If none is specified, the call defaults to using C
+    calling conventions.
 2.  The optional {ref}`Parameter Attributes <paramattrs>` list for return
     values. Only '`zeroext`', '`signext`', '`noext`', and '`inreg`' attributes
     are valid here.
@@ -9667,8 +9753,8 @@ This instruction requires several arguments:
     the return value. Functions that return no value are marked `void`. The
     signature is computed based on the return type and argument types.
 5.  '`fnty`': shall be the signature of the function being invoked. The
-    argument types must match the types implied by this signature. This is only
-    required if the signature specifies a varargs type.
+    argument types must match the types implied by this signature. This
+    is only required if the signature specifies a varargs type.
 6.  '`fnptrval`': An LLVM value containing a pointer to a function to be
     invoked. In most cases, this is a direct function invocation, but indirect
     `invoke`'s are just as possible, calling an arbitrary pointer to function
@@ -9687,18 +9773,21 @@ This instruction requires several arguments:
 
 ##### Semantics:
 
-This instruction is designed to operate as a standard '`call`' instruction in
-most regards. The primary difference is that it establishes an association with
-a label, which is used by the runtime library to unwind the stack.
+This instruction is designed to operate as a standard '`call`'
+instruction in most regards. The primary difference is that it
+establishes an association with a label, which is used by the runtime
+library to unwind the stack.
 
-This instruction is used in languages with destructors to ensure that proper
-cleanup is performed in the case of either a `longjmp` or a thrown exception.
-Additionally, this is important for implementation of '`catch`' clauses in
-high-level languages that support them.
+This instruction is used in languages with destructors to ensure that
+proper cleanup is performed in the case of either a `longjmp` or a
+thrown exception. Additionally, this is important for implementation of
+'`catch`' clauses in high-level languages that support them.
 
-For the purposes of the SSA form, the definition of the value returned by the
-'`invoke`' instruction is deemed to occur on the edge from the current block to
-the \"normal\" label. If the callee unwinds then no return value is available.
+For the purposes of the SSA form, the definition of the value returned
+by the '`invoke`' instruction is deemed to occur on the edge from the
+current block to the \"normal\" label. If the callee unwinds then
+no return value is
+available.
 
 ##### Example:
 
@@ -9719,9 +9808,9 @@ the \"normal\" label. If the callee unwinds then no return value is available.
 
 ##### Overview:
 
-The '`callbr`' instruction causes control to transfer to a specified function,
-with the possibility of control flow transfer to either the '`fallthrough`'
-label or one of the '`indirect`' labels.
+The '`callbr`' instruction causes control to transfer to a specified
+function, with the possibility of control flow transfer to either the
+'`fallthrough`' label or one of the '`indirect`' labels.
 
 This instruction can currently only be used
 
@@ -9733,26 +9822,27 @@ Any other usage is an error in the IR verifier.
 Note that in order to support outputs along indirect edges, LLVM may need to
 split critical edges, which may require synthesizing a replacement block for
 the `indirect labels`. Therefore, the address of a label as seen by another
-`callbr` instruction, or for a {ref}`blockaddress <blockaddress>` constant, may
-not be equal to the address provided for the same block to this instruction's
-`indirect labels` operand. The assembly code may only transfer control to
-addresses provided via this instruction's `indirect labels`.
+`callbr` instruction, or for a {ref}`blockaddress <blockaddress>` constant,
+may not be equal to the address provided for the same block to this
+instruction's `indirect labels` operand. The assembly code may only transfer
+control to addresses provided via this instruction's `indirect labels`.
 
 On target architectures that implement branch target enforcement by requiring
 indirect (register-controlled) branch instructions to jump only to locations
 marked by a special instruction (such as AArch64 `bti`), the called code is
 expected not to use such an indirect branch to transfer control to the
-locations in `indirect labels`. Therefore, including a label in the `indirect
-labels` of a `callbr` does not require the compiler to put a `bti` or
-equivalent instruction at the label.
+locations in `indirect labels`. Therefore, including a label in the
+`indirect labels` of a `callbr` does not require the compiler to put a
+`bti` or equivalent instruction at the label.
 
 ##### Arguments:
 
 This instruction requires several arguments:
 
-1.  The optional \"cconv\" marker indicates which {ref}`calling convention
-    <callingconv>` the call should use. If none is specified, the call defaults
-    to using C calling conventions.
+1.  The optional \"cconv\" marker indicates which
+    {ref}`calling convention <callingconv>` the call should
+    use. If none is specified, the call defaults to using C
+    calling conventions.
 2.  The optional {ref}`Parameter Attributes <paramattrs>` list for return
     values. Only '`zeroext`', '`signext`', '`noext`', and '`inreg`' attributes
     are valid here.
@@ -9762,9 +9852,9 @@ This instruction requires several arguments:
 4.  '`ty`': the type of the call instruction itself which is also the type of
     the return value. Functions that return no value are marked `void`. The
     signature is computed based on the return type and argument types.
-5.  '`fnty`': shall be the signature of the function being called. The argument
-    types must match the types implied by this signature. This is only required
-    if the signature specifies a varargs type.
+5.  '`fnty`': shall be the signature of the function being called. The
+    argument types must match the types implied by this signature. This
+    is only required if the signature specifies a varargs type.
 6.  '`fnptrval`': An LLVM value containing a pointer to a function to be
     called. In most cases, this is a direct function call, but other `callbr`'s
     are just as possible, calling an arbitrary pointer to function value.
@@ -9783,19 +9873,21 @@ This instruction requires several arguments:
 
 ##### Semantics:
 
-This instruction is designed to operate as a standard '`call`' instruction in
-most regards. The primary difference is that it establishes an association with
-additional labels to define where control flow goes after the call.
+This instruction is designed to operate as a standard '`call`'
+instruction in most regards. The primary difference is that it
+establishes an association with additional labels to define where control
+flow goes after the call.
 
-The output values of a '`callbr`' instruction are available both in the the
-'`fallthrough`' block, and any '`indirect`' blocks(s).
+The output values of a '`callbr`' instruction are available both in the
+the '`fallthrough`' block, and any '`indirect`' blocks(s).
 
 The only current uses of this are:
 
-1.  implement the \"goto\" feature of gcc inline assembly where additional
-    labels can be provided as locations for the inline assembly to jump to.
-2.  support selected intrinsics which manipulate control flow and should be
-    chained to specific terminators, such as '`unreachable`'.
+1.  implement the \"goto\" feature of gcc inline assembly where
+    additional labels can be provided as locations for the inline assembly
+    to jump to.
+2.  support selected intrinsics which manipulate control flow and should
+    be chained to specific terminators, such as '`unreachable`'.
 
 ##### Example:
 
@@ -9863,8 +9955,8 @@ handlers that may be executed by the {ref}`EH personality routine
 ##### Arguments:
 
 The `parent` argument is the token of the funclet that contains the
-`catchswitch` instruction. If the `catchswitch` is not inside a funclet, this
-operand may be the token `none`.
+`catchswitch` instruction. If the `catchswitch` is not inside a funclet,
+this operand may be the token `none`.
 
 The `default` argument is the label of another basic block beginning with
 either a `cleanuppad` or `catchswitch` instruction. This unwind destination
@@ -9980,10 +10072,10 @@ cleanupret from %cleanup unwind label %continue
 
 ##### Overview:
 
-The '`unreachable`' instruction has no defined semantics. This instruction is
-used to inform the optimizer that a particular portion of the code is not
-reachable. This can be used to indicate that the code after a no-return
-function cannot be reached, and other facts.
+The '`unreachable`' instruction has no defined semantics. This
+instruction is used to inform the optimizer that a particular portion of
+the code is not reachable. This can be used to indicate that the code
+after a no-return function cannot be reached, and other facts.
 
 ##### Semantics:
 
@@ -10015,9 +10107,9 @@ The argument to the '`fneg`' instruction must be a {ref}`floating-point
 
 ##### Semantics:
 
-The value produced is a copy of the operand with its sign bit flipped. The
-value is otherwise completely identical; in particular, if the input is a NaN,
-then the quiet/signaling bit and payload are perfectly preserved.
+The value produced is a copy of the operand with its sign bit flipped.
+The value is otherwise completely identical; in particular, if the input is a
+NaN, then the quiet/signaling bit and payload are perfectly preserved.
 
 This instruction can also take any number of {ref}`fast-math flags <fastmath>`,
 which are optimization hints to enable otherwise unsafe floating-point
@@ -10067,8 +10159,8 @@ The value produced is the integer sum of the two operands.
 If the sum has unsigned overflow, the result returned is the mathematical
 result modulo 2^n^, where n is the bit width of the result.
 
-Because LLVM integers use a two's complement representation, this instruction
-is appropriate for both signed and unsigned integers.
+Because LLVM integers use a two's complement representation, this
+instruction is appropriate for both signed and unsigned integers.
 
 `nuw` and `nsw` stand for \"No Unsigned Wrap\" and \"No Signed Wrap\",
 respectively. If the `nuw` and/or `nsw` keywords are present, the result value
@@ -10126,8 +10218,8 @@ otherwise unsafe floating-point optimizations:
 
 The '`sub`' instruction returns the difference of its two operands.
 
-Note that the '`sub`' instruction is used to represent the '`neg`' instruction
-present in most other intermediate representations.
+Note that the '`sub`' instruction is used to represent the '`neg`'
+instruction present in most other intermediate representations.
 
 ##### Arguments:
 
@@ -10142,8 +10234,8 @@ The value produced is the integer difference of the two operands.
 If the difference has unsigned overflow, the result returned is the
 mathematical result modulo 2^n^, where n is the bit width of the result.
 
-Because LLVM integers use a two's complement representation, this instruction
-is appropriate for both signed and unsigned integers.
+Because LLVM integers use a two's complement representation, this
+instruction is appropriate for both signed and unsigned integers.
 
 `nuw` and `nsw` stand for \"No Unsigned Wrap\" and \"No Signed Wrap\",
 respectively. If the `nuw` and/or `nsw` keywords are present, the result value
@@ -10286,11 +10378,11 @@ have identical types.
 
 The value produced is the unsigned integer quotient of the two operands.
 
-Note that unsigned integer division and signed integer division are distinct
-operations; for signed integer division, use '`sdiv`'.
+Note that unsigned integer division and signed integer division are
+distinct operations; for signed integer division, use '`sdiv`'.
 
-Division by zero is undefined behavior. For vectors, if any element of the
-divisor is zero, the operation has undefined behavior.
+Division by zero is undefined behavior. For vectors, if any element
+of the divisor is zero, the operation has undefined behavior.
 
 If the `exact` keyword is present, the result value of the `udiv` is a
 {ref}`poison value <poisonvalues>` if %op1 is not a multiple of %op2 (as such,
@@ -10325,8 +10417,8 @@ have identical types.
 The value produced is the signed integer quotient of the two operands rounded
 towards zero.
 
-Note that signed integer division and unsigned integer division are distinct
-operations; for unsigned integer division, use '`udiv`'.
+Note that signed integer division and unsigned integer division are
+distinct operations; for unsigned integer division, use '`udiv`'.
 
 Division by zero is undefined behavior. For vectors, if any element of the
 divisor is zero, the operation has undefined behavior. Overflow also leads to
@@ -10396,8 +10488,8 @@ have identical types.
 This instruction returns the unsigned integer *remainder* of a division. This
 instruction always performs an unsigned division to get the remainder.
 
-Note that unsigned integer remainder and signed integer remainder are distinct
-operations; for signed integer remainder, use '`srem`'.
+Note that unsigned integer remainder and signed integer remainder are
+distinct operations; for signed integer remainder, use '`srem`'.
 
 Taking the remainder of a division by zero is undefined behavior. For vectors,
 if any element of the divisor is zero, the operation has undefined behavior.
@@ -10437,8 +10529,8 @@ Forum](http://mathforum.org/dr.math/problems/anne.4.28.99.html). For a table of
 how this is implemented in various languages, please see [Wikipedia: modulo
 operation](http://en.wikipedia.org/wiki/Modulo_operation).
 
-Note that signed integer remainder and unsigned integer remainder are distinct
-operations; for unsigned integer remainder, use '`urem`'.
+Note that signed integer remainder and unsigned integer remainder are
+distinct operations; for unsigned integer remainder, use '`urem`'.
 
 Taking the remainder of a division by zero is undefined behavior. For vectors,
 if any element of the divisor is zero, the operation has undefined behavior.
@@ -10496,11 +10588,11 @@ otherwise unsafe floating-point optimizations:
 (bitwiseops)=
 ### Bitwise Binary Operations
 
-Bitwise binary operators are used to do various forms of bit-twiddling in a
-program. They are generally very efficient instructions and can commonly be
-strength reduced from other instructions. They require two operands of the same
-type, execute an operation on them, and produce a single value. The resulting
-value is the same type as its operands.
+Bitwise binary operators are used to do various forms of bit-twiddling
+in a program. They are generally very efficient instructions and can
+commonly be strength reduced from other instructions. They require two
+operands of the same type, execute an operation on them, and produce a
+single value. The resulting value is the same type as its operands.
 
 (i_shl)=
 #### '`shl`' Instruction
@@ -10514,8 +10606,8 @@ value is the same type as its operands.
 
 ##### Overview:
 
-The '`shl`' instruction returns the first operand shifted to the left a
-specified number of bits.
+The '`shl`' instruction returns the first operand shifted to the left
+a specified number of bits.
 
 ##### Arguments:
 
@@ -10556,8 +10648,8 @@ resultant sign bit.
 
 ##### Overview:
 
-The '`lshr`' instruction (logical shift right) returns the first operand
-shifted to the right a specified number of bits with zero fill.
+The '`lshr`' instruction (logical shift right) returns the first
+operand shifted to the right a specified number of bits with zero fill.
 
 ##### Arguments:
 
@@ -10567,15 +10659,15 @@ an unsigned value.
 
 ##### Semantics:
 
-This instruction always performs a logical shift right operation. The most
-significant bits of the result will be filled with zero bits after the shift.
-If `op2` is (statically or dynamically) equal to or larger than the number of
-bits in `op1`, this instruction returns a {ref}`poison value <poisonvalues>`.
-If the arguments are vectors, each vector element of `op1` is shifted by the
-corresponding shift amount in `op2`.
+This instruction always performs a logical shift right operation. The
+most significant bits of the result will be filled with zero bits after
+the shift. If `op2` is (statically or dynamically) equal to or larger
+than the number of bits in `op1`, this instruction returns a {ref}`poison
+value <poisonvalues>`. If the arguments are vectors, each vector element
+of `op1` is shifted by the corresponding shift amount in `op2`.
 
-If the `exact` keyword is present, the result value of the `lshr` is a poison
-value if any of the bits shifted out are non-zero.
+If the `exact` keyword is present, the result value of the `lshr` is
+a poison value if any of the bits shifted out are non-zero.
 
 ##### Example:
 
@@ -10609,15 +10701,15 @@ an unsigned value.
 
 ##### Semantics:
 
-This instruction always performs an arithmetic shift right operation, The most
-significant bits of the result will be filled with the sign bit of `op1`. If
-`op2` is (statically or dynamically) equal to or larger than the number of bits
-in `op1`, this instruction returns a {ref}`poison value <poisonvalues>`. If the
-arguments are vectors, each vector element of `op1` is shifted by the
-corresponding shift amount in `op2`.
+This instruction always performs an arithmetic shift right operation,
+The most significant bits of the result will be filled with the sign bit
+of `op1`. If `op2` is (statically or dynamically) equal to or larger
+than the number of bits in `op1`, this instruction returns a {ref}`poison
+value <poisonvalues>`. If the arguments are vectors, each vector element
+of `op1` is shifted by the corresponding shift amount in `op2`.
 
-If the `exact` keyword is present, the result value of the `ashr` is a poison
-value if any of the bits shifted out are non-zero.
+If the `exact` keyword is present, the result value of the `ashr` is
+a poison value if any of the bits shifted out are non-zero.
 
 ##### Example:
 
@@ -10766,8 +10858,8 @@ specific target.
 
 ##### Overview:
 
-The '`extractelement`' instruction extracts a single scalar element from a
-vector at a specified index.
+The '`extractelement`' instruction extracts a single scalar element
+from a vector at a specified index.
 
 ##### Arguments:
 
@@ -10836,9 +10928,9 @@ value <poisonvalues>`.
 
 ##### Overview:
 
-The '`shufflevector`' instruction constructs a permutation of elements from two
-input vectors, returning a vector with the same element type as the input and
-length that is the same as the shuffle mask.
+The '`shufflevector`' instruction constructs a permutation of elements
+from two input vectors, returning a vector with the same element type as
+the input and length that is the same as the shuffle mask.
 
 ##### Arguments:
 
@@ -10859,11 +10951,11 @@ of input vectors.
 
 A `poison` element in the mask vector specifies that the resulting element is
 `poison`. For backwards-compatibility reasons, LLVM temporarily also accepts
-`undef` mask elements. These will be interpreted the same way as `poison` mask
-elements, also producing a `poison` element in the result.
+`undef` mask elements. These will be interpreted the same way as `poison`
+mask elements, also producing a `poison` element in the result.
 
-If the shuffle mask selects an `undef` element from one of the input vectors,
-the resulting element is `undef`.
+If the shuffle mask selects an `undef` element from one of the input
+vectors, the resulting element is `undef`.
 
 For scalable vectors, the only valid mask values at present are
 `zeroinitializer`, `undef` and `poison`, since we cannot write all indices as
@@ -10908,8 +11000,8 @@ indices to specify which value to extract in a similar manner as indices in a
 
 The major differences to `getelementptr` indexing are:
 
--   Since the value being indexed is not a pointer, the first index is omitted
-    and assumed to be zero.
+-   Since the value being indexed is not a pointer, the first index is
+    omitted and assumed to be zero.
 -   At least one index must be specified.
 -   Not only struct indices but also array indices must be in bounds.
 
@@ -10975,10 +11067,10 @@ This section describes how to read, write, and allocate memory in LLVM.
 
 ##### Overview:
 
-The '`alloca`' instruction allocates memory on the stack frame of the currently
-executing function, to be automatically released when this function returns to
-its caller. If the address space is not explicitly specified, the default
-address space 0 is used.
+The '`alloca`' instruction allocates memory on the stack frame of the
+currently executing function, to be automatically released when this
+function returns to its caller. If the address space is not explicitly
+specified, the default address space 0 is used.
 
 ##### Arguments:
 
@@ -10991,9 +11083,9 @@ If a constant alignment is specified, the value result of the allocation is
 guaranteed to be aligned to at least that boundary. The alignment may not be
 greater than `1 << 32`.
 
-The alignment is only optional when parsing textual IR; for in-memory IR, it is
-always present. If not specified, the target can choose to align the allocation
-on any convenient boundary compatible with the type.
+The alignment is only optional when parsing textual IR; for in-memory IR,
+it is always present. If not specified, the target can choose to align the
+allocation on any convenient boundary compatible with the type.
 
 '`type`' may be any sized type.
 
@@ -11058,8 +11150,8 @@ The '`load`' instruction is used to read from memory.
 
 The argument to the `load` instruction specifies the memory address from which
 to load. The type specified must be a {ref}`first class <t_firstclass>` type of
-known size (i.e., not containing an {ref}`opaque structural type <t_opaque>`).
-If the `load` is marked as `volatile`, then the optimizer is not allowed to
+known size (i.e., not containing an {ref}`opaque structural type <t_opaque>`). If
+the `load` is marked as `volatile`, then the optimizer is not allowed to
 modify the number or order of execution of this `load` with other
 {ref}`volatile operations <volatile>`.
 
@@ -11088,12 +11180,13 @@ The alignment is only optional when parsing textual IR; for in-memory IR, it is
 always present. An omitted `align` argument means that the operation has the
 ABI alignment for the target.
 
-The optional `!nontemporal` metadata must reference a single metadata name
-`<nontemp_node>` corresponding to a metadata node with one `i32` entry of value
-1. The existence of the `!nontemporal` metadata on the instruction tells the
-optimizer and code generator that this load is not expected to be reused in the
-cache. The code generator may select special instructions to save cache
-bandwidth, such as the `MOVNT` instruction on x86.
+The optional `!nontemporal` metadata must reference a single
+metadata name `<nontemp_node>` corresponding to a metadata node with one
+`i32` entry of value 1. The existence of the `!nontemporal`
+metadata on the instruction tells the optimizer and code generator
+that this load is not expected to be reused in the cache. The code
+generator may select special instructions to save cache bandwidth, such
+as the `MOVNT` instruction on x86.
 
 The optional `!invariant.load` metadata must reference a single metadata name
 `<empty_node>` corresponding to a metadata node with no entries. If a load
@@ -11136,10 +11229,10 @@ is not appropriately aligned at runtime, a poison value is returned instead.
 The optional `!noundef` metadata must reference a single metadata name
 `<empty_node>` corresponding to a node with no entries. The existence of
 `!noundef` metadata on the instruction tells the optimizer that the value
-loaded is known to be {ref}`well defined <welldefinedvalues>`. If the value
-isn't well defined, the behavior is undefined. If the `!noundef` metadata is
-combined with poison-generating metadata like `!nonnull`, violation of that
-metadata constraint will also result in undefined behavior.
+loaded is known to be {ref}`well defined <welldefinedvalues>`.
+If the value isn't well defined, the behavior is undefined. If the `!noundef`
+metadata is combined with poison-generating metadata like `!nonnull`,
+violation of that metadata constraint will also result in undefined behavior.
 
 ##### Semantics:
 
@@ -11186,9 +11279,9 @@ The '`store`' instruction is used to write to memory.
 
 There are two arguments to the `store` instruction: a value to store and an
 address at which to store it. The type of the `<pointer>` operand must be a
-pointer to the {ref}`first class <t_firstclass>` type of the `<value>` operand.
-If the `store` is marked as `volatile`, then the optimizer is not allowed to
-modify the number or order of execution of this `store` with other
+pointer to the {ref}`first class <t_firstclass>` type of the `<value>`
+operand. If the `store` is marked as `volatile`, then the optimizer is not
+allowed to modify the number or order of execution of this `store` with other
 {ref}`volatile operations <volatile>`. Only values of {ref}`first class
 <t_firstclass>` types of known size (i.e., not containing an {ref}`opaque
 structural type <t_opaque>`) can be stored.
@@ -11225,19 +11318,20 @@ optimizer and code generator that this load is not expected to be reused in the
 cache. The code generator may select special instructions to save cache
 bandwidth, such as the `MOVNT` instruction on x86.
 
-The optional `!invariant.group` metadata must reference a single metadata name
-`<empty_node>`. See `invariant.group` metadata.
+The optional `!invariant.group` metadata must reference a
+single metadata name `<empty_node>`. See `invariant.group` metadata.
 
 ##### Semantics:
 
-The contents of memory are updated to contain `<value>` at the location
-specified by the `<pointer>` operand. If `<value>` is of scalar type then the
-number of bytes written does not exceed the minimum number of bytes needed to
-hold all bits of the type. For example, storing an `i24` writes at most three
-bytes. When writing a value of a type like `i20` with a size that is not an
-integral number of bytes, the value will be zero extended to the next larger
-multiple of the byte size (here `i24`) and then stored. As such, a
-non-byte-sized store behaves like a `zext` followed by a byte-sized store.
+The contents of memory are updated to contain `<value>` at the
+location specified by the `<pointer>` operand. If `<value>` is
+of scalar type then the number of bytes written does not exceed the
+minimum number of bytes needed to hold all bits of the type. For
+example, storing an `i24` writes at most three bytes. When writing a
+value of a type like `i20` with a size that is not an integral number
+of bytes, the value will be zero extended to the next larger multiple of the
+byte size (here `i24`) and then stored. As such, a non-byte-sized store
+behaves like a `zext` followed by a byte-sized store.
 
 If `<value>` is of aggregate type, padding is filled with {ref}`undef
 <undefvalues>`. If `<pointer>` is not a well-defined value, the behavior is
@@ -11311,9 +11405,9 @@ fence syncscope("agent") seq_cst                     ; yields void
 
 ##### Overview:
 
-The '`cmpxchg`' instruction is used to atomically modify memory. It loads a
-value in memory and compares it to a given value. If they are equal, it tries
-to store a new value into the memory.
+The '`cmpxchg`' instruction is used to atomically modify memory. It
+loads a value in memory and compares it to a given value. If they are
+equal, it tries to store a new value into the memory.
 
 ##### Arguments:
 
@@ -11341,12 +11435,13 @@ performance.
 
 The alignment is only optional when parsing textual IR; for in-memory IR, it is
 always present. If unspecified, the alignment is assumed to be equal to the
-size of the '\<value\>' type. Note that this default alignment assumption is
-different from the alignment used for the load/store instructions when align
+size of the '\<value\>' type. Note that this default alignment assumption
+is different from the alignment used for the load/store instructions when
+align
 isn't specified.
 
-The pointer passed into cmpxchg must have alignment greater than or equal to
-the size in memory of the operand.
+The pointer passed into cmpxchg must have alignment greater than or
+equal to the size in memory of the operand.
 
 ##### Semantics:
 
@@ -11397,9 +11492,9 @@ The '`atomicrmw`' instruction is used to atomically modify memory.
 
 ##### Arguments:
 
-There are three arguments to the '`atomicrmw`' instruction: an operation to
-apply, an address whose value to modify, an argument to the operation. The
-operation must be one of the following keywords:
+There are three arguments to the '`atomicrmw`' instruction: an
+operation to apply, an address whose value to modify, an argument to the
+operation. The operation must be one of the following keywords:
 
 -   xchg
 -   add
@@ -11442,8 +11537,9 @@ performance.
 
 The alignment is only optional when parsing textual IR; for in-memory IR, it is
 always present. If unspecified, the alignment is assumed to be equal to the
-size of the '\<value\>' type. Note that this default alignment assumption is
-different from the alignment used for the load/store instructions when align
+size of the '\<value\>' type. Note that this default alignment assumption
+is different from the alignment used for the load/store instructions when
+align
 isn't specified.
 
 An `atomicrmw` instruction can also take an optional \"{ref}`syncscope
@@ -11478,10 +11574,8 @@ location is returned. The modification is specified by the operation argument:
     intrinsic)
 -   fminimumnum: `*ptr = minimumnum(*ptr, val)` (match the `llvm.minimumnum.*`
     intrinsic)
--   uinc_wrap: `*ptr = (*ptr u>= val) ? 0 : (*ptr + 1)` (increment value with
-    wraparound to zero when incremented above input value)
--   udec_wrap: `*ptr = ((*ptr == 0) || (*ptr u> val)) ? val : (*ptr - 1)`
-    (decrement with wraparound to input value when decremented below zero).
+-   uinc_wrap: `*ptr = (*ptr u>= val) ? 0 : (*ptr + 1)` (increment value with wraparound to zero when incremented above input value)
+-   udec_wrap: `*ptr = ((*ptr == 0) || (*ptr u> val)) ? val : (*ptr - 1)` (decrement with wraparound to input value when decremented below zero).
 -   usub_cond: `*ptr = (*ptr u>= val) ? *ptr - val : *ptr` (subtract only if no
     unsigned overflow).
 -   usub_sat: `*ptr = (*ptr u>= val) ? *ptr - val : 0` (subtract with unsigned
@@ -11507,24 +11601,25 @@ location is returned. The modification is specified by the operation argument:
 
 ##### Overview:
 
-The '`getelementptr`' instruction is used to get the address of a subelement of
-an {ref}`aggregate <t_aggregate>` data structure. It performs address
-calculation only and does not access memory. The instruction can also be used
-to calculate a vector of such addresses.
+The '`getelementptr`' instruction is used to get the address of a
+subelement of an {ref}`aggregate <t_aggregate>` data structure. It performs
+address calculation only and does not access memory. The instruction can also
+be used to calculate a vector of such addresses.
 
 ##### Arguments:
 
-The first argument is always a type used as the basis for the calculations. The
-second argument is always a pointer or a vector of pointers, and is the base
-address to start from. The remaining arguments are indices that indicate which
-of the elements of the aggregate object are indexed. The interpretation of each
-index is dependent on the type being indexed into. The first index always
-indexes the pointer value given as the second argument, the second index
-indexes a value of the type pointed to (not necessarily the value directly
-pointed to, since the first index can be non-zero), etc. The first type indexed
-into must be a pointer value, subsequent types can be arrays, vectors, and
-structs. Note that subsequent types being indexed into can never be pointers,
-since that would require loading the pointer before continuing calculation.
+The first argument is always a type used as the basis for the calculations.
+The second argument is always a pointer or a vector of pointers, and is the
+base address to start from. The remaining arguments are indices
+that indicate which of the elements of the aggregate object are indexed.
+The interpretation of each index is dependent on the type being indexed
+into. The first index always indexes the pointer value given as the
+second argument, the second index indexes a value of the type pointed to
+(not necessarily the value directly pointed to, since the first index
+can be non-zero), etc. The first type indexed into must be a pointer
+value, subsequent types can be arrays, vectors, and structs. Note that
+subsequent types being indexed into can never be pointers, since that
+would require loading the pointer before continuing calculation.
 
 The type of each index argument depends on the type it is indexing into. When
 indexing into a (optionally packed) structure, only `i32` integer **constants**
@@ -11577,8 +11672,8 @@ two dimensions of the array are subscripted into, yielding an '`i32`' type. The
 '`getelementptr`' instruction returns a pointer to this element.
 
 Note that it is perfectly legal to index partially through a structure,
-returning a pointer to an inner element. Because of this, the LLVM code for the
-given testcase is equivalent to:
+returning a pointer to an inner element. Because of this, the LLVM code
+for the given testcase is equivalent to:
 
 ``` llvm
 define ptr @foo(ptr %s) {
@@ -11603,9 +11698,9 @@ type width, with silently-wrapping two's complement arithmetic. If the pointer
 size is larger than the index size, this means that the bits outside the index
 type width will not be affected.
 
-The result value of the `getelementptr` may be outside the object pointed to by
-the base pointer. The result value may not necessarily be used to access memory
-though, even if it happens to point into allocated storage. See the
+The result value of the `getelementptr` may be outside the object pointed
+to by the base pointer. The result value may not necessarily be used to access
+memory though, even if it happens to point into allocated storage. See the
 {ref}`Pointer Aliasing Rules <pointeraliasing>` section for more information.
 
 The `getelementptr` instruction may have a number of attributes that impose
@@ -11640,8 +11735,8 @@ For `nuw` (no unsigned wrap):
 >     interpreted as an unsigned number, does not wrap the pointer index type
 >     (`add nuw`).
 
-For `inbounds` all rules of the `nusw` attribute apply. Additionally, if the
-`getelementptr` has any non-zero indices, the following rules apply:
+For `inbounds` all rules of the `nusw` attribute apply. Additionally,
+if the `getelementptr` has any non-zero indices, the following rules apply:
 
 > -   The base pointer has an *in bounds* address of the {ref}`allocated
 >     object<allocatedobjects>` that it is {ref}`based <pointeraliasing>` on.
@@ -11655,26 +11750,27 @@ For `inbounds` all rules of the `nusw` attribute apply. Additionally, if the
 >     pointer must remain *in bounds* of the allocated object at each step.
 
 Note that `getelementptr` with all-zero indices is always considered to be
-`inbounds`, even if the base pointer does not point to an allocated object. As
-a corollary, the only pointer in bounds of the null pointer in the default
+`inbounds`, even if the base pointer does not point to an allocated object.
+As a corollary, the only pointer in bounds of the null pointer in the default
 address space is the null pointer itself.
 
-If `inbounds` is present on a `getelementptr` instruction, the `nusw` attribute
-will be automatically set as well. For this reason, the `nusw` will also not be
-printed in textual IR if `inbounds` is already present.
+If `inbounds` is present on a `getelementptr` instruction, the `nusw`
+attribute will be automatically set as well. For this reason, the `nusw`
+will also not be printed in textual IR if `inbounds` is already present.
 
-If the `inrange(Start, End)` attribute is present, loading from or storing to
-any pointer derived from the `getelementptr` has undefined behavior if the load
-or store would access memory outside the half-open range `[Start, End)` from
-the `getelementptr` expression result. The result of a pointer comparison or
-`ptrtoint` (including `ptrtoint`-like operations involving memory) involving a
-pointer derived from a `getelementptr` with the `inrange` keyword is undefined,
-with the exception of comparisons in the case where both operands are in the
-closed range `[Start, End]`. Note that the `inrange` keyword is currently only
-allowed in constant `getelementptr` expressions.
+If the `inrange(Start, End)` attribute is present, loading from or
+storing to any pointer derived from the `getelementptr` has undefined
+behavior if the load or store would access memory outside the half-open range
+`[Start, End)` from the `getelementptr` expression result. The result of
+a pointer comparison or `ptrtoint` (including `ptrtoint`-like operations
+involving memory) involving a pointer derived from a `getelementptr` with
+the `inrange` keyword is undefined, with the exception of comparisons
+in the case where both operands are in the closed range `[Start, End]`.
+Note that the `inrange` keyword is currently only allowed
+in constant `getelementptr` expressions.
 
-The getelementptr instruction is often confusing. For some more insight into
-how it works, see {doc}`the getelementptr FAQ <GetElementPtr>`.
+The getelementptr instruction is often confusing. For some more insight
+into how it works, see {doc}`the getelementptr FAQ <GetElementPtr>`.
 
 ##### Example:
 
@@ -11742,9 +11838,9 @@ for (int i = 0; i < size; ++i) {
 
 ### Conversion Operations
 
-The instructions in this category are the conversion instructions (casting)
-which all take a single operand and a type. They perform various bit
-conversions on the operand.
+The instructions in this category are the conversion instructions
+(casting) which all take a single operand and a type. They perform
+various bit conversions on the operand.
 
 (i_trunc)=
 #### '`trunc .. to`' Instruction
@@ -11762,10 +11858,11 @@ The '`trunc`' instruction truncates its operand to the type `ty2`.
 
 ##### Arguments:
 
-The '`trunc`' instruction takes a value to trunc, and a type to trunc it to.
-Both types must be of {ref}`integer <t_integer>` types, or vectors of the same
-number of integers. The bit size of the `value` must be larger than the bit
-size of the destination type, `ty2`. Equal sized types are not allowed.
+The '`trunc`' instruction takes a value to trunc, and a type to trunc
+it to. Both types must be of {ref}`integer <t_integer>` types, or vectors
+of the same number of integers. The bit size of the `value` must be
+larger than the bit size of the destination type, `ty2`. Equal sized
+types are not allowed.
 
 ##### Semantics:
 
@@ -11775,9 +11872,9 @@ destination size, `trunc` cannot be a *no-op cast*. It will always truncate
 bits.
 
 If the `nuw` keyword is present, and any of the truncated bits are non-zero,
-the result is a {ref}`poison value <poisonvalues>`. If the `nsw` keyword is
-present, and any of the truncated bits are not the same as the top bit of the
-truncation result, the result is a {ref}`poison value <poisonvalues>`.
+the result is a {ref}`poison value <poisonvalues>`. If the `nsw` keyword
+is present, and any of the truncated bits are not the same as the top bit
+of the truncation result, the result is a {ref}`poison value <poisonvalues>`.
 
 ##### Example:
 
@@ -11805,15 +11902,15 @@ the `zext` into a `sext`.
 
 ##### Arguments:
 
-The '`zext`' instruction takes a value to cast, and a type to cast it to. Both
-types must be of {ref}`integer <t_integer>` types, or vectors of the same
-number of integers. The bit size of the `value` must be smaller than the bit
-size of the destination type, `ty2`.
+The '`zext`' instruction takes a value to cast, and a type to cast it
+to. Both types must be of {ref}`integer <t_integer>` types, or vectors of
+the same number of integers. The bit size of the `value` must be
+smaller than the bit size of the destination type, `ty2`.
 
 ##### Semantics:
 
-The `zext` fills the high order bits of the `value` with zero bits until it
-reaches the size of the destination type, `ty2`.
+The `zext` fills the high order bits of the `value` with zero bits
+until it reaches the size of the destination type, `ty2`.
 
 When zero extending from i1, the result will always be either 0 or 1.
 
@@ -11844,10 +11941,10 @@ The '`sext`' sign extends `value` to the type `ty2`.
 
 ##### Arguments:
 
-The '`sext`' instruction takes a value to cast, and a type to cast it to. Both
-types must be of {ref}`integer <t_integer>` types, or vectors of the same
-number of integers. The bit size of the `value` must be smaller than the bit
-size of the destination type, `ty2`.
+The '`sext`' instruction takes a value to cast, and a type to cast it
+to. Both types must be of {ref}`integer <t_integer>` types, or vectors of
+the same number of integers. The bit size of the `value` must be
+smaller than the bit size of the destination type, `ty2`.
 
 ##### Semantics:
 
@@ -11878,10 +11975,10 @@ The '`fptrunc`' instruction truncates `value` to type `ty2`.
 
 ##### Arguments:
 
-The '`fptrunc`' instruction takes a {ref}`floating-point <t_floating>` value to
-cast and a {ref}`floating-point <t_floating>` type to cast it to. The size of
-`value` must be larger than the size of `ty2`. This implies that `fptrunc`
-cannot be used to make a *no-op cast*.
+The '`fptrunc`' instruction takes a {ref}`floating-point <t_floating>`
+value to cast and a {ref}`floating-point <t_floating>` type to cast it to.
+The size of `value` must be larger than the size of `ty2`. This
+implies that `fptrunc` cannot be used to make a *no-op cast*.
 
 ##### Semantics:
 
@@ -11923,9 +12020,9 @@ value.
 
 ##### Arguments:
 
-The '`fpext`' instruction takes a {ref}`floating-point <t_floating>` `value` to
-cast, and a {ref}`floating-point <t_floating>` type to cast it to. The source
-type must be smaller than the destination type.
+The '`fpext`' instruction takes a {ref}`floating-point <t_floating>`
+`value` to cast, and a {ref}`floating-point <t_floating>` type to cast it
+to. The source type must be smaller than the destination type.
 
 ##### Semantics:
 
@@ -11959,8 +12056,8 @@ optimizations.
 
 ##### Overview:
 
-The '`fptoui`' converts a floating-point `value` to its unsigned integer
-equivalent of type `ty2`.
+The '`fptoui`' converts a floating-point `value` to its unsigned
+integer equivalent of type `ty2`.
 
 ##### Arguments:
 
@@ -12025,12 +12122,12 @@ value cannot fit in `ty2`, the result is a {ref}`poison value <poisonvalues>`.
 
 ##### Overview:
 
-The '`uitofp`' instruction regards `value` as an unsigned integer and converts
-that value to the `ty2` type.
+The '`uitofp`' instruction regards `value` as an unsigned integer
+and converts that value to the `ty2` type.
 
-The `nneg` (non-negative) flag, if present, specifies that the operand is
-non-negative. This property may be used by optimization passes to later convert
-the `uitofp` into a `sitofp`.
+The `nneg` (non-negative) flag, if present, specifies that the
+operand is non-negative. This property may be used by optimization
+passes to later convert the `uitofp` into a `sitofp`.
 
 ##### Arguments:
 
@@ -12068,8 +12165,8 @@ a poison value.
 
 ##### Overview:
 
-The '`sitofp`' instruction regards `value` as a signed integer and converts
-that value to the `ty2` type.
+The '`sitofp`' instruction regards `value` as a signed integer and
+converts that value to the `ty2` type.
 
 ##### Arguments:
 
@@ -12101,8 +12198,8 @@ be exactly represented, it is rounded using the default rounding mode.
 
 ##### Overview:
 
-The '`ptrtoint`' instruction converts the pointer or a vector of pointers
-`value` to the integer (or vector of integers) type `ty2`.
+The '`ptrtoint`' instruction converts the pointer or a vector of
+pointers `value` to the integer (or vector of integers) type `ty2`.
 
 ##### Arguments:
 
@@ -12139,11 +12236,11 @@ of the pointer argument.
 
 ##### Overview:
 
-The '`ptrtoaddr`' instruction converts the pointer or a vector of pointers
-`value` to the underlying integer address (or vector of addresses) of type
-`ty2`. This is different from {ref}`ptrtoint <i_ptrtoint>` in that it only
-operates on the index bits of the pointer and ignores all other bits, and does
-not capture the provenance of the pointer.
+The '`ptrtoaddr`' instruction converts the pointer or a vector of
+pointers `value` to the underlying integer address (or vector of addresses) of
+type `ty2`. This is different from {ref}`ptrtoint <i_ptrtoint>` in that it
+only operates on the index bits of the pointer and ignores all other bits, and
+does not capture the provenance of the pointer.
 
 ##### Arguments:
 
@@ -12160,8 +12257,8 @@ If the address size and the pointer representation size are the same and
 `value` and `ty2` are the same size, then nothing is done (*no-op cast*) other
 than a type change.
 
-The `ptrtoaddr` instruction always {ref}`captures the address but not the
-provenance <pointercapture>` of the pointer argument.
+The `ptrtoaddr` instruction always {ref}`captures the address but not the provenance <pointercapture>`
+of the pointer argument.
 
 ##### Example:
 
@@ -12200,9 +12297,9 @@ metadata name `<deref_bytes_node>` corresponding to a metadata node with one
 `i64` entry. See `dereferenceable_or_null` metadata.
 
 The optional `!nofree` metadata must reference a single metadata name
-`<empty_node>` corresponding to a metadata node with no entries. The existence
-of the `!nofree` metadata on the instruction tells the optimizer that the
-memory pointed by the pointer will not be freed after this point.
+`<empty_node>` corresponding to a metadata node with no entries.
+The existence of the `!nofree` metadata on the instruction tells the optimizer
+that the memory pointed by the pointer will not be freed after this point.
 
 ##### Semantics:
 
@@ -12259,8 +12356,8 @@ the {ref}`inttoptr <i_inttoptr>` or {ref}`ptrtoint <i_ptrtoint>` instructions
 first.
 
 There is a caveat for bitcasts involving vector types in relation to
-endianness. For example `bitcast <2 x i8> <value> to i16` puts element zero of
-the vector in the least significant bits of the i16 for little-endian while
+endianness. For example `bitcast <2 x i8> <value> to i16` puts element zero
+of the vector in the least significant bits of the i16 for little-endian while
 element zero ends up in the most significant bits for big-endian.
 
 If `value` is of the {ref}`byte type <t_byte>`:
@@ -12313,8 +12410,8 @@ If `value` is of the {ref}`byte type <t_byte>`:
 
 ##### Overview:
 
-The '`addrspacecast`' instruction converts `ptrval` from `pty` in address space
-`n` to type `pty2` in address space `m`.
+The '`addrspacecast`' instruction converts `ptrval` from `pty` in
+address space `n` to type `pty2` in address space `m`.
 
 ##### Arguments:
 
@@ -12324,13 +12421,14 @@ space.
 
 ##### Semantics:
 
-The '`addrspacecast`' instruction converts the pointer value `ptrval` to type
-`pty2`. It can be a *no-op cast* or a complex value modification, depending on
-the target and the address space pair. Pointer conversions within the same
-address space must be performed with the `bitcast` instruction. Note that if
-the address space conversion produces a dereferenceable result then both result
-and operand refer to the same memory location. The conversion must have no side
-effects, and must not capture the value of the pointer.
+The '`addrspacecast`' instruction converts the pointer value
+`ptrval` to type `pty2`. It can be a *no-op cast* or a complex
+value modification, depending on the target and the address space
+pair. Pointer conversions within the same address space must be
+performed with the `bitcast` instruction. Note that if the address
+space conversion produces a dereferenceable result then both result
+and operand refer to the same memory location. The conversion must
+have no side effects, and must not capture the value of the pointer.
 
 If the source is {ref}`poison <poisonvalues>`, the result is {ref}`poison
 <poisonvalues>`.
@@ -12374,9 +12472,9 @@ vector operands.
 
 ##### Arguments:
 
-The '`icmp`' instruction takes three operands. The first operand is the
-condition code indicating the kind of comparison to perform. It is not a value,
-just a keyword. The possible condition codes are:
+The '`icmp`' instruction takes three operands. The first operand is
+the condition code indicating the kind of comparison to perform. It is
+not a value, just a keyword. The possible condition codes are:
 
 (icmp_md_cc)=
 1.  `eq`: equal
@@ -12401,38 +12499,38 @@ The '`icmp`' compares `op1` and `op2` according to the condition code given as
 or vector of `i1` result, as follows:
 
 (icmp_md_cc_sem)=
-1.  `eq`: yields `true` if the operands are equal, `false` otherwise. No sign
-    interpretation is necessary or performed.
-2.  `ne`: yields `true` if the operands are unequal, `false` otherwise. No sign
-    interpretation is necessary or performed.
+1.  `eq`: yields `true` if the operands are equal, `false`
+    otherwise. No sign interpretation is necessary or performed.
+2.  `ne`: yields `true` if the operands are unequal, `false`
+    otherwise. No sign interpretation is necessary or performed.
 3.  `ugt`: interprets the operands as unsigned values and yields `true` if
     `op1` is greater than `op2`.
-4.  `uge`: interprets the operands as unsigned values and yields `true` if
-    `op1` is greater than or equal to `op2`.
+4.  `uge`: interprets the operands as unsigned values and yields
+    `true` if `op1` is greater than or equal to `op2`.
 5.  `ult`: interprets the operands as unsigned values and yields `true` if
     `op1` is less than `op2`.
-6.  `ule`: interprets the operands as unsigned values and yields `true` if
-    `op1` is less than or equal to `op2`.
+6.  `ule`: interprets the operands as unsigned values and yields
+    `true` if `op1` is less than or equal to `op2`.
 7.  `sgt`: interprets the operands as signed values and yields `true` if `op1`
     is greater than `op2`.
-8.  `sge`: interprets the operands as signed values and yields `true` if `op1`
-    is greater than or equal to `op2`.
+8.  `sge`: interprets the operands as signed values and yields `true`
+    if `op1` is greater than or equal to `op2`.
 9.  `slt`: interprets the operands as signed values and yields `true` if `op1`
     is less than `op2`.
-10. `sle`: interprets the operands as signed values and yields `true` if `op1`
-is less than or equal to `op2`.
+10. `sle`: interprets the operands as signed values and yields `true`
+    if `op1` is less than or equal to `op2`.
 
 If the operands are {ref}`pointer <t_pointer>` typed, the address bits of the
 pointers are compared as if they were integers. Non-address bits or external
 state are not compared. That is, `icmp` on pointers is equivalent to `icmp` on
 the `ptrtoaddr` of the pointers.
 
-If the operands are integer vectors, then they are compared element by element.
-The result is an `i1` vector with the same number of elements as the values
-being compared. Otherwise, the result is an `i1`.
+If the operands are integer vectors, then they are compared element by
+element. The result is an `i1` vector with the same number of elements
+as the values being compared. Otherwise, the result is an `i1`.
 
-If the `samesign` keyword is present and the operands are not of the same sign
-then the result is a {ref}`poison value <poisonvalues>`.
+If the `samesign` keyword is present and the operands are not of the
+same sign then the result is a {ref}`poison value <poisonvalues>`.
 
 ##### Example:
 
@@ -12454,8 +12552,8 @@ then the result is a {ref}`poison value <poisonvalues>`.
 
 ##### Overview:
 
-The '`fcmp`' instruction returns a boolean value or vector of boolean values
-based on comparison of its operands.
+The '`fcmp`' instruction returns a boolean value or vector of boolean
+values based on comparison of its operands.
 
 If the operands are floating-point scalars, then the result type is a boolean
 ({ref}`i1 <t_integer>`).
@@ -12465,9 +12563,9 @@ boolean with the same number of elements as the operands being compared.
 
 ##### Arguments:
 
-The '`fcmp`' instruction takes three operands. The first operand is the
-condition code indicating the kind of comparison to perform. It is not a value,
-just a keyword. The possible condition codes are:
+The '`fcmp`' instruction takes three operands. The first operand is
+the condition code indicating the kind of comparison to perform. It is
+not a value, just a keyword. The possible condition codes are:
 
 1.  `false`: no comparison, always returns false
 2.  `oeq`: ordered and equal
@@ -12486,8 +12584,8 @@ just a keyword. The possible condition codes are:
 15. `uno`: unordered (either nans)
 16. `true`: no comparison, always returns true
 
-*Ordered* means that neither operand is a QNAN while *unordered* means that
-either operand may be a QNAN.
+*Ordered* means that neither operand is a QNAN while *unordered* means
+that either operand may be a QNAN.
 
 Each of `val1` and `val2` arguments must be either a {ref}`floating-point
 <t_floating>` type or a {ref}`vector <t_vector>` of floating-point type. They
@@ -12533,10 +12631,10 @@ The `fcmp` instruction can also optionally take any number of {ref}`fast-math
 flags <fastmath>`, which are optimization hints to enable otherwise unsafe
 floating-point optimizations.
 
-Any set of fast-math flags are legal on an `fcmp` instruction, but the only
-flags that have any effect on its semantics are those that allow assumptions to
-be made about the values of input arguments; namely `nnan`, `ninf`, and
-`reassoc`. See {ref}`fastmath` for more information.
+Any set of fast-math flags are legal on an `fcmp` instruction, but the
+only flags that have any effect on its semantics are those that allow
+assumptions to be made about the values of input arguments; namely
+`nnan`, `ninf`, and `reassoc`. See {ref}`fastmath` for more information.
 
 ##### Example:
 
@@ -12630,11 +12728,11 @@ indicating the condition, and two values of the same {ref}`first class
 If the condition is an i1 and it evaluates to 1, the instruction returns the
 first value argument; otherwise, it returns the second value argument.
 
-If the condition is a vector of i1, then the value arguments must be vectors of
-the same size, and the selection is done element by element.
+If the condition is a vector of i1, then the value arguments must be
+vectors of the same size, and the selection is done element by element.
 
-If the condition is an i1 and the value arguments are vectors of the same size,
-then an entire vector is selected.
+If the condition is an i1 and the value arguments are vectors of the
+same size, then an entire vector is selected.
 
 ##### Example:
 
@@ -12662,11 +12760,12 @@ The '`freeze`' instruction takes a single argument.
 
 ##### Semantics:
 
-If the argument is `undef` or `poison`, '`freeze`' returns an arbitrary, but
-fixed, value of type '`ty`'. Otherwise, this instruction is a no-op and returns
-the input argument. All uses of a value returned by the same '`freeze`'
-instruction are guaranteed to always observe the same value, while different
-'`freeze`' instructions may yield different values.
+If the argument is `undef` or `poison`, '`freeze`' returns an
+arbitrary, but fixed, value of type '`ty`'.
+Otherwise, this instruction is a no-op and returns the input argument.
+All uses of a value returned by the same '`freeze`' instruction are
+guaranteed to always observe the same value, while different '`freeze`'
+instructions may yield different values.
 
 While `undef` and `poison` pointers can be frozen, the result is a
 non-dereferenceable pointer. See the {ref}`Pointer Aliasing Rules
@@ -12741,9 +12840,9 @@ This instruction requires several arguments:
         if a void return type is in use.
 
     Both markers imply that the callee does not access allocas, va_args, or
-    byval arguments from the caller. As an exception to that, an alloca or
-    byval argument may be passed to the callee as a byval argument, which can
-    be dereferenced inside the callee. For example:
+    byval arguments from the caller. As an exception to that, an alloca or byval
+    argument may be passed to the callee as a byval argument, which can be
+    dereferenced inside the callee. For example:
 
     ``` llvm
     declare void @take_byval(ptr byval(i64))
@@ -12801,14 +12900,14 @@ This instruction requires several arguments:
 
     Calls marked `musttail` must obey the following additional rules:
 
-    -   The call must immediately precede a {ref}`ret <i_ret>` instruction, or
-        a pointer bitcast followed by a ret instruction.
-    -   The ret instruction must return the (possibly bitcasted) value produced
-        by the call, undef, or void.
+    -   The call must immediately precede a {ref}`ret <i_ret>` instruction,
+        or a pointer bitcast followed by a ret instruction.
+    -   The ret instruction must return the (possibly bitcasted) value
+        produced by the call, undef, or void.
     -   The calling conventions of the caller and callee must match.
     -   The callee must be varargs iff the caller is varargs. Bitcasting a
-        non-varargs function to the appropriate varargs type is legal so long
-        as the non-varargs prefixes obey the other rules.
+        non-varargs function to the appropriate varargs type is legal so
+        long as the non-varargs prefixes obey the other rules.
     -   The return type must not undergo automatic conversion to an `sret`
         pointer.
 
@@ -12816,8 +12915,8 @@ This instruction requires several arguments:
 
     -   All ABI-impacting function attributes, such as sret, byval, inreg,
         returned, and inalloca, must match.
-    -   The caller and callee prototypes must match. Pointer types of
-        parameters or return types do not differ in address space.
+    -   The caller and callee prototypes must match. Pointer types of parameters
+        or return types do not differ in address space.
 
     On the other hand, if the calling convention is `swifttailcc` or
     \`tailcc\`:
@@ -12831,8 +12930,8 @@ This instruction requires several arguments:
 
     -   Caller and callee both have the calling convention `fastcc` or
         `tailcc`.
-    -   The call is in tail position (ret immediately follows call and ret uses
-        value of call or is void).
+    -   The call is in tail position (ret immediately follows call and ret
+        uses value of call or is void).
     -   Option `-tailcallopt` is enabled, `llvm::GuaranteedTailCallOpt` is
         `true`, or the calling convention is `tailcc`.
     -   {ref}`Platform-specific constraints are met. <tail call section>`
@@ -12865,19 +12964,20 @@ This instruction requires several arguments:
     the return value. Functions that return no value are marked `void`. The
     signature is computed based on the return type and argument types.
 
-8.  '`fnty`': shall be the signature of the function being called. The argument
-    types must match the types implied by this signature. This is only required
-    if the signature specifies a varargs type.
+8.  '`fnty`': shall be the signature of the function being called. The
+    argument types must match the types implied by this signature. This
+    is only required if the signature specifies a varargs type.
 
 9.  '`fnptrval`': An LLVM value containing a pointer to a function to be
     called. In most cases, this is a direct function call, but indirect
     `call`'s are just as possible, calling an arbitrary pointer to function
     value.
 
-10. '`function args`': argument list whose types match the function signature
-argument types and parameter attributes. All arguments must be of {ref}`first
-class <t_firstclass>` type. If the function signature indicates the function
-accepts a variable number of arguments, the extra arguments can be specified.
+10. '`function args`': argument list whose types match the function
+    signature argument types and parameter attributes. All arguments must
+    be of {ref}`first class <t_firstclass>` type. If the function signature
+    indicates the function accepts a variable number of arguments, the
+    extra arguments can be specified.
 
 11. The optional {ref}`function attributes <fnattrs>` list.
 
@@ -12885,15 +12985,15 @@ accepts a variable number of arguments, the extra arguments can be specified.
 
 ##### Semantics:
 
-The '`call`' instruction is used to cause control flow to transfer to a
-specified function, with its incoming arguments bound to the specified values.
-Upon a '`ret`' instruction in the called function, control flow continues with
-the instruction after the function call, and the return value of the function
-is bound to the result argument.
+The '`call`' instruction is used to cause control flow to transfer to
+a specified function, with its incoming arguments bound to the specified
+values. Upon a '`ret`' instruction in the called function, control
+flow continues with the instruction after the function call, and the
+return value of the function is bound to the result argument.
 
 If the callee refers to an intrinsic function, the signature of the call must
-match the signature of the callee. Otherwise, if the signature of the call does
-not match the signature of the called function, the behavior is
+match the signature of the callee. Otherwise, if the signature of the call
+does not match the signature of the called function, the behavior is
 target-specific. For a significant mismatch, this likely results in undefined
 behavior. LLVM interprocedural optimizations generally only optimize calls
 where the signature of the caller matches the signature of the callee.
@@ -12918,11 +13018,11 @@ call void %foo(i8 signext 97)
 %ZZ = call zeroext i32 @bar()                     ; Return value is %zero extended
 ```
 
-llvm treats calls to some functions with names and arguments that match the
-standard C99 library as being the C99 library functions, and may perform
-optimizations or generate code for them under that assumption. This is
-something we'd like to change in the future to provide better support for
-freestanding environments and non-C-based languages.
+llvm treats calls to some functions with names and arguments that match
+the standard C99 library as being the C99 library functions, and may
+perform optimizations or generate code for them under that assumption.
+This is something we'd like to change in the future to provide better
+support for freestanding environments and non-C-based languages.
 
 (i_va_arg)=
 #### '`va_arg`' Instruction
@@ -12939,9 +13039,10 @@ The '`va_arg`' instruction is used to access arguments passed through the
 
 ##### Arguments:
 
-This instruction takes a `va_list*` value and the type of the argument. It
-returns a value of the specified argument type and increments the `va_list` to
-point to the next argument. The actual type of `va_list` is target specific.
+This instruction takes a `va_list*` value and the type of the
+argument. It returns a value of the specified argument type and
+increments the `va_list` to point to the next argument. The actual
+type of `va_list` is target specific.
 
 ##### Semantics:
 
@@ -12976,12 +13077,13 @@ Also, it does not currently support va_arg with aggregate types on any target.
 
 ##### Overview:
 
-The '`landingpad`' instruction is used by {ref}`LLVM's exception handling
-system <exception-handling-overview>` to specify that a basic block is a
-landing pad \-\-- one where the exception lands, and corresponds to the code
-found in the `catch` portion of a `try`/`catch` sequence. It defines values
-supplied by the {ref}`personality function <personalityfn>` upon re-entry to
-the function. The `resultval` has the type `resultty`.
+The '`landingpad`' instruction is used by {ref}`LLVM's exception
+handling system <exception-handling-overview>` to specify that a basic
+block is a landing pad \-\-- one where the exception lands, and
+corresponds to the code found in the `catch` portion of a `try`/`catch`
+sequence. It defines values supplied by the {ref}`personality function
+<personalityfn>` upon re-entry to the function. The `resultval` has
+the type `resultty`.
 
 ##### Arguments:
 
@@ -13002,12 +13104,13 @@ therefore the \"result type\" of the `landingpad` instruction. As with calling
 conventions, how the personality function results are represented in LLVM IR is
 target specific.
 
-The clauses are applied in order from top to bottom. If two `landingpad`
-instructions are merged together through inlining, the clauses from the calling
-function are appended to the list of clauses. When the call stack is being
-unwound due to an exception being thrown, the exception is compared against
-each `clause` in turn. If it doesn't match any of the clauses, and the
-`cleanup` flag is not set, then unwinding continues further up the call stack.
+The clauses are applied in order from top to bottom. If two
+`landingpad` instructions are merged together through inlining, the
+clauses from the calling function are appended to the list of clauses.
+When the call stack is being unwound due to an exception being thrown,
+the exception is compared against each `clause` in turn. If it doesn't
+match any of the clauses, and the `cleanup` flag is not set, then
+unwinding continues further up the call stack.
 
 The `landingpad` instruction has several restrictions:
 
@@ -13068,9 +13171,9 @@ pads.
 ##### Semantics:
 
 When the call stack is being unwound due to an exception being thrown, the
-exception is compared against the `args`. If it doesn't match, control will not
-reach the `catchpad` instruction. The representation of `args` is entirely
-target and personality function-specific.
+exception is compared against the `args`. If it doesn't match, control will
+not reach the `catchpad` instruction. The representation of `args` is
+entirely target and personality function-specific.
 
 Like the {ref}`landingpad <i_landingpad>` instruction, the `catchpad`
 instruction must be the first non-phi of its parent basic block.
@@ -13153,8 +13256,9 @@ carry an appropriate {ref}`"funclet" bundle <ob_funclet>`.
 
 Debug records appear interleaved with instructions, but are not instructions;
 they are used only to define debug information, and have no effect on generated
-code. They are distinguished from instructions by the use of a leading `\#` and
-an extra level of indentation. As an example:
+code. They are distinguished from instructions by the use of a leading `\#`
+and an extra level of indentation. As an
+example:
 
 ``` llvm
 %inst1 = op1 %a, %b
@@ -13171,19 +13275,23 @@ same module. More information about debug records can be found in the
 (intrinsics)=
 ## Intrinsic Functions
 
-LLVM supports the notion of an \"intrinsic function\". These functions have
-well known names and semantics and are required to follow certain restrictions.
-Overall, these intrinsics represent an extension mechanism for the LLVM
-language that does not require changing all of the transformations in LLVM when
-adding to the language (or the bitcode reader/writer, the parser, etc\...).
+LLVM supports the notion of an \"intrinsic function\". These
+functions have well known names and semantics and are required to
+follow certain restrictions. Overall, these intrinsics represent an
+extension mechanism for the LLVM language that does not require
+changing all of the transformations in LLVM when adding to the
+language (or the bitcode
+reader/writer, the parser,
+etc\...).
 
-Intrinsic function names must all start with an \"`llvm.`\" prefix. This prefix
-is reserved in LLVM for intrinsic names; thus, function names may not begin
-with this prefix. Intrinsic functions must always be external functions: you
-cannot define the body of intrinsic functions. Intrinsic functions may only be
-used in call or invoke instructions: it is illegal to take the address of an
-intrinsic function. Additionally, because intrinsic functions are part of the
-LLVM language, it is required if any are added that they be documented here.
+Intrinsic function names must all start with an \"`llvm.`\" prefix. This
+prefix is reserved in LLVM for intrinsic names; thus, function names may
+not begin with this prefix. Intrinsic functions must always be external
+functions: you cannot define the body of intrinsic functions. Intrinsic
+functions may only be used in call or invoke instructions: it is illegal
+to take the address of an intrinsic function. Additionally, because
+intrinsic functions are part of the LLVM language, it is required if any
+are added that they be documented here.
 
 Some intrinsic functions can be overloaded, i.e., the intrinsic represents a
 family of functions that perform the same operation but on different data
@@ -13227,11 +13335,11 @@ Variable argument support is defined in LLVM with the {ref}`va_arg <i_va_arg>`
 instruction and these three intrinsic functions. These functions are related to
 the similarly named macros defined in the `<stdarg.h>` header file.
 
-All of these functions take as arguments pointers to a target-specific value
-type \"`va_list`\". The LLVM assembly language reference manual does not define
-what this type is, so all transformations should be prepared to handle these
-functions regardless of the type used. The intrinsics are overloaded, and can
-be used for pointers to different address spaces.
+All of these functions take as arguments pointers to a target-specific
+value type \"`va_list`\". The LLVM assembly language reference manual
+does not define what this type is, so all transformations should be
+prepared to handle these functions regardless of the type used. The intrinsics
+are overloaded, and can be used for pointers to different address spaces.
 
 This example shows how the {ref}`va_arg <i_va_arg>` instruction and the
 variable argument handling intrinsic functions are used.
@@ -13302,8 +13410,8 @@ compiler can figure that out.
 
 ##### Overview:
 
-The '`llvm.va_end`' intrinsic destroys `<arglist>`, which has been initialized
-previously with `llvm.va_start` or `llvm.va_copy`.
+The '`llvm.va_end`' intrinsic destroys `<arglist>`, which has been
+initialized previously with `llvm.va_start` or `llvm.va_copy`.
 
 ##### Arguments:
 
@@ -13327,14 +13435,14 @@ argument points. Calls to {ref}`llvm.va_start <int_va_start>` and
 
 ##### Overview:
 
-The '`llvm.va_copy`' intrinsic copies the current argument position from the
-source argument list to the destination argument list.
+The '`llvm.va_copy`' intrinsic copies the current argument position
+from the source argument list to the destination argument list.
 
 ##### Arguments:
 
-The first argument is a pointer to a `va_list` element to initialize. The
-second argument is a pointer to a `va_list` element to copy from. The address
-spaces of the two arguments must match.
+The first argument is a pointer to a `va_list` element to initialize.
+The second argument is a pointer to a `va_list` element to copy from.
+The address spaces of the two arguments must match.
 
 ##### Semantics:
 
@@ -13346,10 +13454,10 @@ memory allocation.
 
 ### Accurate Garbage Collection Intrinsics
 
-LLVM's support for [Accurate Garbage Collection](GarbageCollection.rst) (GC)
-requires the frontend to generate code containing appropriate intrinsic calls
-and select an appropriate GC strategy which knows how to lower these intrinsics
-in a manner which is appropriate for the target collector.
+LLVM's support for [Accurate Garbage Collection](GarbageCollection.rst)
+(GC) requires the frontend to generate code containing appropriate intrinsic
+calls and select an appropriate GC strategy which knows how to lower these
+intrinsics in a manner which is appropriate for the target collector.
 
 These intrinsics allow identification of {ref}`GC roots on the stack
 <int_gcroot>`, as well as garbage collector implementations that require
@@ -13375,8 +13483,8 @@ described in {doc}`Statepoints`.
 
 ##### Overview:
 
-The '`llvm.gcroot`' intrinsic declares the existence of a GC root to the code
-generator, and allows some metadata to be associated with it.
+The '`llvm.gcroot`' intrinsic declares the existence of a GC root to
+the code generator, and allows some metadata to be associated with it.
 
 ##### Arguments:
 
@@ -13464,24 +13572,27 @@ The statepoint intrinsic represents a call which is parse-able by the runtime.
 
 ##### Operands:
 
-The 'id' operand is a constant integer that is reported as the ID field in the
-generated stackmap. LLVM does not interpret this parameter in any way and its
-meaning is up to the statepoint user to decide. Note that LLVM is free to
-duplicate code containing statepoint calls, and this may transform IR that had
-a unique 'id' per lexical call to statepoint to IR that does not.
+The 'id' operand is a constant integer that is reported as the ID
+field in the generated stackmap. LLVM does not interpret this
+parameter in any way and its meaning is up to the statepoint user to
+decide. Note that LLVM is free to duplicate code containing
+statepoint calls, and this may transform IR that had a unique 'id' per
+lexical call to statepoint to IR that does not.
 
-If 'num patch bytes' is non-zero then the call instruction corresponding to the
-statepoint is not emitted and LLVM emits 'num patch bytes' bytes of nops in its
-place. LLVM will emit code to prepare the function arguments and retrieve the
-function return value in accordance to the calling convention; the former
-before the nop sequence and the latter after the nop sequence. It is expected
-that the user will patch over the 'num patch bytes' bytes of nops with a
-calling sequence specific to their runtime before executing the generated
-machine code. There are no guarantees with respect to the alignment of the nop
-sequence. Unlike {doc}`StackMaps` statepoints do not have a concept of shadow
-bytes. Note that semantically the statepoint still represents a call or invoke
-to 'target', and the nop sequence after patching is expected to represent an
-operation equivalent to a call or invoke to 'target'.
+If 'num patch bytes' is non-zero then the call instruction
+corresponding to the statepoint is not emitted and LLVM emits 'num
+patch bytes' bytes of nops in its place. LLVM will emit code to
+prepare the function arguments and retrieve the function return value
+in accordance to the calling convention; the former before the nop
+sequence and the latter after the nop sequence. It is expected that
+the user will patch over the 'num patch bytes' bytes of nops with a
+calling sequence specific to their runtime before executing the
+generated machine code. There are no guarantees with respect to the
+alignment of the nop sequence. Unlike {doc}`StackMaps` statepoints do
+not have a concept of shadow bytes. Note that semantically the
+statepoint still represents a call or invoke to 'target', and the nop
+sequence after patching is expected to represent an operation
+equivalent to a call or invoke to 'target'.
 
 The 'target' operand is the function actually being called. The operand must
 have an {ref}`elementtype <attr_elementtype>` attribute specifying the function
@@ -13513,14 +13624,14 @@ types must match the signature of 'target'.
 The 'call parameter' attributes must be followed by two 'i64 0' constants.
 These were originally the length prefixes for 'gc transition parameter' and
 'deopt parameter' arguments, but the role of these parameter sets have been
-entirely replaced with the corresponding operand bundles. In a future revision,
-these now redundant arguments will be removed.
+entirely replaced with the corresponding operand bundles. In a future
+revision, these now redundant arguments will be removed.
 
 ##### Semantics:
 
-A statepoint is assumed to read and write all memory. As a result, memory
-operations can not be reordered past a statepoint. It is illegal to mark a
-statepoint as being either 'readonly' or 'readnone'.
+A statepoint is assumed to read and write all memory. As a result,
+memory operations can not be reordered past a statepoint. It is
+illegal to mark a statepoint as being either 'readonly' or 'readnone'.
 
 Note that legal IR can not perform any memory operation on a 'gc pointer'
 argument of the statepoint in a location statically reachable from the
@@ -13536,16 +13647,18 @@ be used.
 
 ##### Overview:
 
-`gc.result` extracts the result of the original call instruction which was
-replaced by the `gc.statepoint`. The `gc.result` intrinsic is actually a family
-of three intrinsics due to an implementation limitation. Other than the type of
-the return value, the semantics are the same.
+`gc.result` extracts the result of the original call instruction
+which was replaced by the `gc.statepoint`. The `gc.result`
+intrinsic is actually a family of three intrinsics due to an
+implementation limitation. Other than the type of the return value,
+the semantics are the same.
 
 ##### Operands:
 
-The first and only argument is the `gc.statepoint` which starts the safepoint
-sequence of which this `gc.result` is a part. Despite the typing of this as a
-generic token, *only* the value defined by a `gc.statepoint` is legal here.
+The first and only argument is the `gc.statepoint` which starts
+the safepoint sequence of which this `gc.result` is a part.
+Despite the typing of this as a generic token, *only* the value defined
+by a `gc.statepoint` is legal here.
 
 ##### Semantics:
 
@@ -13553,9 +13666,9 @@ The `gc.result` represents the return value of the call target of the
 `statepoint`. The type of the `gc.result` must exactly match the type of the
 target. If the call target returns void, there will be no `gc.result`.
 
-A `gc.result` is modeled as a 'readnone' pure function. It has no side effects
-since it is just a projection of the return value of the previous call
-represented by the `gc.statepoint`.
+A `gc.result` is modeled as a 'readnone' pure function. It has no
+side effects since it is just a projection of the return value of the
+previous call represented by the `gc.statepoint`.
 
 #### '`llvm.experimental.gc.relocate`' Intrinsic
 
@@ -13573,9 +13686,10 @@ safepoint.
 
 ##### Operands:
 
-The first argument is the `gc.statepoint` which starts the safepoint sequence
-of which this `gc.relocation` is a part. Despite the typing of this as a
-generic token, *only* the value defined by a `gc.statepoint` is legal here.
+The first argument is the `gc.statepoint` which starts the
+safepoint sequence of which this `gc.relocation` is a part.
+Despite the typing of this as a generic token, *only* the value defined
+by a `gc.statepoint` is legal here.
 
 The second and third arguments are both indices into operands of the
 corresponding statepoint's {ref}`gc-live <ob_gc_live>` operand bundle.
@@ -13594,17 +13708,18 @@ argument if and only if a base pointer is being relocated.
 
 ##### Semantics:
 
-The return value of `gc.relocate` is the potentially relocated value of the
-pointer specified by its arguments. It is unspecified how the value of the
-returned pointer relates to the argument to the `gc.statepoint` other than that
-a) it points to the same source language object with the same offset, and b)
-the 'based-on' relationship of the newly relocated pointers is a projection of
-the unrelocated pointers. In particular, the integer value of the pointer
+The return value of `gc.relocate` is the potentially relocated value
+of the pointer specified by its arguments. It is unspecified how the
+value of the returned pointer relates to the argument to the
+`gc.statepoint` other than that a) it points to the same source
+language object with the same offset, and b) the 'based-on'
+relationship of the newly relocated pointers is a projection of the
+unrelocated pointers. In particular, the integer value of the pointer
 returned is unspecified.
 
-A `gc.relocate` is modeled as a `readnone` pure function. It has no side
-effects since it is just a way to extract information about work done during
-the actual call modeled by the `gc.statepoint`.
+A `gc.relocate` is modeled as a `readnone` pure function. It has no
+side effects since it is just a way to extract information about work
+done during the actual call modeled by the `gc.statepoint`.
 
 (gc.get.pointer.base)=
 #### '`llvm.experimental.gc.get.pointer.base`' Intrinsic
@@ -13622,13 +13737,13 @@ the actual call modeled by the `gc.statepoint`.
 
 ##### Operands:
 
-The only argument is a pointer which is based on some object with an unknown
-offset from the base of said object.
+The only argument is a pointer which is based on some object with
+an unknown offset from the base of said object.
 
 ##### Semantics:
 
-This intrinsic is used in the abstract machine model for GC to represent the
-base pointer for an arbitrary derived pointer.
+This intrinsic is used in the abstract machine model for GC to represent
+the base pointer for an arbitrary derived pointer.
 
 This intrinsic is inlined by the {ref}`RewriteStatepointsForGC` pass by
 replacing all uses of this callsite with the offset of a derived pointer from
@@ -13653,13 +13768,13 @@ pointer.
 
 ##### Operands:
 
-The only argument is a pointer which is based on some object with an unknown
-offset from the base of said object.
+The only argument is a pointer which is based on some object with
+an unknown offset from the base of said object.
 
 ##### Semantics:
 
-This intrinsic is used in the abstract machine model for GC to represent the
-offset of an arbitrary derived pointer from its base pointer.
+This intrinsic is used in the abstract machine model for GC to represent
+the offset of an arbitrary derived pointer from its base pointer.
 
 This intrinsic is inlined by the {ref}`RewriteStatepointsForGC` pass by
 replacing all uses of this callsite with the offset of a derived pointer from
@@ -13674,8 +13789,8 @@ physical one.
 
 ### Code Generator Intrinsics
 
-These intrinsics are provided by LLVM to expose special features that may only
-be implemented with code generator support.
+These intrinsics are provided by LLVM to expose special features that
+may only be implemented with code generator support.
 
 #### '`llvm.returnaddress`' Intrinsic
 
@@ -13697,10 +13812,11 @@ argument is **required** to be a constant integer value.
 
 ##### Semantics:
 
-The '`llvm.returnaddress`' intrinsic either returns a pointer indicating the
-return address of the specified call frame, or zero if it cannot be identified.
-The value returned by this intrinsic is likely to be incorrect or 0 for
-arguments other than zero, so it should only be used for debugging purposes.
+The '`llvm.returnaddress`' intrinsic either returns a pointer
+indicating the return address of the specified call frame, or zero if it
+cannot be identified. The value returned by this intrinsic is likely to
+be incorrect or 0 for arguments other than zero, so it should only be
+used for debugging purposes.
 
 Note that calling this intrinsic does not prevent function inlining or other
 aggressive transformations, so the value returned may not be that of the
@@ -13734,8 +13850,8 @@ This intrinsic is only implemented for x86 and aarch64.
 
 ##### Overview:
 
-The '`llvm.sponentry`' intrinsic returns the stack pointer value at the entry
-of the current function calling this intrinsic.
+The '`llvm.sponentry`' intrinsic returns the stack pointer value at
+the entry of the current function calling this intrinsic.
 
 ##### Semantics:
 
@@ -13749,8 +13865,8 @@ Note this intrinsic is only verified on AArch64 and ARM.
 
 ##### Overview:
 
-The '`llvm.stackaddress`' intrinsic returns the starting address of the stack
-region that may be used by called functions.
+The '`llvm.stackaddress`' intrinsic returns the starting address of the
+stack region that may be used by called functions.
 
 ##### Semantics:
 
@@ -13774,8 +13890,8 @@ correct boundary address.
 
 ##### Overview:
 
-The '`llvm.frameaddress`' intrinsic attempts to return the target-specific
-frame pointer value for the specified stack frame.
+The '`llvm.frameaddress`' intrinsic attempts to return the
+target-specific frame pointer value for the specified stack frame.
 
 ##### Arguments:
 
@@ -13785,10 +13901,11 @@ etc. The argument is **required** to be a constant integer value.
 
 ##### Semantics:
 
-The '`llvm.frameaddress`' intrinsic either returns a pointer indicating the
-frame address of the specified call frame, or zero if it cannot be identified.
-The value returned by this intrinsic is likely to be incorrect or 0 for
-arguments other than zero, so it should only be used for debugging purposes.
+The '`llvm.frameaddress`' intrinsic either returns a pointer
+indicating the frame address of the specified call frame, or zero if it
+cannot be identified. The value returned by this intrinsic is likely to
+be incorrect or 0 for arguments other than zero, so it should only be
+used for debugging purposes.
 
 Note that calling this intrinsic does not prevent function inlining or other
 aggressive transformations, so the value returned may not be that of the
@@ -13808,8 +13925,8 @@ execution.
 
 ##### Semantics:
 
-If the caller has a `swiftasync` parameter, that argument will initially be
-stored at the returned address. If not, it will be initialized to null.
+If the caller has a `swiftasync` parameter, that argument will initially
+be stored at the returned address. If not, it will be initialized to null.
 
 #### '`llvm.localescape`' and '`llvm.localrecover`' Intrinsics
 
@@ -13828,16 +13945,16 @@ computed during frame layout of the caller of `llvm.localescape`.
 ##### Arguments:
 
 All arguments to '`llvm.localescape`' must be pointers to static allocas or
-casts of static allocas. Each function can only call '`llvm.localescape`' once,
-and it can only do so from the entry block.
+casts of static allocas. Each function can only call '`llvm.localescape`'
+once, and it can only do so from the entry block.
 
 The `func` argument to '`llvm.localrecover`' must be a constant bitcasted
 pointer to a function defined in the current module. The code generator cannot
 determine the frame allocation offset of functions defined in other modules.
 
-The `fp` argument to '`llvm.localrecover`' must be a frame pointer of a call
-frame that is currently live. The return value of '`llvm.localaddress`' is one
-way to produce such a value, but various runtimes also expose a suitable
+The `fp` argument to '`llvm.localrecover`' must be a frame pointer of a
+call frame that is currently live. The return value of '`llvm.localaddress`'
+is one way to produce such a value, but various runtimes also expose a suitable
 pointer in platform-specific ways.
 
 The `idx` argument to '`llvm.localrecover`' indicates which alloca passed to
@@ -13862,16 +13979,17 @@ the escaped allocas are allocated, which would break attempts to use
 
 ##### Overview:
 
-The '`llvm.seh.try.begin`' and '`llvm.seh.try.end`' intrinsics mark the
-boundary of a \_try region for Windows SEH Asynchronous Exception Handling.
+The '`llvm.seh.try.begin`' and '`llvm.seh.try.end`' intrinsics mark
+the boundary of a \_try region for Windows SEH Asynchronous Exception Handling.
 
 ##### Semantics:
 
 When a C-function is compiled with Windows SEH Asynchronous Exception option,
--feh_asynch (aka MSVC -EHa), these two intrinsics are injected to mark \_try
-boundary and to prevent potential exceptions from being moved across boundary.
-Any set of operations can then be confined to the region by reading their leaf
-inputs via volatile loads and writing their root outputs via volatile stores.
+-feh_asynch (aka MSVC -EHa), these two intrinsics are injected to mark
+\_try boundary and to prevent potential exceptions from being moved across
+boundary. Any set of operations can then be confined to the region by reading
+their leaf inputs via volatile loads and writing their root outputs via
+volatile stores.
 
 #### '`llvm.seh.scope.begin`' and '`llvm.seh.scope.end`' Intrinsics
 
@@ -13882,8 +14000,8 @@ inputs via volatile loads and writing their root outputs via volatile stores.
 
 ##### Overview:
 
-The '`llvm.seh.scope.begin`' and '`llvm.seh.scope.end`' intrinsics mark the
-boundary of a CPP object lifetime for Windows SEH Asynchronous Exception
+The '`llvm.seh.scope.begin`' and '`llvm.seh.scope.end`' intrinsics mark
+the boundary of a CPP object lifetime for Windows SEH Asynchronous Exception
 Handling (MSVC option -EHa).
 
 ##### Semantics:
@@ -13921,9 +14039,9 @@ no longer required (e.g., because the destructor is being called).
 ##### Overview:
 
 The '`llvm.read_register`', '`llvm.read_volatile_register`', and
-'`llvm.write_register`' intrinsics provide access to the named register. The
-register must be valid on the architecture being compiled to. The type needs to
-be compatible with the register being read.
+'`llvm.write_register`' intrinsics provide access to the named register.
+The register must be valid on the architecture being compiled to. The type
+needs to be compatible with the register being read.
 
 ##### Semantics:
 
@@ -13932,8 +14050,8 @@ return the current value of the register, where possible. The
 '`llvm.write_register`' intrinsic sets the current value of the register, where
 possible.
 
-A call to '`llvm.read_volatile_register`' is assumed to have side-effects and
-possibly return a different value each time (e.g., for a timer register).
+A call to '`llvm.read_volatile_register`' is assumed to have side-effects
+and possibly return a different value each time (e.g., for a timer register).
 
 This is useful to implement named register global variables that need to always
 be mapped to a specific register, as is common practice on bare-metal programs
@@ -13983,8 +14101,8 @@ restores the state of the stack to the state it was in when the
 
 ##### Overview:
 
-The '`llvm.stackrestore`' intrinsic is used to restore the state of the
-function stack to the state it was in when the corresponding
+The '`llvm.stackrestore`' intrinsic is used to restore the state of
+the function stack to the state it was in when the corresponding
 {ref}`llvm.stacksave <int_stacksave>` intrinsic executed. This is useful for
 implementing language features like scoped automatic variable sized arrays in
 C99. The address space should typically be the {ref}`alloca address space
@@ -14022,9 +14140,9 @@ along with the provided indices and source operand to compute a new pointer
 representing the result of a logical indexing into the basetype pointed by
 source.
 
-The `basetype` is only associated with `<source>` for this particular call. A
-frontend could possibly emit multiple structured GEP with the same source
-pointer but a different `basetype`.
+The `basetype` is only associated with `<source>` for this particular
+call. A frontend could possibly emit multiple structured
+GEP with the same source pointer but a different `basetype`.
 
 `[i32/i64] index, ...`: Indices used to traverse into the `basetype` and
 compute a pointer to the target element. Indices can be 32-bit or 64-bit
@@ -14042,26 +14160,27 @@ targeted element/field assuming `source` points to a physically laid out
 not necessarily match the one described by the datalayout.
 
 The first index determines which element/field of `basetype` is selected,
-computes the pointer to access this element/field assuming `source` points to
-the start of `basetype`. This pointer becomes the new `source`, the current
-type the new `basetype`, and the next indices is consumed until a scalar type
-is reached or all indices are consumed.
+computes the pointer to access this element/field assuming `source` points
+to the start of `basetype`.
+This pointer becomes the new `source`, the current type the new
+`basetype`, and the next indices is consumed until a scalar type is
+reached or all indices are consumed.
 
 All indices must be consumed, and it is illegal to index into a scalar type.
 Meaning the maximum number of indices depends on the depth of the basetype.
 
-Because this instruction performs a logical addressing, all indices are assumed
-to be inbounds. This means it is not possible to access the next element in the
-logical layout by overflowing:
+Because this instruction performs a logical addressing, all indices are
+assumed to be inbounds. This means it is not possible to access the next
+element in the logical layout by overflowing:
 
 -   If the indexed type is a struct with N fields, the index must be an
     immediate/constant value in the range `[0; N[`.
--   If indexing into an array or vector, the index can be a variable, but is
-    assumed to be inbounds with regards to the current basetype logical layout.
--   If the traversed type is an array or vector of N elements with `N > 0`, the
-    index is assumed to belong to `[0; N[`.
--   If the traversed type is an array of size `0`, the array size is assumed to
-    be known at runtime, and the instruction assumes the index is always
+-   If indexing into an array or vector, the index can be a variable, but
+    is assumed to be inbounds with regards to the current basetype logical layout.
+-   If the traversed type is an array or vector of N elements with `N > 0`,
+    the index is assumed to belong to `[0; N[`.
+-   If the traversed type is an array of size `0`, the array size is assumed
+    to be known at runtime, and the instruction assumes the index is always
     inbounds.
 
 In all cases **except** when the accessed type is a 0-sized array, indexing out
@@ -14105,8 +14224,8 @@ struct S {
 int val = my_struct->b;
 ```
 
-In this example, the frontend doesn't know the exact physical layout, but knows
-those logical layouts are lowered to the same physical layout:
+In this example, the frontend doesn't know the exact physical layout, but
+knows those logical layouts are lowered to the same physical layout:
 
 > -   `{ i32, i32, i32, i32 }`
 > -   `[ i32 x 4 ]`
@@ -14126,8 +14245,8 @@ Or:
 load i32, ptr %src
 ```
 
-This is, however, dependent on context that codegen has an insight on. The fact
-that `[ i32 x 4 ]` and `%S` are equivalent depends on the target.
+This is, however, dependent on context that codegen has an insight on. The
+fact that `[ i32 x 4 ]` and `%S` are equivalent depends on the target.
 
 (i_structured_alloca)=
 #### '`llvm.structured.alloca`' Intrinsic
@@ -14139,13 +14258,13 @@ that `[ i32 x 4 ]` and `%S` are equivalent depends on the target.
 
 ##### Overview:
 
-The '`llvm.structured.alloca`' intrinsic allocates uninitialized memory on the
-stack for a logical type, such as an aggregate, an array, or a scalar.
+The '`llvm.structured.alloca`' intrinsic allocates uninitialized memory on
+the stack for a logical type, such as an aggregate, an array, or a scalar.
 
 Unlike the standard {ref}`alloca <i_alloca>` instruction, the physical memory
-layout of a `llvm.structured.alloca` is completely opaque to the IR. Exact
-padding, size, alignment and subtype offsets is target-dependent and may differ
-from the standard `DataLayout`.
+layout of a `llvm.structured.alloca` is completely opaque to the IR.
+Exact padding, size, alignment and subtype offsets is target-dependent and
+may differ from the standard `DataLayout`.
 
 ##### Arguments:
 
@@ -14158,10 +14277,10 @@ type of the allocated element.
 The `llvm.structured.alloca` intrinsic allocates uninitialized memory for a
 logical type. Loading from uninitialized memory produces an undefined value.
 This intrinsic does not guarantee that the allocated memory will store a value
-of the given type, only that it allocates enough space for it on the
-destination target. While the type's size and layout are constant (independent
-of location), the exact padding and offsets between subtypes are opaque to the
-IR and are determined by the target's backend.
+of the given type, only that it allocates enough space for it on the destination
+target. While the type's size and layout are constant (independent of location),
+the exact padding and offsets between subtypes are opaque to the IR and are
+determined by the target's backend.
 
 The resulting pointer is in the {ref}`alloca address space <alloca_addrspace>`
 defined in the {ref}`datalayout string <langref_datalayout>`.
@@ -14251,11 +14370,12 @@ characteristics.
 
 ##### Arguments:
 
-`address` is the address to be prefetched, `rw` is the specifier determining if
-the fetch should be for a read (0) or write (1), and `locality` is a temporal
-locality specifier ranging from (0) - no locality, to (3) - extremely local
-keep in cache. The `cache type` specifies whether the prefetch is performed on
-the data (1) or instruction (0) cache. The `rw`, `locality` and `cache type`
+`address` is the address to be prefetched, `rw` is the specifier
+determining if the fetch should be for a read (0) or write (1), and
+`locality` is a temporal locality specifier ranging from (0) - no
+locality, to (3) - extremely local keep in cache. The `cache type`
+specifies whether the prefetch is performed on the data (1) or
+instruction (0) cache. The `rw`, `locality` and `cache type`
 arguments must be constant integers.
 
 ##### Semantics:
@@ -14273,13 +14393,14 @@ performance.
 
 ##### Overview:
 
-The '`llvm.pcmarker`' intrinsic is a method to export a Program Counter (PC) in
-a region of code to simulators and other tools. The method is target specific,
-but it is expected that the marker will use exported symbols to transmit the PC
-of the marker. The marker makes no guarantees that it will remain with any
-specific instruction after optimizations. It is possible that the presence of a
-marker will inhibit optimizations. The intended use is to be inserted after
-optimizations to allow correlations of simulation runs.
+The '`llvm.pcmarker`' intrinsic is a method to export a Program
+Counter (PC) in a region of code to simulators and other tools. The
+method is target specific, but it is expected that the marker will use
+exported symbols to transmit the PC of the marker. The marker makes no
+guarantees that it will remain with any specific instruction after
+optimizations. It is possible that the presence of a marker will inhibit
+optimizations. The intended use is to be inserted after optimizations to
+allow correlations of simulation runs.
 
 ##### Arguments:
 
@@ -14287,8 +14408,8 @@ optimizations to allow correlations of simulation runs.
 
 ##### Semantics:
 
-This intrinsic does not modify the behavior of the program. Backends that do
-not support this intrinsic may ignore it.
+This intrinsic does not modify the behavior of the program. Backends
+that do not support this intrinsic may ignore it.
 
 #### '`llvm.readcyclecounter`' Intrinsic
 
@@ -14357,8 +14478,8 @@ or a system call, if cache flushing requires special privileges.
 The default behavior is to emit a call to `__clear_cache` from the run time
 library.
 
-This intrinsic does *not* empty the instruction pipeline. Modifications of the
-current function are outside the scope of the intrinsic.
+This intrinsic does *not* empty the instruction pipeline. Modifications
+of the current function are outside the scope of the intrinsic.
 
 #### '`llvm.instrprof.increment`' Intrinsic
 
@@ -14385,8 +14506,8 @@ number of counters associated with `name`. It is an error if `hash` or
 `num-counters` differ between two instances of `instrprof.increment` that refer
 to the same name.
 
-The last argument refers to which of the counters for `name` should be
-incremented. It should be a value between 0 and `num-counters`.
+The last argument refers to which of the counters for `name` should
+be incremented. It should be a value between 0 and `num-counters`.
 
 ##### Semantics:
 
@@ -14398,16 +14519,16 @@ compiler runtime and consumed via the `llvm-profdata` tool.
 The intrinsic is lowered differently for contextual profiling by the
 `-ctx-instr-lower` pass. Here:
 
--   the entry basic block increment counter is lowered as a call to
-    compiler-rt, to either `__llvm_ctx_profile_start_context` or
-    `__llvm_ctx_profile_get_context`. Either returns a pointer to a context
-    object which contains a buffer into which counter increments can happen.
-    Note that the pointer value returned by compiler-rt may have its LSB set -
-    counter increments happen offset from the address with the LSB cleared.
+-   the entry basic block increment counter is lowered as a call to compiler-rt,
+    to either `__llvm_ctx_profile_start_context` or
+    `__llvm_ctx_profile_get_context`. Either returns a pointer to a context object
+    which contains a buffer into which counter increments can happen. Note that the
+    pointer value returned by compiler-rt may have its LSB set - counter increments
+    happen offset from the address with the LSB cleared.
 -   all the other lowerings of `llvm.instrprof.increment[.step]` happen within
     that context.
--   the context is assumed to be a local value to the function, and no
-    concurrency concerns need to be handled by LLVM.
+-   the context is assumed to be a local value to the function, and no concurrency
+    concerns need to be handled by LLVM.
 
 #### '`llvm.instrprof.increment.step`' Intrinsic
 
@@ -14419,9 +14540,9 @@ The intrinsic is lowered differently for contextual profiling by the
 
 ##### Overview:
 
-The '`llvm.instrprof.increment.step`' intrinsic is an extension to the
-'`llvm.instrprof.increment`' intrinsic with an additional fifth argument to
-specify the step of the increment.
+The '`llvm.instrprof.increment.step`' intrinsic is an extension to
+the '`llvm.instrprof.increment`' intrinsic with an additional fifth
+argument to specify the step of the increment.
 
 ##### Arguments:
 
@@ -14445,9 +14566,10 @@ See description of '`llvm.instrprof.increment`' intrinsic.
 ##### Overview:
 
 The '`llvm.instrprof.callsite`' intrinsic should be emitted before a callsite
-that's not to a \"fake\" callee (like another intrinsic or asm). It is used by
-contextual profiling and has side-effects. Its lowering happens in IR, and
-target-specific backends should never encounter it.
+that's not to a \"fake\" callee (like another intrinsic or asm). It is used
+by contextual profiling and has side-effects. Its lowering happens in IR,
+and target-specific backends should never encounter
+it.
 
 ##### Arguments:
 
@@ -14476,8 +14598,8 @@ The lowering of `llvm.instrprof.callsite` consists of:
     context of the `<index>` position into the subcontexts region.
 
 `__llvm_ctx_profile_{expected_callee|callsite}` are initialized by compiler-rt
-and are TLS. They are both vectors of pointers of size 2. The index into each
-is determined when the current function obtains the pointer to its context from
+and are TLS. They are both vectors of pointers of size 2. The index into each is
+determined when the current function obtains the pointer to its context from
 compiler-rt. The pointer's LSB gives the index.
 
 #### '`llvm.instrprof.timestamp`' Intrinsic
@@ -14535,16 +14657,16 @@ zero because this is more efficient on some targets.
 
 ##### Overview:
 
-The '`llvm.instrprof.value.profile`' intrinsic can be emitted by a frontend for
-use with instrumentation-based profiling. This will be lowered by the
-`-instrprof` pass to find out the target values, instrumented expressions take
-in a program at runtime.
+The '`llvm.instrprof.value.profile`' intrinsic can be emitted by a
+frontend for use with instrumentation-based profiling. This will be
+lowered by the `-instrprof` pass to find out the target values,
+instrumented expressions take in a program at runtime.
 
 ##### Arguments:
 
-The first argument is a pointer to a global variable containing the name of the
-entity being instrumented. `name` should generally be the (mangled) function
-name for a set of counters.
+The first argument is a pointer to a global variable containing the
+name of the entity being instrumented. `name` should generally be the
+(mangled) function name for a set of counters.
 
 The second argument is a hash value that can be used by the consumer of the
 profile data to detect changes to the instrumented source. It is an error if
@@ -14561,11 +14683,11 @@ should be \>= 0.
 
 ##### Semantics:
 
-This intrinsic represents the point where a call to a runtime routine should be
-inserted for value profiling of target expressions. `-instrprof` pass will
-generate the appropriate data structures and replace the
-`llvm.instrprof.value.profile` intrinsic with the call to the profile runtime
-library with proper arguments.
+This intrinsic represents the point where a call to a runtime routine
+should be inserted for value profiling of target expressions. `-instrprof`
+pass will generate the appropriate data structures and replace the
+`llvm.instrprof.value.profile` intrinsic with the call to the profile
+runtime library with proper arguments.
 
 #### '`llvm.instrprof.mcdc.parameters`' Intrinsic
 
@@ -14576,8 +14698,8 @@ library with proper arguments.
 
 ##### Overview:
 
-The '`llvm.instrprof.mcdc.parameters`' intrinsic is used to initiate MC/DC code
-coverage instrumentation for a function.
+The '`llvm.instrprof.mcdc.parameters`' intrinsic is used to initiate MC/DC
+code coverage instrumentation for a function.
 
 ##### Arguments:
 
@@ -14585,8 +14707,8 @@ The first argument is a pointer to a global variable containing the name of the
 entity being instrumented. This should generally be the (mangled) function name
 for a set of counters.
 
-The second argument is a hash value that can be used by the consumer of the
-profile data to detect changes to the instrumented source.
+The second argument is a hash value that can be used by the consumer
+of the profile data to detect changes to the instrumented source.
 
 The third argument is the number of bitmap bits required by the function to
 record the number of test vectors executed for each boolean expression.
@@ -14594,10 +14716,10 @@ record the number of test vectors executed for each boolean expression.
 ##### Semantics:
 
 This intrinsic represents basic MC/DC parameters initiating one or more MC/DC
-instrumentation sequences in a function. It will cause the `-instrprof` pass to
-generate the appropriate data structures and the code to instrument MC/DC test
-vectors in a format that can be written out by a compiler runtime and consumed
-via the `llvm-profdata` tool.
+instrumentation sequences in a function. It will cause the `-instrprof` pass
+to generate the appropriate data structures and the code to instrument MC/DC
+test vectors in a format that can be written out by a compiler runtime and
+consumed via the `llvm-profdata` tool.
 
 #### '`llvm.instrprof.mcdc.tvbitmap.update`' Intrinsic
 
@@ -14622,8 +14744,8 @@ The first argument is a pointer to a global variable containing the name of the
 entity being instrumented. This should generally be the (mangled) function name
 for a set of counters.
 
-The second argument is a hash value that can be used by the consumer of the
-profile data to detect changes to the instrumented source.
+The second argument is a hash value that can be used by the consumer
+of the profile data to detect changes to the instrumented source.
 
 The third argument is the bit index into the global test vector bitmap
 corresponding to the function.
@@ -14669,17 +14791,17 @@ address space must be the {ref}`globals address space <globals_addrspace>`.
 
 ##### Overview:
 
-The '`llvm.call.preallocated.setup`' intrinsic returns a token which can be
-used with a call's `"preallocated"` operand bundle to indicate that certain
-arguments are allocated and initialized before the call.
+The '`llvm.call.preallocated.setup`' intrinsic returns a token which can
+be used with a call's `"preallocated"` operand bundle to indicate that
+certain arguments are allocated and initialized before the call.
 
 ##### Semantics:
 
 The '`llvm.call.preallocated.setup`' intrinsic returns a token which is
 associated with at most one call. The token can be passed to
-'`@llvm.call.preallocated.arg`' to get a pointer to get that corresponding
-argument. The token must be the parameter to a `"preallocated"` operand bundle
-for the corresponding call.
+'`@llvm.call.preallocated.arg`' to get a pointer to get that
+corresponding argument. The token must be the parameter to a
+`"preallocated"` operand bundle for the corresponding call.
 
 Nested calls to '`llvm.call.preallocated.setup`' are allowed, but must be
 properly nested. e.g.
@@ -14715,16 +14837,16 @@ corresponding preallocated argument for the preallocated call.
 ##### Semantics:
 
 The '`llvm.call.preallocated.arg`' intrinsic returns a pointer to the
-`%arg_index`th argument with the `preallocated` attribute for the call
-associated with the `%setup_token`, which must be from
+`%arg_index`th argument with the `preallocated` attribute for
+the call associated with the `%setup_token`, which must be from
 '`llvm.call.preallocated.setup`'.
 
-A call to '`llvm.call.preallocated.arg`' must have a call site `preallocated`
-attribute. The type of the `preallocated` attribute must match the type used by
-the `preallocated` attribute of the corresponding argument at the preallocated
-call. The type is used in the case that an `llvm.call.preallocated.setup` does
-not have a corresponding call (e.g., due to DCE), where otherwise we cannot
-know how large the arguments are.
+A call to '`llvm.call.preallocated.arg`' must have a call site
+`preallocated` attribute. The type of the `preallocated` attribute must
+match the type used by the `preallocated` attribute of the corresponding
+argument at the preallocated call. The type is used in the case that an
+`llvm.call.preallocated.setup` does not have a corresponding call (e.g., due
+to DCE), where otherwise we cannot know how large the arguments are.
 
 It is undefined behavior if this is called with a token from an
 '`llvm.call.preallocated.setup`' if another '`llvm.call.preallocated.setup`'
@@ -14747,11 +14869,11 @@ by a '`llvm.call.preallocated.setup`'.
 
 The token argument must be a '`llvm.call.preallocated.setup`'.
 
-The '`llvm.call.preallocated.teardown`' intrinsic cleans up the stack allocated
-by the corresponding '`llvm.call.preallocated.setup`'. Exactly one of this or
-the preallocated call must be called to prevent stack leaks. It is undefined
-behavior to call both a '`llvm.call.preallocated.teardown`' and the
-preallocated call for a given '`llvm.call.preallocated.setup`'.
+The '`llvm.call.preallocated.teardown`' intrinsic cleans up the stack
+allocated by the corresponding '`llvm.call.preallocated.setup`'. Exactly
+one of this or the preallocated call must be called to prevent stack leaks.
+It is undefined behavior to call both a '`llvm.call.preallocated.teardown`'
+and the preallocated call for a given '`llvm.call.preallocated.setup`'.
 
 For example, if the stack is allocated for a preallocated call by a
 '`llvm.call.preallocated.setup`', then an initializer function called on an
@@ -14782,18 +14904,18 @@ ret void
 
 ### Standard C/C++ Library Intrinsics
 
-LLVM provides intrinsics for a few important standard C/C++ library functions.
-These intrinsics allow source-language front-ends to pass information about the
-alignment of the pointer arguments to the code generator, providing opportunity
-for more efficient code generation.
+LLVM provides intrinsics for a few important standard C/C++ library
+functions. These intrinsics allow source-language front-ends to pass
+information about the alignment of the pointer arguments to the code
+generator, providing opportunity for more efficient code generation.
 
 (int_abs)=
 #### '`llvm.abs.*`' Intrinsic
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.abs` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `llvm.abs` on any
+integer bit width or any vector of integer elements.
 
     declare i32 @llvm.abs.i32(i32 <src>, i1 <is_int_min_poison>)
     declare <4 x i32> @llvm.abs.v4i32(<4 x i32> <src>, i1 <is_int_min_poison>)
@@ -14826,8 +14948,8 @@ argument or each element of a vector argument.\". If the first argument is
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `@llvm.smax` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `@llvm.smax` on any
+integer bit width or any vector of integer elements.
 
     declare i32 @llvm.smax.i32(i32 %a, i32 %b)
     declare <4 x i32> @llvm.smax.v4i32(<4 x i32> %a, <4 x i32> %b)
@@ -14849,8 +14971,8 @@ type must match the argument type.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `@llvm.smin` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `@llvm.smin` on any
+integer bit width or any vector of integer elements.
 
     declare i32 @llvm.smin.i32(i32 %a, i32 %b)
     declare <4 x i32> @llvm.smin.v4i32(<4 x i32> %a, <4 x i32> %b)
@@ -14872,17 +14994,17 @@ type must match the argument type.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `@llvm.umax` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `@llvm.umax` on any
+integer bit width or any vector of integer elements.
 
     declare i32 @llvm.umax.i32(i32 %a, i32 %b)
     declare <4 x i32> @llvm.umax.v4i32(<4 x i32> %a, <4 x i32> %b)
 
 ##### Overview:
 
-Return the larger of `%a` and `%b` comparing the values as unsigned integers.
-Vector intrinsics operate on a per-element basis. The larger element of `%a`
-and `%b` at a given index is returned for that index.
+Return the larger of `%a` and `%b` comparing the values as unsigned
+integers. Vector intrinsics operate on a per-element basis. The larger element
+of `%a` and `%b` at a given index is returned for that index.
 
 ##### Arguments:
 
@@ -14895,17 +15017,17 @@ type must match the argument type.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `@llvm.umin` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `@llvm.umin` on any
+integer bit width or any vector of integer elements.
 
     declare i32 @llvm.umin.i32(i32 %a, i32 %b)
     declare <4 x i32> @llvm.umin.v4i32(<4 x i32> %a, <4 x i32> %b)
 
 ##### Overview:
 
-Return the smaller of `%a` and `%b` comparing the values as unsigned integers.
-Vector intrinsics operate on a per-element basis. The smaller element of `%a`
-and `%b` at a given index is returned for that index.
+Return the smaller of `%a` and `%b` comparing the values as unsigned
+integers. Vector intrinsics operate on a per-element basis. The smaller element
+of `%a` and `%b` at a given index is returned for that index.
 
 ##### Arguments:
 
@@ -14918,8 +15040,8 @@ type must match the argument type.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `@llvm.scmp` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `@llvm.scmp` on any
+integer bit width or any vector of integer elements.
 
     declare i2 @llvm.scmp.i2.i32(i32 %a, i32 %b)
     declare <4 x i32> @llvm.scmp.v4i32.v4i32(<4 x i32> %a, <4 x i32> %b)
@@ -14942,8 +15064,8 @@ values.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `@llvm.ucmp` on any integer bit
-width or any vector of integer elements.
+This is an overloaded intrinsic. You can use `@llvm.ucmp` on any
+integer bit width or any vector of integer elements.
 
     declare i2 @llvm.ucmp.i2.i32(i32 %a, i32 %b)
     declare <4 x i32> @llvm.ucmp.v4i32.v4i32(<4 x i32> %a, <4 x i32> %b)
@@ -14977,8 +15099,8 @@ however.
 
 ##### Overview:
 
-The '`llvm.memcpy.*`' intrinsics copy a block of memory from the source
-location to the destination location.
+The '`llvm.memcpy.*`' intrinsics copy a block of memory from the
+source location to the destination location.
 
 Note that, unlike the standard libc function, the `llvm.memcpy.*` intrinsics do
 not return a value, takes extra isvolatile arguments and the pointers can be in
@@ -14986,9 +15108,10 @@ specified address spaces.
 
 ##### Arguments:
 
-The first argument is a pointer to the destination, the second is a pointer to
-the source. The third argument is an integer argument specifying the number of
-bytes to copy, and the fourth is a boolean indicating a volatile access.
+The first argument is a pointer to the destination, the second is a
+pointer to the source. The third argument is an integer argument
+specifying the number of bytes to copy, and the fourth is a
+boolean indicating a volatile access.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the first
 and second arguments.
@@ -15031,14 +15154,15 @@ location to the destination location and guarantees that no external functions
 are called.
 
 Note that, unlike the standard libc function, the `llvm.memcpy.inline.*`
-intrinsics do not return a value, takes extra isvolatile arguments and the
-pointers can be in specified address spaces.
+intrinsics do not return a value, takes extra isvolatile
+arguments and the pointers can be in specified address spaces.
 
 ##### Arguments:
 
-The first argument is a pointer to the destination, the second is a pointer to
-the source. The third argument is an integer argument specifying the number of
-bytes to copy, and the fourth is a boolean indicating a volatile access.
+The first argument is a pointer to the destination, the second is a
+pointer to the source. The third argument is an integer argument
+specifying the number of bytes to copy, and the fourth is a
+boolean indicating a volatile access.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the first
 and second arguments.
@@ -15077,15 +15201,16 @@ The '`llvm.memmove.*`' intrinsics move a block of memory from the source
 location to the destination location. It is similar to the '`llvm.memcpy`'
 intrinsic but allows the two memory locations to overlap.
 
-Note that, unlike the standard libc function, the `llvm.memmove.*` intrinsics
-do not return a value, takes an extra isvolatile argument and the pointers can
-be in specified address spaces.
+Note that, unlike the standard libc function, the `llvm.memmove.*`
+intrinsics do not return a value, takes an extra isvolatile
+argument and the pointers can be in specified address spaces.
 
 ##### Arguments:
 
-The first argument is a pointer to the destination, the second is a pointer to
-the source. The third argument is an integer argument specifying the number of
-bytes to copy, and the fourth is a boolean indicating a volatile access.
+The first argument is a pointer to the destination, the second is a
+pointer to the source. The third argument is an integer argument
+specifying the number of bytes to copy, and the fourth is a
+boolean indicating a volatile access.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the first
 and second arguments.
@@ -15125,9 +15250,9 @@ bit widths.
 The '`llvm.memset.*`' intrinsics fill a block of memory with a particular byte
 value.
 
-Note that, unlike the standard libc function, the `llvm.memset` intrinsic does
-not return a value and takes an extra volatile argument. Also, the destination
-can be in an arbitrary address space.
+Note that, unlike the standard libc function, the `llvm.memset`
+intrinsic does not return a value and takes an extra volatile
+argument. Also, the destination can be in an arbitrary address space.
 
 ##### Arguments:
 
@@ -15179,10 +15304,10 @@ pointer can be in specified address spaces.
 
 ##### Arguments:
 
-The first argument is a pointer to the destination to fill, the second is the
-byte value with which to fill it, the third argument is a constant integer
-argument specifying the number of bytes to fill, and the fourth is a boolean
-indicating a volatile access.
+The first argument is a pointer to the destination to fill, the second
+is the byte value with which to fill it, the third argument is a constant
+integer argument specifying the number of bytes to fill, and the fourth
+is a boolean indicating a volatile access.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the first
 argument.
@@ -15226,10 +15351,10 @@ expected performance and code size impact.
 
 ##### Arguments:
 
-The first argument is a pointer to the destination to fill, the second is the
-value with which to fill it, the third argument is an integer argument
-specifying the number of times to fill the value, and the fourth is a boolean
-indicating a volatile access.
+The first argument is a pointer to the destination to fill, the second
+is the value with which to fill it, the third argument is an integer
+argument specifying the number of times to fill the value, and the fourth is a
+boolean indicating a volatile access.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the first
 argument.
@@ -15241,11 +15366,11 @@ not very cleanly specified and it is unwise to depend on it.
 ##### Semantics:
 
 The '`llvm.experimental.memset.pattern*`' intrinsic fills memory starting at
-the destination location with the given pattern `<count>` times, incrementing
-by the allocation size of the type each time. The stores follow the usual
-semantics of store instructions, including regarding endianness and padding. If
-the argument is known to be aligned to some boundary, this can be specified as
-an attribute on the argument.
+the destination location with the given pattern `<count>` times,
+incrementing by the allocation size of the type each time. The stores follow
+the usual semantics of store instructions, including regarding endianness and
+padding. If the argument is known to be aligned to some boundary, this can be
+specified as an attribute on the argument.
 
 If `<count>` is 0, it is no-op modulo the behavior of attributes attached to
 the arguments. If `<count>` is not a well-defined value, the behavior is
@@ -15301,10 +15426,10 @@ the C type `int`.
 
 ##### Overview:
 
-The '`llvm.powi.*`' intrinsics return the first operand raised to the specified
-(positive or negative) power. The order of evaluation of multiplications is not
-defined. When a vector of floating-point type is used, the second argument
-remains a scalar integer value.
+The '`llvm.powi.*`' intrinsics return the first operand raised to the
+specified (positive or negative) power. The order of evaluation of
+multiplications is not defined. When a vector of floating-point type is
+used, the second argument remains a scalar integer value.
 
 ##### Arguments:
 
@@ -15757,8 +15882,8 @@ or vector of floating-point type. Not all targets support all types however.
 
 ##### Overview:
 
-The '`llvm.pow.*`' intrinsics return the first operand raised to the specified
-(positive or negative) power.
+The '`llvm.pow.*`' intrinsics return the first operand raised to the
+specified (positive or negative) power.
 
 ##### Arguments:
 
@@ -15931,8 +16056,8 @@ vector of integer values with the same number of elements as the argument.
 
 ##### Semantics:
 
-This intrinsic splits a floating point value into a normalized fractional
-component and integral exponent.
+This intrinsic splits a floating point value into a normalized
+fractional component and integral exponent.
 
 For a non-zero argument, returns the argument multiplied by some power of two
 such that the absolute value of the returned value is in the range \[0.5, 1.0),
@@ -16065,8 +16190,8 @@ The arguments and return value are floating-point numbers of the same type.
 
 ##### Semantics:
 
-Return the same value as the IEEE 754 fusedMultiplyAdd operation. This is
-assumed to not trap or set `errno`.
+Return the same value as the IEEE 754 fusedMultiplyAdd operation. This
+is assumed to not trap or set `errno`.
 
 When specified with the fast-math-flag 'afn', the result may be approximated
 using a less accurate calculation.
@@ -16103,8 +16228,8 @@ a NaN, then the quiet/signaling bit and payload are perfectly preserved.
 (i_fminmax_family)=
 #### Floating-point min/max intrinsics comparison
 
-LLVM supports three pairs of floating-point min/max intrinsics, which differ in
-their handling of {ref}`NaN values <floatnan>`:
+LLVM supports three pairs of floating-point min/max intrinsics, which differ
+in their handling of {ref}`NaN values <floatnan>`:
 
 > -   `llvm.minimum` and `llvm.maximum`: Return NaN if one the arguments is
 >     NaN.
@@ -16168,9 +16293,9 @@ operand may non-deterministically return either operand. Contrary to normal
 `nsz` semantics, if both operands have the same sign, the result must also have
 the same sign.
 
-When used with the `nsz` flag, this intrinsic follows the semantics of `fmin`
-in C and `minNum` in IEEE 754-2008, except for signaling NaN inputs, which
-follow {ref}`LLVM's usual signaling NaN behavior <floatnan>` instead.
+When used with the `nsz` flag, this intrinsic follows the semantics of
+`fmin` in C and `minNum` in IEEE 754-2008, except for signaling NaN inputs,
+which follow {ref}`LLVM's usual signaling NaN behavior <floatnan>` instead.
 
 The `llvm.minnum` intrinsic can be refined into `llvm.minimumnum`, as the
 latter exhibits a subset of behaviors of the former.
@@ -16221,9 +16346,9 @@ operand may non-deterministically return either operand. Contrary to normal
 `nsz` semantics, if both operands have the same sign, the result must also have
 the same sign.
 
-When used with the `nsz` flag, this intrinsic follows the semantics of `fmax`
-in C and `maxNum` in IEEE 754-2008, except for signaling NaN inputs, which
-follow {ref}`LLVM's usual signaling NaN behavior <floatnan>` instead.
+When used with the `nsz` flag, this intrinsic follows the semantics of
+`fmax` in C and `maxNum` in IEEE 754-2008, except for signaling NaN inputs,
+which follow {ref}`LLVM's usual signaling NaN behavior <floatnan>` instead.
 
 The `llvm.maxnum` intrinsic can be refined into `llvm.maximumnum`, as the
 latter exhibits a subset of behaviors of the former.
@@ -16250,8 +16375,8 @@ types however.
 
 ##### Overview:
 
-The '`llvm.minimum.*`' intrinsics return the minimum of the two arguments,
-propagating NaNs and treating -0.0 as less than +0.0.
+The '`llvm.minimum.*`' intrinsics return the minimum of the two
+arguments, propagating NaNs and treating -0.0 as less than +0.0.
 
 ##### Arguments:
 
@@ -16289,8 +16414,8 @@ types however.
 
 ##### Overview:
 
-The '`llvm.maximum.*`' intrinsics return the maximum of the two arguments,
-propagating NaNs and treating -0.0 as less than +0.0.
+The '`llvm.maximum.*`' intrinsics return the maximum of the two
+arguments, propagating NaNs and treating -0.0 as less than +0.0.
 
 ##### Arguments:
 
@@ -16328,8 +16453,8 @@ types however.
 
 ##### Overview:
 
-The '`llvm.minimumnum.*`' intrinsics return the minimum of the two arguments,
-not propagating NaNs and treating -0.0 as less than +0.0.
+The '`llvm.minimumnum.*`' intrinsics return the minimum of the two
+arguments, not propagating NaNs and treating -0.0 as less than +0.0.
 
 ##### Arguments:
 
@@ -16338,9 +16463,9 @@ The arguments and return value are floating-point numbers of the same type.
 ##### Semantics:
 
 If both operands are NaNs (including sNaN), returns a {ref}`NaN <floatnan>`. If
-one operand is NaN (including sNaN) and another operand is a number, return the
-number. Otherwise returns the lesser of the two arguments. -0.0 is considered
-to be less than +0.0 for this intrinsic.
+one operand is NaN (including sNaN) and another operand is a number,
+return the number. Otherwise returns the lesser of the two
+arguments. -0.0 is considered to be less than +0.0 for this intrinsic.
 
 If the `nsz` flag is specified, `llvm.minimumnum` with one +0.0 and one -0.0
 operand may non-deterministically return either operand. Contrary to normal
@@ -16371,8 +16496,8 @@ types however.
 
 ##### Overview:
 
-The '`llvm.maximumnum.*`' intrinsics return the maximum of the two arguments,
-not propagating NaNs and treating -0.0 as less than +0.0.
+The '`llvm.maximumnum.*`' intrinsics return the maximum of the two
+arguments, not propagating NaNs and treating -0.0 as less than +0.0.
 
 ##### Arguments:
 
@@ -16453,8 +16578,8 @@ The argument and return value are floating-point numbers of the same type.
 
 ##### Semantics:
 
-This function returns the same values as the libm `floor` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `floor` functions
+would, and handles error conditions in the same way.
 
 (int_ceil)=
 #### '`llvm.ceil.*`' Intrinsic
@@ -16480,8 +16605,8 @@ The argument and return value are floating-point numbers of the same type.
 
 ##### Semantics:
 
-This function returns the same values as the libm `ceil` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `ceil` functions
+would, and handles error conditions in the same way.
 
 (int_llvm_trunc)=
 #### '`llvm.trunc.*`' Intrinsic
@@ -16499,8 +16624,8 @@ or vector of floating-point type. Not all targets support all types however.
 
 ##### Overview:
 
-The '`llvm.trunc.*`' intrinsics returns the operand rounded to the nearest
-integer not larger in magnitude than the operand.
+The '`llvm.trunc.*`' intrinsics returns the operand rounded to the
+nearest integer not larger in magnitude than the operand.
 
 ##### Arguments:
 
@@ -16508,8 +16633,8 @@ The argument and return value are floating-point numbers of the same type.
 
 ##### Semantics:
 
-This function returns the same values as the libm `trunc` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `trunc` functions
+would, and handles error conditions in the same way.
 
 (int_rint)=
 #### '`llvm.rint.*`' Intrinsic
@@ -16602,8 +16727,8 @@ The argument and return value are floating-point numbers of the same type.
 
 ##### Semantics:
 
-This function returns the same values as the libm `round` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `round`
+functions would, and handles error conditions in the same way.
 
 (int_roundeven)=
 #### '`llvm.roundeven.*`' Intrinsic
@@ -16623,8 +16748,8 @@ types however.
 ##### Overview:
 
 The '`llvm.roundeven.*`' intrinsics returns the operand rounded to the nearest
-integer in floating-point format rounding halfway cases to even (that is, to
-the nearest value that is an even integer).
+integer in floating-point format rounding halfway cases to even (that is, to the
+nearest value that is an even integer).
 
 ##### Arguments:
 
@@ -16633,8 +16758,8 @@ The argument and return value are floating-point numbers of the same type.
 ##### Semantics:
 
 This function implements IEEE 754 operation `roundToIntegralTiesToEven`. It
-also behaves in the same way as C standard function `roundeven`, including that
-it disregards rounding mode and does not raise floating point exceptions.
+also behaves in the same way as C standard function `roundeven`, including
+that it disregards rounding mode and does not raise floating point exceptions.
 
 #### '`llvm.lround.*`' Intrinsic
 
@@ -16775,8 +16900,8 @@ result type, the return value is a non-deterministic value (equivalent to
 
 ### Bit Manipulation Intrinsics
 
-LLVM provides intrinsics for a few important bit manipulation operations. These
-allow efficient code generation for some algorithms.
+LLVM provides intrinsics for a few important bit manipulation
+operations. These allow efficient code generation for some algorithms.
 
 (int_bitreverse)=
 #### '`llvm.bitreverse.*`' Intrinsics
@@ -16809,8 +16934,8 @@ is not affected.
 
 ##### Syntax:
 
-This is an overloaded intrinsic function. You can use bswap on any integer type
-that is an even number of bytes (i.e., BitWidth % 16 == 0).
+This is an overloaded intrinsic function. You can use bswap on any
+integer type that is an even number of bytes (i.e., BitWidth % 16 == 0).
 
     declare i16 @llvm.bswap.i16(i16 <id>)
     declare i32 @llvm.bswap.i32(i32 <id>)
@@ -16840,9 +16965,9 @@ affected.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.ctpop` on any integer bit
-width, or on any vector with integer elements. Not all targets support all bit
-widths or vector types, however.
+This is an overloaded intrinsic. You can use `llvm.ctpop` on any integer
+bit width, or on any vector with integer elements. Not all targets
+support all bit widths or vector types, however.
 
     declare i8 @llvm.ctpop.i8(i8  <src>)
     declare i16 @llvm.ctpop.i16(i16 <src>)
@@ -16872,9 +16997,9 @@ element of a vector.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.ctlz` on any integer bit
-width, or any vector whose elements are integers. Not all targets support all
-bit widths or vector types, however.
+This is an overloaded intrinsic. You can use `llvm.ctlz` on any
+integer bit width, or any vector whose elements are integers. Not all
+targets support all bit widths or vector types, however.
 
     declare i8   @llvm.ctlz.i8  (i8   <src>, i1 <is_zero_poison>)
     declare <2 x i37> @llvm.ctlz.v2i37(<2 x i37> <src>, i1 <is_zero_poison>)
@@ -16886,9 +17011,9 @@ zeros in a variable.
 
 ##### Arguments:
 
-The first argument is the value to be counted. This argument may be of any
-integer type, or a vector with integer element type. The return type must match
-the first argument type.
+The first argument is the value to be counted. This argument may be of
+any integer type, or a vector with integer element type. The return
+type must match the first argument type.
 
 The second argument is a constant flag that indicates whether the intrinsic
 returns a valid result if the first argument is zero. If the first argument is
@@ -16908,9 +17033,9 @@ otherwise. For example, `llvm.ctlz(i32 2) = 30`.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.cttz` on any integer bit
-width, or any vector of integer elements. Not all targets support all bit
-widths or vector types, however.
+This is an overloaded intrinsic. You can use `llvm.cttz` on any
+integer bit width, or any vector of integer elements. Not all targets
+support all bit widths or vector types, however.
 
     declare i42   @llvm.cttz.i42  (i42   <src>, i1 <is_zero_poison>)
     declare <2 x i32> @llvm.cttz.v2i32(<2 x i32> <src>, i1 <is_zero_poison>)
@@ -16922,9 +17047,9 @@ zeros.
 
 ##### Arguments:
 
-The first argument is the value to be counted. This argument may be of any
-integer type, or a vector with integer element type. The return type must match
-the first argument type.
+The first argument is the value to be counted. This argument may be of
+any integer type, or a vector with integer element type. The return
+type must match the first argument type.
 
 The second argument is a constant flag that indicates whether the intrinsic
 returns a valid result if the first argument is zero. If the first argument is
@@ -16944,9 +17069,9 @@ otherwise. For example, `llvm.cttz(2) = 1`.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.fshl` on any integer bit
-width or any vector of integer elements. Not all targets support all bit widths
-or vector types, however.
+This is an overloaded intrinsic. You can use `llvm.fshl` on any
+integer bit width or any vector of integer elements. Not all targets
+support all bit widths or vector types, however.
 
     declare i8  @llvm.fshl.i8 (i8 %a, i8 %b, i8 %c)
     declare i64 @llvm.fshl.i64(i64 %a, i64 %b, i64 %c)
@@ -16955,13 +17080,13 @@ or vector types, however.
 ##### Overview:
 
 The '`llvm.fshl`' family of intrinsic functions performs a funnel shift left:
-the first two values are concatenated as { %a : %b } (%a is the most
-significant bits of the wide value), the combined value is shifted left, and
-the most significant bits are extracted to produce a result that is the same
-size as the original arguments. If the first 2 arguments are identical, this is
-equivalent to a rotate left operation. For vector types, the operation occurs
-for each element of the vector. The shift argument is treated as an unsigned
-amount modulo the element size of the arguments.
+the first two values are concatenated as { %a : %b } (%a is the most significant
+bits of the wide value), the combined value is shifted left, and the most
+significant bits are extracted to produce a result that is the same size as the
+original arguments. If the first 2 arguments are identical, this is equivalent
+to a rotate left operation. For vector types, the operation occurs for each
+element of the vector. The shift argument is treated as an unsigned amount
+modulo the element size of the arguments.
 
 ##### Arguments:
 
@@ -16984,9 +17109,9 @@ type.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.fshr` on any integer bit
-width or any vector of integer elements. Not all targets support all bit widths
-or vector types, however.
+This is an overloaded intrinsic. You can use `llvm.fshr` on any
+integer bit width or any vector of integer elements. Not all targets
+support all bit widths or vector types, however.
 
     declare i8  @llvm.fshr.i8 (i8 %a, i8 %b, i8 %c)
     declare i64 @llvm.fshr.i64(i64 %a, i64 %b, i64 %c)
@@ -16995,13 +17120,13 @@ or vector types, however.
 ##### Overview:
 
 The '`llvm.fshr`' family of intrinsic functions performs a funnel shift right:
-the first two values are concatenated as { %a : %b } (%a is the most
-significant bits of the wide value), the combined value is shifted right, and
-the least significant bits are extracted to produce a result that is the same
-size as the original arguments. If the first 2 arguments are identical, this is
-equivalent to a rotate right operation. For vector types, the operation occurs
-for each element of the vector. The shift argument is treated as an unsigned
-amount modulo the element size of the arguments.
+the first two values are concatenated as { %a : %b } (%a is the most significant
+bits of the wide value), the combined value is shifted right, and the least
+significant bits are extracted to produce a result that is the same size as the
+original arguments. If the first 2 arguments are identical, this is equivalent
+to a rotate right operation. For vector types, the operation occurs for each
+element of the vector. The shift argument is treated as an unsigned amount
+modulo the element size of the arguments.
 
 ##### Arguments:
 
@@ -17024,8 +17149,8 @@ type.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.clmul` on any integer or
-vectors of integer elements.
+This is an overloaded intrinsic. You can use `llvm.clmul` on any integer
+or vectors of integer elements.
 
     declare i16 @llvm.clmul.i16(i16 %a, i16 %b)
     declare i32 @llvm.clmul.i32(i32 %a, i32 %b)
@@ -17040,15 +17165,15 @@ low-bits.
 
 ##### Arguments:
 
-The arguments may be any integer type or vector of integer type. Both arguments
-and result must have the same type.
+The arguments may be any integer type or vector of integer type. Both
+arguments and result must have the same type.
 
 ##### Semantics:
 
 The '`llvm.clmul`' intrinsic computes carry-less multiply of its arguments,
 which is the result of applying the standard multiplication algorithm, where
-all of the additions are replaced with XORs, and returns the low-bits. The
-vector variants operate lane-wise.
+all of the additions are replaced with XORs, and returns the low-bits.
+The vector variants operate lane-wise.
 
 ##### Example:
 
@@ -17071,12 +17196,13 @@ the first element of the struct returned by `llvm.sadd.with.overflow.i32` is
 always the same as the result of a 32-bit `add` instruction with the same
 operands, where the `add` is *not* modified by an `nsw` or `nuw` flag.
 
-The second element of the result is an `i1` that is 1 if the arithmetic
-operation overflowed and 0 otherwise. An operation overflows if, for any values
-of its operands `A` and `B` and for any `N` larger than the operands' width,
-`ext(A op B) to iN` is not equal to `(ext(A) to iN) op (ext(B) to iN)` where
-`ext` is `sext` for signed overflow and `zext` for unsigned overflow, and `op`
-is the underlying arithmetic operation.
+The second element of the result is an `i1` that is 1 if the
+arithmetic operation overflowed and 0 otherwise. An operation
+overflows if, for any values of its operands `A` and `B` and for
+any `N` larger than the operands' width, `ext(A op B) to iN` is
+not equal to `(ext(A) to iN) op (ext(B) to iN)` where `ext` is
+`sext` for signed overflow and `zext` for unsigned overflow, and
+`op` is the underlying arithmetic operation.
 
 The behavior of these intrinsics is well-defined for all argument values.
 
@@ -17084,8 +17210,8 @@ The behavior of these intrinsics is well-defined for all argument values.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.sadd.with.overflow` on any
-integer bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.sadd.with.overflow`
+on any integer bit width or vectors of integers.
 
     declare {i16, i1} @llvm.sadd.with.overflow.i16(i16 %a, i16 %b)
     declare {i32, i1} @llvm.sadd.with.overflow.i32(i32 %a, i32 %b)
@@ -17125,8 +17251,8 @@ br i1 %obit, label %overflow, label %normal
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.uadd.with.overflow` on any
-integer bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.uadd.with.overflow`
+on any integer bit width or vectors of integers.
 
     declare {i16, i1} @llvm.uadd.with.overflow.i16(i16 %a, i16 %b)
     declare {i32, i1} @llvm.uadd.with.overflow.i32(i32 %a, i32 %b)
@@ -17135,9 +17261,9 @@ integer bit width or vectors of integers.
 
 ##### Overview:
 
-The '`llvm.uadd.with.overflow`' family of intrinsic functions perform an
-unsigned addition of the two arguments, and indicate whether a carry occurred
-during the unsigned summation.
+The '`llvm.uadd.with.overflow`' family of intrinsic functions perform
+an unsigned addition of the two arguments, and indicate whether a carry
+occurred during the unsigned summation.
 
 ##### Arguments:
 
@@ -17148,10 +17274,11 @@ the two values that will undergo unsigned addition.
 
 ##### Semantics:
 
-The '`llvm.uadd.with.overflow`' family of intrinsic functions perform an
-unsigned addition of the two arguments. They return a structure \-\-- the first
-element of which is the sum, and the second element of which is a bit
-specifying if the unsigned summation resulted in a carry.
+The '`llvm.uadd.with.overflow`' family of intrinsic functions perform
+an unsigned addition of the two arguments. They return a structure \-\--
+the first element of which is the sum, and the second element of which
+is a bit specifying if the unsigned summation resulted in a
+carry.
 
 ##### Examples:
 
@@ -17166,8 +17293,8 @@ br i1 %obit, label %carry, label %normal
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.ssub.with.overflow` on any
-integer bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.ssub.with.overflow`
+on any integer bit width or vectors of integers.
 
     declare {i16, i1} @llvm.ssub.with.overflow.i16(i16 %a, i16 %b)
     declare {i32, i1} @llvm.ssub.with.overflow.i32(i32 %a, i32 %b)
@@ -17176,9 +17303,9 @@ integer bit width or vectors of integers.
 
 ##### Overview:
 
-The '`llvm.ssub.with.overflow`' family of intrinsic functions perform a signed
-subtraction of the two arguments, and indicate whether an overflow occurred
-during the signed subtraction.
+The '`llvm.ssub.with.overflow`' family of intrinsic functions perform
+a signed subtraction of the two arguments, and indicate whether an
+overflow occurred during the signed subtraction.
 
 ##### Arguments:
 
@@ -17207,8 +17334,8 @@ br i1 %obit, label %overflow, label %normal
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.usub.with.overflow` on any
-integer bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.usub.with.overflow`
+on any integer bit width or vectors of integers.
 
     declare {i16, i1} @llvm.usub.with.overflow.i16(i16 %a, i16 %b)
     declare {i32, i1} @llvm.usub.with.overflow.i32(i32 %a, i32 %b)
@@ -17217,9 +17344,9 @@ integer bit width or vectors of integers.
 
 ##### Overview:
 
-The '`llvm.usub.with.overflow`' family of intrinsic functions perform an
-unsigned subtraction of the two arguments, and indicate whether an overflow
-occurred during the unsigned subtraction.
+The '`llvm.usub.with.overflow`' family of intrinsic functions perform
+an unsigned subtraction of the two arguments, and indicate whether an
+overflow occurred during the unsigned subtraction.
 
 ##### Arguments:
 
@@ -17248,8 +17375,8 @@ br i1 %obit, label %overflow, label %normal
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.smul.with.overflow` on any
-integer bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.smul.with.overflow`
+on any integer bit width or vectors of integers.
 
     declare {i16, i1} @llvm.smul.with.overflow.i16(i16 %a, i16 %b)
     declare {i32, i1} @llvm.smul.with.overflow.i32(i32 %a, i32 %b)
@@ -17258,9 +17385,9 @@ integer bit width or vectors of integers.
 
 ##### Overview:
 
-The '`llvm.smul.with.overflow`' family of intrinsic functions perform a signed
-multiplication of the two arguments, and indicate whether an overflow occurred
-during the signed multiplication.
+The '`llvm.smul.with.overflow`' family of intrinsic functions perform
+a signed multiplication of the two arguments, and indicate whether an
+overflow occurred during the signed multiplication.
 
 ##### Arguments:
 
@@ -17289,8 +17416,8 @@ br i1 %obit, label %overflow, label %normal
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use `llvm.umul.with.overflow` on any
-integer bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.umul.with.overflow`
+on any integer bit width or vectors of integers.
 
     declare {i16, i1} @llvm.umul.with.overflow.i16(i16 %a, i16 %b)
     declare {i32, i1} @llvm.umul.with.overflow.i32(i32 %a, i32 %b)
@@ -17299,9 +17426,9 @@ integer bit width or vectors of integers.
 
 ##### Overview:
 
-The '`llvm.umul.with.overflow`' family of intrinsic functions perform an
-unsigned multiplication of the two arguments, and indicate whether an overflow
-occurred during the unsigned multiplication.
+The '`llvm.umul.with.overflow`' family of intrinsic functions perform
+an unsigned multiplication of the two arguments, and indicate whether an
+overflow occurred during the unsigned multiplication.
 
 ##### Arguments:
 
@@ -17339,8 +17466,8 @@ minimum.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.sadd.sat` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.sadd.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.sadd.sat.i16(i16 %a, i16 %b)
     declare i32 @llvm.sadd.sat.i32(i32 %a, i32 %b)
@@ -17349,14 +17476,14 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.sadd.sat`' family of intrinsic functions perform signed saturating
-addition on the 2 arguments.
+The '`llvm.sadd.sat`' family of intrinsic functions perform signed
+saturating addition on the 2 arguments.
 
 ##### Arguments
 
 The arguments (%a and %b) and the result may be of integer types of any bit
-width, but they must have the same bit width. `%a` and `%b` are the two values
-that will undergo signed addition.
+width, but they must have the same bit width. `%a` and `%b` are the two
+values that will undergo signed addition.
 
 ##### Semantics:
 
@@ -17378,8 +17505,8 @@ smallest signed value representable by this bit width.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.uadd.sat` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.uadd.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.uadd.sat.i16(i16 %a, i16 %b)
     declare i32 @llvm.uadd.sat.i32(i32 %a, i32 %b)
@@ -17388,14 +17515,14 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.uadd.sat`' family of intrinsic functions perform unsigned saturating
-addition on the 2 arguments.
+The '`llvm.uadd.sat`' family of intrinsic functions perform unsigned
+saturating addition on the 2 arguments.
 
 ##### Arguments
 
 The arguments (%a and %b) and the result may be of integer types of any bit
-width, but they must have the same bit width. `%a` and `%b` are the two values
-that will undergo unsigned addition.
+width, but they must have the same bit width. `%a` and `%b` are the two
+values that will undergo unsigned addition.
 
 ##### Semantics:
 
@@ -17416,8 +17543,8 @@ operation, the result will never saturate towards zero.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.ssub.sat` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.ssub.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.ssub.sat.i16(i16 %a, i16 %b)
     declare i32 @llvm.ssub.sat.i32(i32 %a, i32 %b)
@@ -17426,14 +17553,14 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.ssub.sat`' family of intrinsic functions perform signed saturating
-subtraction on the 2 arguments.
+The '`llvm.ssub.sat`' family of intrinsic functions perform signed
+saturating subtraction on the 2 arguments.
 
 ##### Arguments
 
 The arguments (%a and %b) and the result may be of integer types of any bit
-width, but they must have the same bit width. `%a` and `%b` are the two values
-that will undergo signed subtraction.
+width, but they must have the same bit width. `%a` and `%b` are the two
+values that will undergo signed subtraction.
 
 ##### Semantics:
 
@@ -17455,8 +17582,8 @@ smallest signed value representable by this bit width.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.usub.sat` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.usub.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.usub.sat.i16(i16 %a, i16 %b)
     declare i32 @llvm.usub.sat.i32(i32 %a, i32 %b)
@@ -17465,14 +17592,14 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.usub.sat`' family of intrinsic functions perform unsigned saturating
-subtraction on the 2 arguments.
+The '`llvm.usub.sat`' family of intrinsic functions perform unsigned
+saturating subtraction on the 2 arguments.
 
 ##### Arguments
 
 The arguments (%a and %b) and the result may be of integer types of any bit
-width, but they must have the same bit width. `%a` and `%b` are the two values
-that will undergo unsigned subtraction.
+width, but they must have the same bit width. `%a` and `%b` are the two
+values that will undergo unsigned subtraction.
 
 ##### Semantics:
 
@@ -17492,8 +17619,8 @@ the largest possible value representable by this bit width.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.sshl.sat` on integers or
-vectors of integers of any bit width.
+This is an overloaded intrinsic. You can use `llvm.sshl.sat`
+on integers or vectors of integers of any bit width.
 
     declare i16 @llvm.sshl.sat.i16(i16 %a, i16 %b)
     declare i32 @llvm.sshl.sat.i32(i32 %a, i32 %b)
@@ -17502,8 +17629,8 @@ vectors of integers of any bit width.
 
 ##### Overview
 
-The '`llvm.sshl.sat`' family of intrinsic functions perform signed saturating
-left shift on the first argument.
+The '`llvm.sshl.sat`' family of intrinsic functions perform signed
+saturating left shift on the first argument.
 
 ##### Arguments
 
@@ -17533,8 +17660,8 @@ smallest signed value representable by this bit width.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.ushl.sat` on integers or
-vectors of integers of any bit width.
+This is an overloaded intrinsic. You can use `llvm.ushl.sat`
+on integers or vectors of integers of any bit width.
 
     declare i16 @llvm.ushl.sat.i16(i16 %a, i16 %b)
     declare i32 @llvm.ushl.sat.i32(i32 %a, i32 %b)
@@ -17543,8 +17670,8 @@ vectors of integers of any bit width.
 
 ##### Overview
 
-The '`llvm.ushl.sat`' family of intrinsic functions perform unsigned saturating
-left shift on the first argument.
+The '`llvm.ushl.sat`' family of intrinsic functions perform unsigned
+saturating left shift on the first argument.
 
 ##### Arguments
 
@@ -17570,11 +17697,11 @@ representable by the bit width of the arguments.
 ### Fixed Point Arithmetic Intrinsics
 
 A fixed point number represents a real data type for a number that has a fixed
-number of digits after a radix point (equivalent to the decimal point '.'). The
-number of digits after the radix point is referred as the `scale`. These are
-useful for representing fractional values to a specific precision. The
-following intrinsics perform fixed point arithmetic operations on 2 operands of
-the same scale, specified as the third argument.
+number of digits after a radix point (equivalent to the decimal point '.').
+The number of digits after the radix point is referred as the `scale`. These
+are useful for representing fractional values to a specific precision. The
+following intrinsics perform fixed point arithmetic operations on 2 operands
+of the same scale, specified as the third argument.
 
 The `llvm.*mul.fix` family of intrinsic functions represents a multiplication
 of fixed point numbers through scaled integers. Therefore, fixed point
@@ -17623,8 +17750,8 @@ be less than 1/2\^(scale).
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.smul.fix` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.smul.fix`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.smul.fix.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.smul.fix.i32(i32 %a, i32 %b, i32 %scale)
@@ -17633,8 +17760,8 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.smul.fix`' family of intrinsic functions perform signed fixed point
-multiplication on 2 arguments of the same scale.
+The '`llvm.smul.fix`' family of intrinsic functions perform signed
+fixed point multiplication on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17672,8 +17799,8 @@ the fixed point type.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.umul.fix` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.umul.fix`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.umul.fix.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.umul.fix.i32(i32 %a, i32 %b, i32 %scale)
@@ -17682,8 +17809,8 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.umul.fix`' family of intrinsic functions perform unsigned fixed
-point multiplication on 2 arguments of the same scale.
+The '`llvm.umul.fix`' family of intrinsic functions perform unsigned
+fixed point multiplication on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17695,9 +17822,9 @@ represents the scale of both operands, and must be a constant integer.
 
 ##### Semantics:
 
-This operation performs unsigned fixed point multiplication on the 2 arguments
-of a specified scale. The result will also be returned in the same scale
-specified in the third argument.
+This operation performs unsigned fixed point multiplication on the 2 arguments of a
+specified scale. The result will also be returned in the same scale specified
+in the third argument.
 
 If the result value cannot be precisely represented in the given scale, the
 value is rounded up or down to the closest representable value. The rounding
@@ -17720,8 +17847,8 @@ the fixed point type.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.smul.fix.sat` on any integer
-bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.smul.fix.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.smul.fix.sat.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.smul.fix.sat.i32(i32 %a, i32 %b, i32 %scale)
@@ -17730,8 +17857,8 @@ bit width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.smul.fix.sat`' family of intrinsic functions perform signed fixed
-point saturating multiplication on 2 arguments of the same scale.
+The '`llvm.smul.fix.sat`' family of intrinsic functions perform signed
+fixed point saturating multiplication on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17751,8 +17878,8 @@ value is rounded up or down to the closest representable value. The rounding
 direction is unspecified.
 
 The maximum value this operation can clamp to is the largest signed value
-representable by the bit width of the first 2 arguments. The minimum value is
-the smallest signed value representable by this bit width.
+representable by the bit width of the first 2 arguments. The minimum value is the
+smallest signed value representable by this bit width.
 
 ##### Examples
 
@@ -17779,8 +17906,8 @@ the smallest signed value representable by this bit width.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.umul.fix.sat` on any integer
-bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.umul.fix.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.umul.fix.sat.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.umul.fix.sat.i32(i32 %a, i32 %b, i32 %scale)
@@ -17789,8 +17916,8 @@ bit width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.umul.fix.sat`' family of intrinsic functions perform unsigned fixed
-point saturating multiplication on 2 arguments of the same scale.
+The '`llvm.umul.fix.sat`' family of intrinsic functions perform unsigned
+fixed point saturating multiplication on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17810,8 +17937,8 @@ value is rounded up or down to the closest representable value. The rounding
 direction is unspecified.
 
 The maximum value this operation can clamp to is the largest unsigned value
-representable by the bit width of the first 2 arguments. The minimum value is
-the smallest unsigned value representable by this bit width (zero).
+representable by the bit width of the first 2 arguments. The minimum value is the
+smallest unsigned value representable by this bit width (zero).
 
 ##### Examples
 
@@ -17835,8 +17962,8 @@ the smallest unsigned value representable by this bit width (zero).
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.sdiv.fix` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.sdiv.fix`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.sdiv.fix.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.sdiv.fix.i32(i32 %a, i32 %b, i32 %scale)
@@ -17845,8 +17972,8 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.sdiv.fix`' family of intrinsic functions perform signed fixed point
-division on 2 arguments of the same scale.
+The '`llvm.sdiv.fix`' family of intrinsic functions perform signed
+fixed point division on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17884,8 +18011,8 @@ the fixed point type, or if the second argument is zero.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.udiv.fix` on any integer bit
-width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.udiv.fix`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.udiv.fix.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.udiv.fix.i32(i32 %a, i32 %b, i32 %scale)
@@ -17894,8 +18021,8 @@ width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.udiv.fix`' family of intrinsic functions perform unsigned fixed
-point division on 2 arguments of the same scale.
+The '`llvm.udiv.fix`' family of intrinsic functions perform unsigned
+fixed point division on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17933,8 +18060,8 @@ the fixed point type, or if the second argument is zero.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.sdiv.fix.sat` on any integer
-bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.sdiv.fix.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.sdiv.fix.sat.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.sdiv.fix.sat.i32(i32 %a, i32 %b, i32 %scale)
@@ -17943,8 +18070,8 @@ bit width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.sdiv.fix.sat`' family of intrinsic functions perform signed fixed
-point saturating division on 2 arguments of the same scale.
+The '`llvm.sdiv.fix.sat`' family of intrinsic functions perform signed
+fixed point saturating division on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -17964,8 +18091,8 @@ value is rounded up or down to the closest representable value. The rounding
 direction is unspecified.
 
 The maximum value this operation can clamp to is the largest signed value
-representable by the bit width of the first 2 arguments. The minimum value is
-the smallest signed value representable by this bit width.
+representable by the bit width of the first 2 arguments. The minimum value is the
+smallest signed value representable by this bit width.
 
 It is undefined behavior if the second argument is zero.
 
@@ -17989,8 +18116,8 @@ It is undefined behavior if the second argument is zero.
 
 ##### Syntax
 
-This is an overloaded intrinsic. You can use `llvm.udiv.fix.sat` on any integer
-bit width or vectors of integers.
+This is an overloaded intrinsic. You can use `llvm.udiv.fix.sat`
+on any integer bit width or vectors of integers.
 
     declare i16 @llvm.udiv.fix.sat.i16(i16 %a, i16 %b, i32 %scale)
     declare i32 @llvm.udiv.fix.sat.i32(i32 %a, i32 %b, i32 %scale)
@@ -17999,8 +18126,8 @@ bit width or vectors of integers.
 
 ##### Overview
 
-The '`llvm.udiv.fix.sat`' family of intrinsic functions perform unsigned fixed
-point saturating division on 2 arguments of the same scale.
+The '`llvm.udiv.fix.sat`' family of intrinsic functions perform unsigned
+fixed point saturating division on 2 arguments of the same scale.
 
 ##### Arguments
 
@@ -18020,8 +18147,8 @@ value is rounded up or down to the closest representable value. The rounding
 direction is unspecified.
 
 The maximum value this operation can clamp to is the largest unsigned value
-representable by the bit width of the first 2 arguments. The minimum value is
-the smallest unsigned value representable by this bit width (zero).
+representable by the bit width of the first 2 arguments. The minimum value is the
+smallest unsigned value representable by this bit width (zero).
 
 It is undefined behavior if the second argument is zero.
 
@@ -18079,8 +18206,8 @@ quiet NaN result.
 
 This function should always be implementable as multiplication by 1.0, provided
 that the compiler does not constant fold the operation. Likewise, division by
-1.0 and `llvm.minnum(x, x)` are possible implementations. Addition with -0.0 is
-also sufficient provided that the rounding mode is not -Infinity.
+1.0 and `llvm.minnum(x, x)` are possible implementations. Addition with
+-0.0 is also sufficient provided that the rounding mode is not -Infinity.
 
 `@llvm.canonicalize` must preserve the equality relation. That is:
 
@@ -18088,8 +18215,8 @@ also sufficient provided that the rounding mode is not -Infinity.
 -   `(@llvm.canonicalize(x) == @llvm.canonicalize(y))` is equivalent to `(x ==
     y)`
 
-Additionally, the sign of zero must be conserved: `@llvm.canonicalize(-0.0) =
--0.0` and `@llvm.canonicalize(+0.0) = +0.0`
+Additionally, the sign of zero must be conserved:
+`@llvm.canonicalize(-0.0) = -0.0` and `@llvm.canonicalize(+0.0) = +0.0`
 
 The payload bits of a NaN must be conserved, with two exceptions. First,
 environments which use only a single canonical representation of NaN must
@@ -18146,9 +18273,9 @@ intrinsic function should be used instead. This never sets errno, just as
 ### Hardware-Loop Intrinsics
 
 LLVM support several intrinsics to mark a loop as a hardware-loop. They are
-hints to the backend which are required to lower these intrinsics further to
-target specific instructions, or revert the hardware-loop to a normal loop if
-target specific restriction are not met and a hardware-loop can't be generated.
+hints to the backend which are required to lower these intrinsics further to target
+specific instructions, or revert the hardware-loop to a normal loop if target
+specific restriction are not met and a hardware-loop can't be generated.
 
 These intrinsics may be modified in the future and are not intended to be used
 outside the backend. Thus, front-end and mid-level optimizations should not be
@@ -18172,13 +18299,13 @@ instructions.
 
 ##### Arguments:
 
-The integer operand is the loop trip count of the hardware-loop, and thus not
-e.g., the loop back-edge taken count.
+The integer operand is the loop trip count of the hardware-loop, and thus
+not e.g., the loop back-edge taken count.
 
 ##### Semantics:
 
-The '`llvm.set.loop.iterations.*`' intrinsics do not perform any arithmetic on
-their operand. It's a hint to the backend that can use this to set up the
+The '`llvm.set.loop.iterations.*`' intrinsics do not perform any arithmetic
+on their operand. It's a hint to the backend that can use this to set up the
 hardware-loop count with a target-specific instruction, usually a move of this
 value to a special register or a hardware-loop instruction.
 
@@ -18202,8 +18329,8 @@ the loop, decremented by the '`llvm.loop.decrement.reg.*`'.
 
 ##### Arguments:
 
-The integer operand is the loop trip count of the hardware-loop, and thus not
-e.g., the loop back-edge taken count.
+The integer operand is the loop trip count of the hardware-loop, and thus
+not e.g., the loop back-edge taken count.
 
 ##### Semantics:
 
@@ -18223,24 +18350,24 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.test.set.loop.iterations.*`' intrinsics are used to specify the the
-loop trip count, and also test that the given count is not zero, allowing it to
-control entry to a while-loop. They are placed in the loop preheader's
+The '`llvm.test.set.loop.iterations.*`' intrinsics are used to specify the
+the loop trip count, and also test that the given count is not zero, allowing
+it to control entry to a while-loop. They are placed in the loop preheader's
 predecessor basic block, and are marked as `IntrNoDuplicate` to avoid
 optimizers duplicating these instructions.
 
 ##### Arguments:
 
-The integer operand is the loop trip count of the hardware-loop, and thus not
-e.g., the loop back-edge taken count.
+The integer operand is the loop trip count of the hardware-loop, and thus
+not e.g., the loop back-edge taken count.
 
 ##### Semantics:
 
 The '`llvm.test.set.loop.iterations.*`' intrinsics do not perform any
 arithmetic on their operand. It's a hint to the backend that can use this to
 set up the hardware-loop count with a target-specific instruction, usually a
-move of this value to a special register or a hardware-loop instruction. The
-result is the conditional value of whether the given count is not zero.
+move of this value to a special register or a hardware-loop instruction.
+The result is the conditional value of whether the given count is not zero.
 
 #### '`llvm.test.start.loop.iterations.*`' Intrinsic
 
@@ -18261,8 +18388,8 @@ second i1 output controls entry to a while-loop.
 
 ##### Arguments:
 
-The integer operand is the loop trip count of the hardware-loop, and thus not
-e.g., the loop back-edge taken count.
+The integer operand is the loop trip count of the hardware-loop, and thus
+not e.g., the loop back-edge taken count.
 
 ##### Semantics:
 
@@ -18290,8 +18417,8 @@ loop test check.
 
 ##### Arguments:
 
-Both arguments must have identical integer types. The first operand is the loop
-iteration counter. The second operand is the maximum number of elements
+Both arguments must have identical integer types. The first operand is the
+loop iteration counter. The second operand is the maximum number of elements
 processed in an iteration.
 
 ##### Semantics:
@@ -18333,8 +18460,8 @@ iteration counter.
 
 The '`llvm.loop.decrement.*`' intrinsics do a `SUB` of the loop iteration
 counter with the given loop decrement value, and return false if the loop
-should exit, this `SUB` is not allowed to wrap. The result is a condition that
-is used by the conditional branch controlling the loop.
+should exit, this `SUB` is not allowed to wrap. The result is a condition
+that is used by the conditional branch controlling the loop.
 
 ### Vector Reduction Intrinsics
 
@@ -18353,9 +18480,9 @@ scalar result of the same element type.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.add.*`' intrinsics do an integer `ADD` reduction of a
-vector, returning the result as a scalar. The return type matches the
-element-type of the vector input.
+The '`llvm.vector.reduce.add.*`' intrinsics do an integer `ADD`
+reduction of a vector, returning the result as a scalar. The return type matches
+the element-type of the vector input.
 
 ##### Arguments:
 
@@ -18371,8 +18498,8 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.fadd.*`' intrinsics do a floating-point `ADD`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.fadd.*`' intrinsics do a floating-point
+`ADD` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 If the intrinsic call has the 'reassoc' flag set, then the reduction will not
@@ -18385,7 +18512,7 @@ vector element indices. See the following pseudocode:
     float sequential_fadd(start_value, input_vector)
       result = start_value
       for i = 0 to length(input_vector)
-        result = result + input_vector[i]
+      result = result + input_vector[i]
       return result
 
 ##### Arguments:
@@ -18394,8 +18521,8 @@ The first argument to this intrinsic is a scalar start value for the reduction.
 The type of the start value matches the element-type of the vector input. The
 second argument must be a vector of floating-point values.
 
-To ignore the start value, negative zero (`-0.0`) can be used, as it is the
-neutral value of floating point addition.
+To ignore the start value, negative zero (`-0.0`) can be used, as it is
+the neutral value of floating point addition.
 
 ##### Examples:
 
@@ -18412,9 +18539,9 @@ neutral value of floating point addition.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.mul.*`' intrinsics do an integer `MUL` reduction of a
-vector, returning the result as a scalar. The return type matches the
-element-type of the vector input.
+The '`llvm.vector.reduce.mul.*`' intrinsics do an integer `MUL`
+reduction of a vector, returning the result as a scalar. The return type matches
+the element-type of the vector input.
 
 ##### Arguments:
 
@@ -18430,8 +18557,8 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.fmul.*`' intrinsics do a floating-point `MUL`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.fmul.*`' intrinsics do a floating-point
+`MUL` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 If the intrinsic call has the 'reassoc' flag set, then the reduction will not
@@ -18444,7 +18571,7 @@ vector element indices. See the following pseudocode:
     float sequential_fmul(start_value, input_vector)
       result = start_value
       for i = 0 to length(input_vector)
-        result = result * input_vector[i]
+      result = result * input_vector[i]
       return result
 
 ##### Arguments:
@@ -18453,8 +18580,8 @@ The first argument to this intrinsic is a scalar start value for the reduction.
 The type of the start value matches the element-type of the vector input. The
 second argument must be a vector of floating-point values.
 
-To ignore the start value, one (`1.0`) can be used, as it is the neutral value
-of floating point multiplication.
+To ignore the start value, one (`1.0`) can be used, as it is the neutral
+value of floating point multiplication.
 
 ##### Examples:
 
@@ -18470,9 +18597,9 @@ of floating point multiplication.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.and.*`' intrinsics do a bitwise `AND` reduction of a
-vector, returning the result as a scalar. The return type matches the
-element-type of the vector input.
+The '`llvm.vector.reduce.and.*`' intrinsics do a bitwise `AND`
+reduction of a vector, returning the result as a scalar. The return type matches
+the element-type of the vector input.
 
 ##### Arguments:
 
@@ -18487,8 +18614,8 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.or.*`' intrinsics do a bitwise `OR` reduction of a
-vector, returning the result as a scalar. The return type matches the
+The '`llvm.vector.reduce.or.*`' intrinsics do a bitwise `OR` reduction
+of a vector, returning the result as a scalar. The return type matches the
 element-type of the vector input.
 
 ##### Arguments:
@@ -18504,9 +18631,9 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.xor.*`' intrinsics do a bitwise `XOR` reduction of a
-vector, returning the result as a scalar. The return type matches the
-element-type of the vector input.
+The '`llvm.vector.reduce.xor.*`' intrinsics do a bitwise `XOR`
+reduction of a vector, returning the result as a scalar. The return type matches
+the element-type of the vector input.
 
 ##### Arguments:
 
@@ -18521,8 +18648,8 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.smax.*`' intrinsics do a signed integer `MAX`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.smax.*`' intrinsics do a signed integer
+`MAX` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 ##### Arguments:
@@ -18538,8 +18665,8 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.smin.*`' intrinsics do a signed integer `MIN`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.smin.*`' intrinsics do a signed integer
+`MIN` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 ##### Arguments:
@@ -18555,9 +18682,9 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.umax.*`' intrinsics do an unsigned integer `MAX`
-reduction of a vector, returning the result as a scalar. The return type
-matches the element-type of the vector input.
+The '`llvm.vector.reduce.umax.*`' intrinsics do an unsigned
+integer `MAX` reduction of a vector, returning the result as a scalar. The
+return type matches the element-type of the vector input.
 
 ##### Arguments:
 
@@ -18572,9 +18699,9 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.umin.*`' intrinsics do an unsigned integer `MIN`
-reduction of a vector, returning the result as a scalar. The return type
-matches the element-type of the vector input.
+The '`llvm.vector.reduce.umin.*`' intrinsics do an unsigned
+integer `MIN` reduction of a vector, returning the result as a scalar. The
+return type matches the element-type of the vector input.
 
 ##### Arguments:
 
@@ -18590,8 +18717,8 @@ The argument to this intrinsic must be a vector of integer values.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.fmax.*`' intrinsics do a floating-point `MAX`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.fmax.*`' intrinsics do a floating-point
+`MAX` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 This instruction has the same comparison and `nsz` semantics as the
@@ -18619,8 +18746,8 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.fmin.*`' intrinsics do a floating-point `MIN`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.fmin.*`' intrinsics do a floating-point
+`MIN` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 This instruction has the same comparison and `nsz` semantics as the
@@ -18648,8 +18775,8 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.fmaximum.*`' intrinsics do a floating-point `MAX`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.fmaximum.*`' intrinsics do a floating-point
+`MAX` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 This instruction has the same comparison semantics as the '`llvm.maximum.*`'
@@ -18672,8 +18799,8 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vector.reduce.fminimum.*`' intrinsics do a floating-point `MIN`
-reduction of a vector, returning the result as a scalar. The return type
+The '`llvm.vector.reduce.fminimum.*`' intrinsics do a floating-point
+`MIN` reduction of a vector, returning the result as a scalar. The return type
 matches the element-type of the vector input.
 
 This instruction has the same comparison semantics as the '`llvm.minimum.*`'
@@ -18686,14 +18813,14 @@ The argument to this intrinsic must be a vector of floating-point values.
 
 ### Vector Partial Reduction Intrinsics
 
-Partial reductions of vectors can be expressed using the intrinsics described
-in this section. Each one reduces the concatenation of the two vector arguments
+Partial reductions of vectors can be expressed using the intrinsics described in
+this section. Each one reduces the concatenation of the two vector arguments
 down to the number of elements of the result vector type.
 
 Other than the reduction operator (e.g. add, fadd), the way in which the
-concatenated arguments is reduced is entirely unspecified. By their nature
-these intrinsics are not expected to be useful in isolation but can instead be
-used to implement the first phase of an overall reduction operation.
+concatenated arguments is reduced is entirely unspecified. By their nature these
+intrinsics are not expected to be useful in isolation but can instead be used to
+implement the first phase of an overall reduction operation.
 
 The typical use case is loop vectorization where reductions are split into an
 in-loop phase, where maintaining an unordered vector result is important for
@@ -18775,14 +18902,14 @@ Scalable vectors can only be inserted into other scalable vectors.
 
 ##### Arguments:
 
-The `vec` is the vector which `subvec` will be inserted into. The `subvec` is
-the vector that will be inserted.
+The `vec` is the vector which `subvec` will be inserted into.
+The `subvec` is the vector that will be inserted.
 
 `idx` represents the starting element number at which `subvec` will be
-inserted. `idx` must be a constant multiple of `subvec`'s known minimum vector
-length. If `subvec` is a scalable vector, `idx` is first scaled by the runtime
-scaling factor of `subvec`. The elements of `vec` starting at `idx` are
-overwritten with `subvec`. Elements `idx` through (`idx` +
+inserted. `idx` must be a constant multiple of `subvec`'s known minimum
+vector length. If `subvec` is a scalable vector, `idx` is first scaled by
+the runtime scaling factor of `subvec`. The elements of `vec` starting at
+`idx` are overwritten with `subvec`. Elements `idx` through (`idx` +
 num_elements(`subvec`) - 1) must be valid `vec` indices. If this condition
 cannot be determined statically but is false at runtime, then the result vector
 is a {ref}`poison value <poisonvalues>`.
@@ -18869,8 +18996,8 @@ the result.
 
 This intrinsic works for both fixed and scalable vectors. While this intrinsic
 supports all vector types the recommended way to express this operation for
-factor of 2 on fixed-width vectors is still to use a shufflevector, as that may
-allow for more optimization opportunities.
+factor of 2 on fixed-width vectors is still to use a shufflevector, as that
+may allow for more optimization opportunities.
 
 For example:
 
@@ -18899,13 +19026,13 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vector.interleave2/3/4/5/6/7/8`' intrinsic constructs a vector by
-interleaving all the input vectors.
+The '`llvm.vector.interleave2/3/4/5/6/7/8`' intrinsic constructs a vector
+by interleaving all the input vectors.
 
 This intrinsic works for both fixed and scalable vectors. While this intrinsic
 supports all vector types the recommended way to express this operation for
-factor of 2 on fixed-width vectors is still to use a shufflevector, as that may
-allow for more optimization opportunities.
+factor of 2 on fixed-width vectors is still to use a shufflevector, as that
+may allow for more optimization opportunities.
 
 For example:
 
@@ -18932,13 +19059,13 @@ This is an overloaded intrinsic.
 ##### Overview:
 
 The '`llvm.vector.splice.left.*`' intrinsics construct a vector by
-concatenating two vectors together, shifting the elements left by `offset`, and
-extracting the lower half.
+concatenating two vectors together, shifting the elements left by `offset`,
+and extracting the lower half.
 
 These intrinsics work for both fixed and scalable vectors. While this intrinsic
 supports all vector types the recommended way to express this operation for
-fixed-width vectors with an immediate offset is still to use a shufflevector,
-as that may allow for more optimization opportunities.
+fixed-width vectors with an immediate offset is still to use a shufflevector, as
+that may allow for more optimization opportunities.
 
 For example:
 
@@ -18976,8 +19103,8 @@ and extracting the upper half.
 
 These intrinsics work for both fixed and scalable vectors. While this intrinsic
 supports all vector types the recommended way to express this operation for
-fixed-width vectors with an immediate offset is still to use a shufflevector,
-as that may allow for more optimization opportunities.
+fixed-width vectors with an immediate offset is still to use a shufflevector, as
+that may allow for more optimization opportunities.
 
 For example:
 
@@ -19040,8 +19167,8 @@ zero elements of a vector.
 ##### Arguments:
 
 The first argument is the vector to be counted. This argument must be a vector
-with integer element type. The return type must also be an integer type which
-is wide enough to hold the maximum number of elements of the source vector. The
+with integer element type. The return type must also be an integer type which is
+wide enough to hold the maximum number of elements of the source vector. The
 behavior of this intrinsic is undefined if the return type is not wide enough
 for the number of elements in the input vector.
 
@@ -19052,8 +19179,8 @@ is all zero and the second argument is true, the result is poison.
 ##### Semantics:
 
 The '`llvm.experimental.cttz.elts`' intrinsic counts the trailing (least
-significant) zero elements in a vector. If `src == 0` the result is the number
-of elements in the input vector.
+significant) zero elements in a vector. If `src == 0` the result is the
+number of elements in the input vector.
 
 #### '`llvm.experimental.get.vector.length`' Intrinsic
 
@@ -19067,15 +19194,15 @@ This is an overloaded intrinsic.
 ##### Overview:
 
 The '`llvm.experimental.get.vector.length.*`' intrinsics take a number of
-elements to process and returns how many of the elements can be processed with
-the requested vectorization factor.
+elements to process and returns how many of the elements can be processed
+with the requested vectorization factor.
 
 ##### Arguments:
 
-The first argument is an unsigned value of any scalar integer type and
-specifies the total number of elements to be processed. The second argument is
-an i32 immediate for the vectorization factor. The third argument indicates if
-the vectorization factor should be multiplied by vscale.
+The first argument is an unsigned value of any scalar integer type and specifies
+the total number of elements to be processed. The second argument is an i32
+immediate for the vectorization factor. The third argument indicates if the
+vectorization factor should be multiplied by vscale.
 
 ##### Semantics:
 
@@ -19137,9 +19264,9 @@ More update operation types may be added in the future.
 ##### Arguments:
 
 The first argument is a vector of pointers to the memory locations to be
-updated. The second argument is a scalar used to update the value from memory;
-it must match the type of value to be updated. The final argument is a mask
-value to exclude locations from being modified.
+updated. The second argument is a scalar used to update the value from
+memory; it must match the type of value to be updated. The final argument
+is a mask value to exclude locations from being modified.
 
 ##### Semantics:
 
@@ -19293,10 +19420,10 @@ the output.
 Operations on matrixes requiring shape information (like number of rows/columns
 or the memory layout) can be expressed using the matrix intrinsics. These
 intrinsics require matrix dimensions to be passed as immediate arguments, and
-matrixes are passed and returned as vectors. This means that for a `R` x `C`
-matrix, element `i` of column `j` is at index `j * R + i` in the corresponding
-vector, with indices starting at 0. Currently column-major layout is assumed.
-The intrinsics support both integer and floating point matrixes.
+matrixes are passed and returned as vectors. This means that for a `R` x
+`C` matrix, element `i` of column `j` is at index `j * R + i` in the
+corresponding vector, with indices starting at 0. Currently column-major layout
+is assumed. The intrinsics support both integer and floating point matrixes.
 
 #### '`llvm.matrix.transpose.*`' Intrinsic
 
@@ -19362,8 +19489,8 @@ different columns. This allows for convenient loading of sub matrixes.
 Independent of `%Stride`'s bitwidth, the offset is computed using the target
 daya layout's pointer index type. If `<IsVolatile>` is true, the intrinsic is
 considered a {ref}`volatile memory access <volatile>`. The result matrix is
-returned in the result vector. If the `%Ptr` argument is known to be aligned to
-some boundary, this can be specified as an attribute on the argument.
+returned in the result vector. If the `%Ptr` argument is known to be aligned
+to some boundary, this can be specified as an attribute on the argument.
 
 ##### Arguments:
 
@@ -19457,9 +19584,9 @@ The conversion to integer is performed subject to the following rules:
 -   If the argument is any NaN, zero is returned.
 -   If the argument is smaller than zero (this includes negative infinity),
     zero is returned.
--   If the argument is larger than the largest representable unsigned integer
-    of the result type (this includes positive infinity), the largest
-    representable unsigned integer is returned.
+-   If the argument is larger than the largest representable unsigned integer of
+    the result type (this includes positive infinity), the largest representable
+    unsigned integer is returned.
 -   Otherwise, the result of rounding the argument towards zero is returned.
 
 ##### Example:
@@ -19499,12 +19626,12 @@ elements in argument and return must be the same.
 The conversion to integer is performed subject to the following rules:
 
 -   If the argument is any NaN, zero is returned.
--   If the argument is smaller than the smallest representable signed integer
-    of the result type (this includes negative infinity), the smallest
+-   If the argument is smaller than the smallest representable signed integer of
+    the result type (this includes negative infinity), the smallest
     representable signed integer is returned.
 -   If the argument is larger than the largest representable signed integer of
-    the result type (this includes positive infinity), the largest
-    representable signed integer is returned.
+    the result type (this includes positive infinity), the largest representable
+    signed integer is returned.
 -   Otherwise, the result of rounding the argument towards zero is returned.
 
 ##### Example:
@@ -19518,8 +19645,8 @@ The conversion to integer is performed subject to the following rules:
 
 ### Floating-Point Conversion Intrinsics
 
-This class of intrinsics is designed for floating-point conversions that do not
-fall into other categories. For example conversions with specified rounding
+This class of intrinsics is designed for floating-point conversions that do
+not fall into other categories. For example conversions with specified rounding
 mode or mini-float conversions.
 
 #### '`llvm.fptrunc.round`' Intrinsic
@@ -19564,9 +19691,9 @@ all rounding modes.
 ##### Overview:
 
 The `llvm.convert.to.arbitrary.fp` intrinsic converts a native LLVM
-floating-point value to an arbitrary FP format, returning the result as an
-integer containing the arbitrary FP bits. This intrinsic is overloaded on both
-its return type and first argument.
+floating-point value to an arbitrary FP format, returning the result as an integer
+containing the arbitrary FP bits. This intrinsic is overloaded on both its return
+type and first argument.
 
 ##### Arguments:
 
@@ -19602,9 +19729,8 @@ its return type and first argument.
     overflow is handled when values exceed the representable finite range of
     the target format:
 
-    -   When `true`: overflowing values are clamped to the minimum or maximum
-        representable finite value (saturating to the largest negative finite
-        value or largest positive finite value).
+    -   When `true`: overflowing values are clamped to the minimum or maximum representable finite value
+        (saturating to the largest negative finite value or largest positive finite value).
     -   When `false`: overflowing values are converted to infinity (preserving
         sign of the original value) if the target format supports infinity, or
         return a poison value if infinity is not supported by the target
@@ -19616,34 +19742,27 @@ its return type and first argument.
 
 The intrinsic converts the native LLVM floating-point value to the arbitrary FP
 format specified by `interpretation`, applying the requested rounding mode and
-saturation behavior. The conversion is performed in two steps: first, the value
-is rounded according to the specified rounding mode to fit the target format's
-precision; then, if the rounded result exceeds the target format's
-representable range, saturation is applied according to the `saturation`
-parameter. The result is returned as an integer (e.g., `i8` for FP8, `i6` for
-FP6) containing the encoded arbitrary FP bits.
+saturation behavior. The conversion is performed in two steps: first, the value is
+rounded according to the specified rounding mode to fit the target format's precision;
+then, if the rounded result exceeds the target format's representable range, saturation
+is applied according to the `saturation` parameter. The result is returned as an
+integer (e.g., `i8` for FP8, `i6` for FP6) containing the encoded arbitrary FP bits.
 
 **Handling of special values:**
 
--   **NaN**: NaN values follow LLVM's standard {ref}`NaN rules <floatnan>`.
-    When the target format supports NaN, the NaN representation is preserved
-    (quiet NaNs remain quiet, signaling NaNs remain signaling). The exact NaN
-    payload may be truncated or extended to fit the target format's payload
-    size. If the target format does not support NaN, the intrinsic returns a
+-   **NaN**: NaN values follow LLVM's standard {ref}`NaN rules <floatnan>`. When the target
+    format supports NaN, the NaN representation is preserved (quiet NaNs remain quiet, signaling
+    NaNs remain signaling). The exact NaN payload may be truncated or extended to fit the target
+    format's payload size. If the target format does not support NaN, the intrinsic returns a
     poison value.
--   **Infinity and Overflow**: If the input is +/-Inf or a finite value that
-    exceeds the representable range:
-    -   When `saturation` is `false` and the target format supports infinity,
-        the result is +/-Inf (preserving the sign).
+-   **Infinity and Overflow**: If the input is +/-Inf or a finite value that exceeds the representable range:
+    -   When `saturation` is `false` and the target format supports infinity, the result is +/-Inf (preserving the sign).
     -   When `saturation` is `false` and the target format does not support
         infinity (e.g., formats with \"FN\" suffix), the intrinsic returns a
         poison value.
-    -   When `saturation` is `true`, the value is clamped to the
-        maximum/minimum representable finite value.
+    -   When `saturation` is `true`, the value is clamped to the maximum/minimum representable finite value.
 
-For FP6/FP4 interpretations, producers are expected to use `saturation` =
-`true`; using `saturation` = `false` and generating NaN/Inf/overflowing values
-results in a poison value.
+For FP6/FP4 interpretations, producers are expected to use `saturation` = `true`; using `saturation` = `false` and generating NaN/Inf/overflowing values results in a poison value.
 
 ##### Example:
 
@@ -19717,8 +19836,8 @@ appropriate sign.
 ### Convergence Intrinsics
 
 The LLVM convergence intrinsics for controlling the semantics of `convergent`
-operations, which all start with the `llvm.experimental.convergence.` prefix,
-are described in the {doc}`ConvergentOperations` document.
+operations, which all start with the `llvm.experimental.convergence.`
+prefix, are described in the {doc}`ConvergentOperations` document.
 
 (dbg_intrinsics)=
 ### Debugger Intrinsics
@@ -19811,8 +19930,8 @@ returned function pointer is undefined.
 
 ##### Overview:
 
-This performs any required machine-specific adjustment to the address of a
-trampoline (passed as `tramp`).
+This performs any required machine-specific adjustment to the address of
+a trampoline (passed as `tramp`).
 
 ##### Arguments:
 
@@ -19823,9 +19942,9 @@ filled in by a previous call to {ref}`llvm.init.trampoline <int_it>`.
 
 On some architectures the address of the code to be executed needs to be
 different than the address where the trampoline is actually stored. This
-intrinsic returns the executable address corresponding to `tramp` after
-performing the required machine-specific adjustments. The pointer returned can
-then be {ref}`bitcast and executed <int_trampoline>`.
+intrinsic returns the executable address corresponding to `tramp`
+after performing the required machine-specific adjustments. The pointer
+returned can then be {ref}`bitcast and executed <int_trampoline>`.
 
 (int_vp)=
 ### Vector Predication Intrinsics
@@ -19840,7 +19959,7 @@ The vector mask parameter (%mask) always has a vector of `i1` type, for example
 is an unsigned integer value. The explicit vector length parameter (%evl) is in
 the range:
 
-    0 <= %evl <= W,  where W is the number of vector elements
+    0 <= %evl <= W, where W is the number of vector elements
 
 Note that for {ref}`scalable vector types <t_vector>` `W` is the runtime length
 of the vector.
@@ -19854,15 +19973,15 @@ calculated with an element-wise AND from %mask and %EVLmask:
 
 A vector operation `<opcode>` on vectors `A` and `B` calculates:
 
-    A <opcode> B =  {  A[i] <opcode> B[i]   M[i] = True, and
+    A <opcode> B = { A[i] <opcode> B[i] M[i] = True, and
                     {  undef otherwise
 
 #### Optimization Hint
 
 Some targets, such as AVX512, do not support the %evl parameter in hardware.
 The use of an effective %evl is discouraged for those targets. The function
-`TargetTransformInfo::hasActiveVectorLength()` returns true when the target has
-native support for %evl.
+`TargetTransformInfo::hasActiveVectorLength()` returns true when the target
+has native support for %evl.
 
 (int_vp_select)=
 #### '`llvm.vp.select.*`' Intrinsics
@@ -19929,9 +20048,9 @@ condition vector and an index argument, without IR-level branching.
 
 ##### Arguments:
 
-The first argument is a vector of `i1` and indicates the condition. The second
-argument is the value that is merged where the condition vector is true. The
-third argument is the value that is selected where the condition vector is
+The first argument is a vector of `i1` and indicates the condition. The
+second argument is the value that is merged where the condition vector is true.
+The third argument is the value that is selected where the condition vector is
 false or the lane position is greater equal than the pivot. The fourth argument
 is the pivot.
 
@@ -19988,8 +20107,8 @@ the operation.
 
 ##### Semantics:
 
-The '`llvm.vp.add`' intrinsic performs integer addition ({ref}`add <i_add>`) of
-the first and second vector arguments on each enabled lane. The result on
+The '`llvm.vp.add`' intrinsic performs integer addition ({ref}`add <i_add>`)
+of the first and second vector arguments on each enabled lane. The result on
 disabled lanes is a {ref}`poison value <poisonvalues>`.
 
 ##### Examples:
@@ -20026,9 +20145,9 @@ the operation.
 
 ##### Semantics:
 
-The '`llvm.vp.sub`' intrinsic performs integer subtraction ({ref}`sub <i_sub>`)
-of the first and second vector arguments on each enabled lane. The result on
-disabled lanes is a {ref}`poison value <poisonvalues>`.
+The '`llvm.vp.sub`' intrinsic performs integer subtraction
+({ref}`sub <i_sub>`) of the first and second vector arguments on each enabled
+lane. The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
 
 ##### Examples:
 
@@ -20796,12 +20915,11 @@ the operation.
 
 ##### Semantics:
 
-The '`llvm.vp.minimum`' intrinsic performs floating-point minimum
-({ref}`minimum <i_minimum>`) of the first and second vector arguments on each
-enabled lane, the result being NaN if either argument is a NaN. -0.0 is
-considered to be less than +0.0 for this intrinsic. The result on disabled
-lanes is a {ref}`poison value <poisonvalues>`. The operation is performed in
-the default floating-point environment.
+The '`llvm.vp.minimum`' intrinsic performs floating-point minimum ({ref}`minimum <i_minimum>`)
+of the first and second vector arguments on each enabled lane, the result being
+NaN if either argument is a NaN. -0.0 is considered to be less than +0.0 for this
+intrinsic. The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
+The operation is performed in the default floating-point environment.
 
 ##### Examples:
 
@@ -20838,12 +20956,11 @@ the operation.
 
 ##### Semantics:
 
-The '`llvm.vp.maximum`' intrinsic performs floating-point maximum
-({ref}`maximum <i_maximum>`) of the first and second vector arguments on each
-enabled lane, the result being NaN if either argument is a NaN. -0.0 is
-considered to be less than +0.0 for this intrinsic. The result on disabled
-lanes is a {ref}`poison value <poisonvalues>`. The operation is performed in
-the default floating-point environment.
+The '`llvm.vp.maximum`' intrinsic performs floating-point maximum ({ref}`maximum <i_maximum>`)
+of the first and second vector arguments on each enabled lane, the result being
+NaN if either argument is a NaN. -0.0 is considered to be less than +0.0 for this
+intrinsic. The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
+The operation is performed in the default floating-point environment.
 
 ##### Examples:
 
@@ -20958,10 +21075,10 @@ the operation.
 
 ##### Semantics:
 
-The '`llvm.vp.fmul`' intrinsic performs floating-point multiplication
-({ref}`fmul <i_fmul>`) of the first and second vector arguments on each enabled
-lane. The result on disabled lanes is a {ref}`poison value <poisonvalues>`. The
-operation is performed in the default floating-point environment.
+The '`llvm.vp.fmul`' intrinsic performs floating-point multiplication ({ref}`fmul <i_fmul>`)
+of the first and second vector arguments on each enabled lane. The result on
+disabled lanes is a {ref}`poison value <poisonvalues>`. The operation is
+performed in the default floating-point environment.
 
 ##### Examples:
 
@@ -21069,8 +21186,8 @@ Predicated floating-point negation of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -21107,8 +21224,8 @@ Predicated floating-point absolute value of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -21145,8 +21262,8 @@ Predicated floating-point square root of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -21475,10 +21592,10 @@ operation.
 
 The '`llvm.vp.reduce.and`' intrinsic performs the integer `AND` reduction
 ({ref}`llvm.vector.reduce.and <int_vector_reduce_and>`) of the vector argument
-`val` on each enabled lane, performing an '`and`' of that with with the scalar
-`start_value`. Disabled lanes are treated as containing the neutral value
-`UINT_MAX`, or `-1` (i.e., having no effect on the reduction operation). If the
-vector length is zero, the result is the start value.
+`val` on each enabled lane, performing an '`and`' of that with with the
+scalar `start_value`. Disabled lanes are treated as containing the neutral
+value `UINT_MAX`, or `-1` (i.e., having no effect on the reduction
+operation). If the vector length is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21524,9 +21641,9 @@ operation.
 The '`llvm.vp.reduce.or`' intrinsic performs the integer `OR` reduction
 ({ref}`llvm.vector.reduce.or <int_vector_reduce_or>`) of the vector argument
 `val` on each enabled lane, performing an '`or`' of that with the scalar
-`start_value`. Disabled lanes are treated as containing the neutral value `0`
-(i.e., having no effect on the reduction operation). If the vector length is
-zero, the result is the start value.
+`start_value`. Disabled lanes are treated as containing the neutral value
+`0` (i.e., having no effect on the reduction operation). If the vector length
+is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21572,9 +21689,9 @@ operation.
 The '`llvm.vp.reduce.xor`' intrinsic performs the integer `XOR` reduction
 ({ref}`llvm.vector.reduce.xor <int_vector_reduce_xor>`) of the vector argument
 `val` on each enabled lane, performing an '`xor`' of that with the scalar
-`start_value`. Disabled lanes are treated as containing the neutral value `0`
-(i.e., having no effect on the reduction operation). If the vector length is
-zero, the result is the start value.
+`start_value`. Disabled lanes are treated as containing the neutral value
+`0` (i.e., having no effect on the reduction operation). If the vector length
+is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21620,9 +21737,9 @@ operation.
 The '`llvm.vp.reduce.smax`' intrinsic performs the signed-integer `MAX`
 reduction ({ref}`llvm.vector.reduce.smax <int_vector_reduce_smax>`) of the
 vector argument `val` on each enabled lane, and taking the maximum of that and
-the scalar `start_value`. Disabled lanes are treated as containing the neutral
-value `INT_MIN` (i.e., having no effect on the reduction operation). If the
-vector length is zero, the result is the start value.
+the scalar `start_value`. Disabled lanes are treated as containing the
+neutral value `INT_MIN` (i.e., having no effect on the reduction operation).
+If the vector length is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21668,9 +21785,9 @@ operation.
 The '`llvm.vp.reduce.smin`' intrinsic performs the signed-integer `MIN`
 reduction ({ref}`llvm.vector.reduce.smin <int_vector_reduce_smin>`) of the
 vector argument `val` on each enabled lane, and taking the minimum of that and
-the scalar `start_value`. Disabled lanes are treated as containing the neutral
-value `INT_MAX` (i.e., having no effect on the reduction operation). If the
-vector length is zero, the result is the start value.
+the scalar `start_value`. Disabled lanes are treated as containing the
+neutral value `INT_MAX` (i.e., having no effect on the reduction operation).
+If the vector length is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21716,9 +21833,9 @@ operation.
 The '`llvm.vp.reduce.umax`' intrinsic performs the unsigned-integer `MAX`
 reduction ({ref}`llvm.vector.reduce.umax <int_vector_reduce_umax>`) of the
 vector argument `val` on each enabled lane, and taking the maximum of that and
-the scalar `start_value`. Disabled lanes are treated as containing the neutral
-value `0` (i.e., having no effect on the reduction operation). If the vector
-length is zero, the result is the start value.
+the scalar `start_value`. Disabled lanes are treated as containing the
+neutral value `0` (i.e., having no effect on the reduction operation). If the
+vector length is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21765,8 +21882,8 @@ The '`llvm.vp.reduce.umin`' intrinsic performs the unsigned-integer `MIN`
 reduction ({ref}`llvm.vector.reduce.umin <int_vector_reduce_umin>`) of the
 vector argument `val` on each enabled lane, taking the minimum of that and the
 scalar `start_value`. Disabled lanes are treated as containing the neutral
-value `UINT_MAX`, or `-1` (i.e., having no effect on the reduction operation).
-If the vector length is zero, the result is the start value.
+value `UINT_MAX`, or `-1` (i.e., having no effect on the reduction
+operation). If the vector length is zero, the result is the start value.
 
 To ignore the start value, the neutral value can be used.
 
@@ -21817,9 +21934,9 @@ value (i.e., having no effect on the reduction operation). If the vector length
 is zero, the result is the start value.
 
 The neutral value is dependent on the {ref}`fast-math flags <fastmath>`. If no
-flags are set, the neutral value is `-QNAN`. If `nnan` and `ninf` are both set,
-then the neutral value is the smallest floating-point value for the result
-type. If only `nnan` is set then the neutral value is `-Infinity`.
+flags are set, the neutral value is `-QNAN`. If `nnan` and `ninf` are both
+set, then the neutral value is the smallest floating-point value for the
+result type. If only `nnan` is set then the neutral value is `-Infinity`.
 
 This instruction has the same comparison semantics as the
 {ref}`llvm.vector.reduce.fmax <int_vector_reduce_fmax>` intrinsic (and thus the
@@ -21874,9 +21991,9 @@ value (i.e., having no effect on the reduction operation). If the vector length
 is zero, the result is the start value.
 
 The neutral value is dependent on the {ref}`fast-math flags <fastmath>`. If no
-flags are set, the neutral value is `+QNAN`. If `nnan` and `ninf` are both set,
-then the neutral value is the largest floating-point value for the result type.
-If only `nnan` is set then the neutral value is `+Infinity`.
+flags are set, the neutral value is `+QNAN`. If `nnan` and `ninf` are both
+set, then the neutral value is the largest floating-point value for the
+result type. If only `nnan` is set then the neutral value is `+Infinity`.
 
 This instruction has the same comparison semantics as the
 {ref}`llvm.vector.reduce.fmin <int_vector_reduce_fmin>` intrinsic (and thus the
@@ -21926,9 +22043,9 @@ the operation.
 The '`llvm.vp.reduce.fmaximum`' intrinsic performs the floating-point `MAX`
 reduction ({ref}`llvm.vector.reduce.fmaximum <int_vector_reduce_fmaximum>`) of
 the vector argument `val` on each enabled lane, taking the maximum of that and
-the scalar `start_value`. Disabled lanes are treated as containing the neutral
-value (i.e., having no effect on the reduction operation). If the vector length
-is zero, the result is the start value.
+the scalar `start_value`. Disabled lanes are treated as containing the
+neutral value (i.e., having no effect on the reduction operation). If the vector
+length is zero, the result is the start value.
 
 The neutral value is dependent on the {ref}`fast-math flags <fastmath>`. If no
 flags are set or only the `nnan` is set, the neutral value is `-Infinity`. If
@@ -22045,21 +22162,21 @@ The '`llvm.get.active.lane.mask.*`' intrinsics are semantically equivalent to:
 
 where `%m` is a vector (mask) of active/inactive lanes with its elements
 indexed by `i`, and `%base`, `%n` are the two arguments to
-`llvm.get.active.lane.mask.*`, `%icmp` is an integer compare and `ult` the
-unsigned less-than comparison operator. Overflow cannot occur in `(%base + i)`
-and its comparison against `%n` as it is performed in integer numbers and not
-in machine numbers. The above is equivalent to:
+`llvm.get.active.lane.mask.*`, `%icmp` is an integer compare and `ult`
+the unsigned less-than comparison operator. Overflow cannot occur in
+`(%base + i)` and its comparison against `%n` as it is performed in integer
+numbers and not in machine numbers. The above is equivalent to:
 
     %m = @llvm.get.active.lane.mask(%base, %n)
 
-This can, for example, be emitted by the loop vectorizer in which case `%base`
-is the first element of the vector induction variable (VIV) and `%n` is the
-loop tripcount. Thus, these intrinsics perform an element-wise less than
-comparison of VIV with the loop tripcount, producing a mask of true/false
-values representing active/inactive vector lanes, except if the VIV overflows
-in which case they return false in the lanes where the VIV overflows. The
-arguments are scalar types to accommodate scalable vector types, for which it
-is unknown what the type of the step vector needs to be that enumerate its
+This can, for example, be emitted by the loop vectorizer in which case
+`%base` is the first element of the vector induction variable (VIV) and
+`%n` is the loop tripcount. Thus, these intrinsics perform an element-wise
+less than comparison of VIV with the loop tripcount, producing a mask of
+true/false values representing active/inactive vector lanes, except if the VIV
+overflows in which case they return false in the lanes where the VIV overflows.
+The arguments are scalar types to accommodate scalable vector types, for which
+it is unknown what the type of the step vector needs to be that enumerate its
 lanes without overflow.
 
 This mask `%m` can e.g., be used in masked load/store instructions. These
@@ -22090,8 +22207,8 @@ This is an overloaded intrinsic.
 
 Given a vector load from address %addrA followed by a vector store to address
 %addrB, this instruction generates a mask where an active lane indicates that
-the write-after-read sequence can be performed safely for that lane, without
-the danger of a write-after-read hazard occurring.
+the write-after-read sequence can be performed safely for that lane, without the
+danger of a write-after-read hazard occurring.
 
 A write-after-read hazard occurs when a write-after-read sequence for a given
 lane in a vector ends up being executed as a read-after-write sequence due to
@@ -22099,8 +22216,8 @@ the aliasing of pointers.
 
 ##### Arguments:
 
-The first two arguments are integers and the last argument is an immediate. The
-result is a vector with the i1 element type.
+The first two arguments are integers and the last argument is an immediate.
+The result is a vector with the i1 element type.
 
 ##### Semantics:
 
@@ -22115,8 +22232,9 @@ that:
 
 -   (addrB - addrA) \<= 0 (guarantees that all lanes are loaded before any
     stores), or
--   elementSize \* lane \< (addrB - addrA) (guarantees that this lane is loaded
-    before the store to the same address)
+-   elementSize \* lane \< (addrB - addrA) (guarantees that this lane is
+    loaded before the store to the same
+    address)
 
 ##### Examples:
 
@@ -22186,8 +22304,8 @@ complete.
 
 ##### Arguments:
 
-The first two arguments are integers and the last argument is an immediate. The
-result is a vector with the i1 element type.
+The first two arguments are integers and the last argument is an immediate.
+The result is a vector with the i1 element type.
 
 ##### Semantics:
 
@@ -22199,8 +22317,9 @@ returns `poison` if the distance between `%addrA` and `%addrB` is smaller than
 The element of the result mask is active when storing to %addrA then loading
 from %addrB is safe and doesn't result in aliasing, meaning that:
 
--   elementSize \* lane \< abs(addrB - addrA) (guarantees that the store of
-    this lane occurs before loading from this address), or
+-   elementSize \* lane \< abs(addrB - addrA) (guarantees that the store of this
+    lane occurs before loading from this
+    address), or
 -   addrA == addrB (doesn't introduce any new hazards that weren't in the
     scalar code)
 
@@ -22253,20 +22372,20 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.experimental.vp.splice.*`' intrinsic is the vector length predicated
-version of the '`llvm.vector.splice.*`' intrinsic.
+The '`llvm.experimental.vp.splice.*`' intrinsic is the vector length
+predicated version of the '`llvm.vector.splice.*`' intrinsic.
 
 ##### Arguments:
 
-The result and the first two arguments `vec1` and `vec2` are vectors with the
-same type. The third argument `imm` is an immediate signed integer that
-indicates the offset index. The fourth argument `mask` is a vector mask and has
-the same number of elements as the result. The last two arguments `evl1` and
-`evl2` are unsigned integers indicating the explicit vector lengths of `vec1`
-and `vec2` respectively. `imm`, `evl1` and `evl2` should respect the following
-constraints: `-evl1 <= imm < evl1`, `0 <= evl1 <= VL` and `0 <= evl2 <= VL`,
-where `VL` is the runtime vector factor. If these constraints are not satisfied
-the intrinsic has undefined behavior.
+The result and the first two arguments `vec1` and `vec2` are vectors with
+the same type. The third argument `imm` is an immediate signed integer that
+indicates the offset index. The fourth argument `mask` is a vector mask and
+has the same number of elements as the result. The last two arguments `evl1`
+and `evl2` are unsigned integers indicating the explicit vector lengths of
+`vec1` and `vec2` respectively. `imm`, `evl1` and `evl2` should
+respect the following constraints: `-evl1 <= imm < evl1`, `0 <= evl1 <= VL`
+and `0 <= evl2 <= VL`, where `VL` is the runtime vector factor. If these
+constraints are not satisfied the intrinsic has undefined behavior.
 
 ##### Semantics:
 
@@ -22347,8 +22466,8 @@ argument.
 
 The '`llvm.vp.load`' intrinsic reads a vector from memory in the same way as
 the '`llvm.masked.load`' intrinsic, where the mask is taken from the
-combination of the '`mask`' and '`evl`' arguments in the usual VP way. Certain
-'`llvm.masked.load`' arguments do not have corresponding arguments in
+combination of the '`mask`' and '`evl`' arguments in the usual VP way.
+Certain '`llvm.masked.load`' arguments do not have corresponding arguments in
 '`llvm.vp.load`': the '`passthru`' argument is implicitly `poison`; the
 '`alignment`' argument is taken as the `align` parameter attribute, if
 provided. The default alignment is taken as the ABI alignment of the return
@@ -22377,9 +22496,9 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vp.load.ff.*`' intrinsic is similar to '`llvm.vp.load.*`', but will
-not trap if there are not `evl` readable lanes at the pointer. '`ff`' stands
-for first-fault or fault-only-first.
+The '`llvm.vp.load.ff.*`' intrinsic is similar to
+'`llvm.vp.load.*`', but will not trap if there are not `evl` readable
+lanes at the pointer. '`ff`' stands for first-fault or fault-only-first.
 
 ##### Arguments:
 
@@ -22393,20 +22512,20 @@ argument.
 
 ##### Semantics:
 
-The '`llvm.vp.load.ff`' is designed for reading vector lanes in a single IR
-operation where the number of lanes that can be read is not known and can only
-be determined by looking at the data. This is useful for vectorizing strcmp or
-strlen like loops where the data contains a null terminator. Some targets have
-a fault-only-first load instruction that this intrinsic can be lowered to.
-Other targets may support this intrinsic differently, for example by lowering
-to a single scalar load guarded by `evl!=0` and `mask[0]==1` and indicating
-only 1 lane could be read.
+The '`llvm.vp.load.ff`' is designed for reading vector lanes in a single
+IR operation where the number of lanes that can be read is not known and can
+only be determined by looking at the data. This is useful for vectorizing
+strcmp or strlen like loops where the data contains a null terminator. Some
+targets have a fault-only-first load instruction that this intrinsic can be
+lowered to. Other targets may support this intrinsic differently, for example by
+lowering to a single scalar load guarded by `evl!=0` and `mask[0]==1` and
+indicating only 1 lane could be read.
 
 Like '`llvm.vp.load`', this intrinsic reads memory based on a `mask` and an
-`evl`. If `evl` is non-zero and the first lane is masked-on, then the first
-lane of the vector needs to be inbounds of an allocation. The remaining
-masked-on lanes with index less than `evl` do not need to be inbounds of an the
-same allocation or any allocation.
+`evl`. If `evl` is non-zero and the first lane is masked-on, then the
+first lane of the vector needs to be inbounds of an allocation. The remaining
+masked-on lanes with index less than `evl` do not need to be inbounds of
+an the same allocation or any allocation.
 
 The second return value from the intrinsic indicates the index of the first
 lane that could not be read for some reason or `evl` if all lanes could be be
@@ -22414,17 +22533,17 @@ read. Lanes at this index or higher in the first return value are {ref}`poison
 value <poisonvalues>`. If `evl` is non-zero, the result in the second return
 value must be at least 1, even if the first lane is masked-off.
 
-The second result is usually less than `evl` when an exception would occur for
-reading that lane, but it can be reduced for any reason. This facilitates
-emulating this intrinsic when the hardware only supports narrower vector types
-natively or when when hardware does not support fault-only-first loads.
+The second result is usually less than `evl` when an exception would occur
+for reading that lane, but it can be reduced for any reason. This facilitates
+emulating this intrinsic when the hardware only supports narrower vector
+types natively or when when hardware does not support fault-only-first loads.
 
 Masked-on lanes that are not inbounds of the allocation that contains the first
 lane are {ref}`poison value <poisonvalues>`. There should be a marker in the
 allocation that indicates where valid data stops such as a null terminator. The
 terminator should be checked for after calling this intrinsic to prevent using
-any lanes past the terminator. Even if second return value is less than `evl`,
-the terminator value may not have been read.
+any lanes past the terminator. Even if second return value is less than
+`evl`, the terminator value may not have been read.
 
 This intrinsic will typically be called in a loop until a terminator is found.
 The second result should be used to indicates how many elements are valid to
@@ -22432,8 +22551,8 @@ look for the null terminator. If the terminator is not found, the pointer
 should be advanced by the number of elements in the second result and the
 intrinsic called again.
 
-The default alignment is taken as the ABI alignment of the first return type as
-specified by the {ref}`datalayout string<langref_datalayout>`.
+The default alignment is taken as the ABI alignment of the first return
+type as specified by the {ref}`datalayout string<langref_datalayout>`.
 
 ##### Examples:
 
@@ -22501,17 +22620,16 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.experimental.vp.strided.load`' intrinsic loads, into a vector,
-scalar values from memory locations evenly spaced apart by '`stride`' number of
-bytes, starting from '`ptr`'.
+The '`llvm.experimental.vp.strided.load`' intrinsic loads, into a vector, scalar values from
+memory locations evenly spaced apart by '`stride`' number of bytes, starting from '`ptr`'.
 
 ##### Arguments:
 
-The first argument is the base pointer for the load. The second argument is the
-stride value expressed in bytes. The third argument is a vector of boolean
-values with the same number of elements as the return type. The fourth is the
-explicit vector length of the operation. The base pointer underlying type
-matches the type of the scalar elements of the return argument.
+The first argument is the base pointer for the load. The second argument is the stride
+value expressed in bytes. The third argument is a vector of boolean values
+with the same number of elements as the return type. The fourth is the explicit
+vector length of the operation. The base pointer underlying type matches the type of the scalar
+elements of the return argument.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the first
 argument.
@@ -22561,10 +22679,10 @@ bytes, starting from '`ptr`'.
 
 The first argument is the vector value to be written to memory. The second
 argument is the base pointer for the store. Its underlying type matches the
-scalar element type of the value argument. The third argument is the stride
-value expressed in bytes. The fourth argument is a vector of boolean values
-with the same number of elements as the return type. The fifth is the explicit
-vector length of the operation.
+scalar element type of the value argument. The third argument is the stride value
+expressed in bytes. The fourth argument is a vector of boolean values with the
+same number of elements as the return type. The fifth is the explicit vector
+length of the operation.
 
 The {ref}`align <attr_align>` parameter attribute can be provided for the
 second argument.
@@ -22572,8 +22690,8 @@ second argument.
 ##### Semantics:
 
 The '`llvm.experimental.vp.strided.store`' intrinsic stores the elements of
-'`val`' in the same way as the {ref}`llvm.vp.scatter <int_vp_scatter>`
-intrinsic, where the vector of pointers is in the form:
+'`val`' in the same way as the {ref}`llvm.vp.scatter <int_vp_scatter>` intrinsic,
+where the vector of pointers is in the form:
 
 > `%ptrs = <%ptr, %ptr + %stride, %ptr + 2 * %stride, ... >`,
 
@@ -22626,12 +22744,12 @@ argument.
 
 The '`llvm.vp.gather`' intrinsic reads multiple scalar values from memory in
 the same way as the '`llvm.masked.gather`' intrinsic, where the mask is taken
-from the combination of the '`mask`' and '`evl`' arguments in the usual VP way.
-Certain '`llvm.masked.gather`' arguments do not have corresponding arguments in
-'`llvm.vp.gather`': the '`passthru`' argument is implicitly `poison`; the
-'`alignment`' argument is taken as the `align` parameter, if provided. The
-default alignment is taken as the ABI alignment of the source addresses as
-specified by the {ref}`datalayout string<langref_datalayout>`.
+from the combination of the '`mask`' and '`evl`' arguments in the usual VP
+way. Certain '`llvm.masked.gather`' arguments do not have corresponding
+arguments in '`llvm.vp.gather`': the '`passthru`' argument is implicitly
+`poison`; the '`alignment`' argument is taken as the `align` parameter, if
+provided. The default alignment is taken as the ABI alignment of the source
+addresses as specified by the {ref}`datalayout string<langref_datalayout>`.
 
 ##### Examples:
 
@@ -22750,8 +22868,8 @@ type. The operation has a mask and an explicit vector length parameter.
 
 ##### Arguments:
 
-The '`llvm.vp.zext`' intrinsic takes a value to cast as its first argument. The
-return type is the type to cast the value to. Both types must be vectors of
+The '`llvm.vp.zext`' intrinsic takes a value to cast as its first argument.
+The return type is the type to cast the value to. Both types must be vectors of
 {ref}`integer <t_integer>` type. The bit size of the value must be smaller than
 the bit size of the return type. The second argument is the vector mask. The
 return type, the value to cast, and the vector mask have the same number of
@@ -22792,8 +22910,8 @@ type. The operation has a mask and an explicit vector length parameter.
 
 ##### Arguments:
 
-The '`llvm.vp.sext`' intrinsic takes a value to cast as its first argument. The
-return type is the type to cast the value to. Both types must be vectors of
+The '`llvm.vp.sext`' intrinsic takes a value to cast as its first argument.
+The return type is the type to cast the value to. Both types must be vectors of
 {ref}`integer <t_integer>` type. The bit size of the value must be smaller than
 the bit size of the return type. The second argument is the vector mask. The
 return type, the value to cast, and the vector mask have the same number of
@@ -22874,8 +22992,8 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vp.fpext`' intrinsic extends its first argument to the return type.
-The operation has a mask and an explicit vector length parameter.
+The '`llvm.vp.fpext`' intrinsic extends its first argument to the return
+type. The operation has a mask and an explicit vector length parameter.
 
 ##### Arguments:
 
@@ -23110,10 +23228,10 @@ type. The operation has a mask and an explicit vector length parameter.
 
 The '`llvm.vp.ptrtoint`' intrinsic takes a value to cast as its first argument
 , which must be a vector of pointers, and a type to cast it to return type,
-which must be a vector of {ref}`integer <t_integer>` type. The second argument
-is the vector mask. The return type, the value to cast, and the vector mask
-have the same number of elements. The third argument is the explicit vector
-length of the operation.
+which must be a vector of {ref}`integer <t_integer>` type.
+The second argument is the vector mask. The return type, the value to cast, and
+the vector mask have the same number of elements.
+The third argument is the explicit vector length of the operation.
 
 ##### Semantics:
 
@@ -23156,20 +23274,20 @@ return type. The operation has a mask and an explicit vector length parameter.
 
 The '`llvm.vp.inttoptr`' intrinsic takes a value to cast as its first argument
 , which must be a vector of {ref}`integer <t_integer>` type, and a type to cast
-it to return type, which must be a vector of pointers type. The second argument
-is the vector mask. The return type, the value to cast, and the vector mask
-have the same number of elements. The third argument is the explicit vector
-length of the operation.
+it to return type, which must be a vector of pointers type.
+The second argument is the vector mask. The return type, the value to cast, and
+the vector mask have the same number of elements.
+The third argument is the explicit vector length of the operation.
 
 ##### Semantics:
 
-The '`llvm.vp.inttoptr`' intrinsic converts `value` to return type by applying
-either a zero extension or a truncation depending on the size of the integer
-`value`. If `value` is larger than the size of a pointer, then a truncation is
-done. If `value` is smaller than the size of a pointer, then a zero extension
-is done. If they are the same size, nothing is done (*no-op cast*). The
-conversion is performed on lane positions below the explicit vector length and
-where the vector mask is true. Masked-off lanes are `poison`.
+The '`llvm.vp.inttoptr`' intrinsic converts `value` to return type by
+applying either a zero extension or a truncation depending on the size of the
+integer `value`. If `value` is larger than the size of a pointer, then a
+truncation is done. If `value` is smaller than the size of a pointer, then a
+zero extension is done. If they are the same size, nothing is done (*no-op cast*).
+The conversion is performed on lane positions below the explicit vector length
+and where the vector mask is true. Masked-off lanes are `poison`.
 
 ##### Examples:
 
@@ -23194,8 +23312,8 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vp.fcmp`' intrinsic returns a vector of boolean values based on the
-comparison of its arguments. The operation has a mask and an explicit vector
+The '`llvm.vp.fcmp`' intrinsic returns a vector of boolean values based on
+the comparison of its arguments. The operation has a mask and an explicit vector
 length parameter.
 
 ##### Arguments:
@@ -23213,8 +23331,8 @@ The fifth argument is the explicit vector length of the operation.
 ##### Semantics:
 
 The '`llvm.vp.fcmp`' compares its first two arguments according to the
-condition code given as the third argument. The arguments are compared element
-by element on each enabled lane, where the semantics of the comparison are
+condition code given as the third argument. The arguments are compared element by
+element on each enabled lane, where the semantics of the comparison are
 defined {ref}`according to the condition code <fcmp_md_cc_sem>`. Masked-off
 lanes are `poison`.
 
@@ -23241,8 +23359,8 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-The '`llvm.vp.icmp`' intrinsic returns a vector of boolean values based on the
-comparison of its arguments. The operation has a mask and an explicit vector
+The '`llvm.vp.icmp`' intrinsic returns a vector of boolean values based on
+the comparison of its arguments. The operation has a mask and an explicit vector
 length parameter.
 
 ##### Arguments:
@@ -23260,8 +23378,8 @@ fifth argument is the explicit vector length of the operation.
 ##### Semantics:
 
 The '`llvm.vp.icmp`' compares its first two arguments according to the
-condition code given as the third argument. The arguments are compared element
-by element on each enabled lane, where the semantics of the comparison are
+condition code given as the third argument. The arguments are compared element by
+element on each enabled lane, where the semantics of the comparison are
 defined {ref}`according to the condition code <icmp_md_cc_sem>`. Masked-off
 lanes are `poison`.
 
@@ -23293,8 +23411,8 @@ Predicated floating-point ceiling of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -23331,8 +23449,8 @@ Predicated floating-point floor of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -23369,8 +23487,8 @@ Predicated floating-point rint of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -23407,15 +23525,15 @@ Predicated floating-point nearbyint of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
 
 The '`llvm.vp.nearbyint`' intrinsic performs floating-point nearbyint
-({ref}`nearbyint <int_nearbyint>`) of the first vector argument on each enabled
-lane. The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
+({ref}`nearbyint <int_nearbyint>`) of the first vector argument on each enabled lane.
+The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
 
 ##### Examples:
 
@@ -23445,8 +23563,8 @@ Predicated floating-point round of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -23483,8 +23601,8 @@ Predicated floating-point roundeven of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -23521,8 +23639,8 @@ Predicated floating-point round-to-zero of a vector of floating-point values.
 ##### Arguments:
 
 The first argument and the result have the same vector of floating-point type.
-The second argument is the vector mask and has the same number of elements as
-the result vector type. The third argument is the explicit vector length of the
+The second argument is the vector mask and has the same number of elements as the
+result vector type. The third argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -23792,11 +23910,11 @@ Predicated cttz of a vector of integers.
 ##### Arguments:
 
 The first argument and the result have the same vector of integer type. The
-second argument is a constant flag that indicates whether the intrinsic returns
-a valid result if the first argument is zero. The third argument is the vector
-mask and has the same number of elements as the result vector type. The fourth
-argument is the explicit vector length of the operation. If the first argument
-is zero and the second argument is true, the result is poison.
+second argument is a constant flag that indicates whether the intrinsic
+returns a valid result if the first argument is zero. The third argument is
+the vector mask and has the same number of elements as the result vector type.
+The fourth argument is the explicit vector length of the operation. If the
+first argument is zero and the second argument is true, the result is poison.
 
 ##### Semantics:
 
@@ -23835,16 +23953,16 @@ elements of a vector. This is basically the vector-predicated version of
 ##### Arguments:
 
 The first argument is the vector to be counted. This argument must be a vector
-with integer element type. The return type must also be an integer type which
-is wide enough to hold the maximum number of elements of the source vector. The
+with integer element type. The return type must also be an integer type which is
+wide enough to hold the maximum number of elements of the source vector. The
 behavior of this intrinsic is undefined if the return type is not wide enough
 for the number of elements in the input vector.
 
 The second argument is a constant flag that indicates whether the intrinsic
 returns a valid result if the first argument is all zero.
 
-The third argument is the vector mask and has the same number of elements as
-the input vector type. The fourth argument is the explicit vector length of the
+The third argument is the vector mask and has the same number of elements as the
+input vector type. The fourth argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
@@ -24024,16 +24142,15 @@ Predicated fshl of three vectors of integers.
 
 ##### Arguments:
 
-The first three arguments and the result have the same vector of integer type.
-The fourth argument is the vector mask and has the same number of elements as
-the result vector type. The fifth argument is the explicit vector length of the
+The first three arguments and the result have the same vector of integer type. The
+fourth argument is the vector mask and has the same number of elements as the
+result vector type. The fifth argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
 
-The '`llvm.vp.fshl`' intrinsic performs fshl ({ref}`fshl <int_fshl>`) of the
-first, second, and third vector argument on each enabled lane. The result on
-disabled lanes is a {ref}`poison value <poisonvalues>`.
+The '`llvm.vp.fshl`' intrinsic performs fshl ({ref}`fshl <int_fshl>`) of the first, second, and third
+vector argument on each enabled lane. The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
 
 ##### Examples:
 
@@ -24061,16 +24178,15 @@ Predicated fshr of three vectors of integers.
 
 ##### Arguments:
 
-The first three arguments and the result have the same vector of integer type.
-The fourth argument is the vector mask and has the same number of elements as
-the result vector type. The fifth argument is the explicit vector length of the
+The first three arguments and the result have the same vector of integer type. The
+fourth argument is the vector mask and has the same number of elements as the
+result vector type. The fifth argument is the explicit vector length of the
 operation.
 
 ##### Semantics:
 
-The '`llvm.vp.fshr`' intrinsic performs fshr ({ref}`fshr <int_fshr>`) of the
-first, second, and third vector argument on each enabled lane. The result on
-disabled lanes is a {ref}`poison value <poisonvalues>`.
+The '`llvm.vp.fshr`' intrinsic performs fshr ({ref}`fshr <int_fshr>`) of the first, second, and third
+vector argument on each enabled lane. The result on disabled lanes is a {ref}`poison value <poisonvalues>`.
 
 ##### Examples:
 
@@ -24119,12 +24235,8 @@ The '`llvm.vp.is.fpclass`' intrinsic performs `llvm.is.fpclass`
 (int_mload_mstore)=
 ### Masked Vector Load and Store Intrinsics
 
-LLVM provides intrinsics for predicated vector load and store operations. The
-predicate is specified by a mask argument, which holds one bit per vector
-element, switching the associated vector lane on or off. The memory addresses
-corresponding to the \"off\" lanes are not accessed. When all bits of the mask
-are on, the intrinsic is identical to a regular vector load or store. When all
-bits are off, no memory is accessed.
+LLVM provides intrinsics for predicated vector load and store operations. The predicate is specified by a mask argument, which holds one bit per vector element, switching the associated vector lane on or off. The memory addresses corresponding to the \"off\" lanes are not accessed. When all bits of the mask are on, the intrinsic is identical to a regular vector load or store. When all bits are off, no memory is
+accessed.
 
 (int_mload)=
 #### '`llvm.masked.load.*`' Intrinsics
@@ -24141,37 +24253,21 @@ floating-point or pointer data type.
 
 ##### Overview:
 
-Reads a vector from memory according to the provided mask. The mask holds a bit
-for each vector lane, and is used to prevent memory accesses to the masked-off
-lanes. The masked-off lanes in the result vector are taken from the
-corresponding lanes of the '`passthru`' argument.
+Reads a vector from memory according to the provided mask. The mask holds a bit for each vector lane, and is used to prevent memory accesses to the masked-off lanes. The masked-off lanes in the result vector are taken from the corresponding lanes of the '`passthru`' argument.
 
 ##### Arguments:
 
-The first argument is the base pointer for the load. The second argument, mask,
-is a vector of boolean values with the same number of elements as the return
-type. The third is a pass-through value that is used to fill the masked-off
-lanes of the result. The return type, underlying type of the base pointer and
-the type of the '`passthru`' argument are the same vector types.
+The first argument is the base pointer for the load. The second argument, mask, is a vector of boolean values with the same number of elements as the return type. The third is a pass-through value that is used to fill the masked-off lanes of the result. The return type, underlying type of the base pointer and the type of the '`passthru`' argument are the same vector types.
 
-The alignment of the base pointer can be specified using the `align` attribute
-on the first argument.
+The alignment of the base pointer can be specified using the `align` attribute on the first argument.
 
 ##### Semantics:
 
-The '`llvm.masked.load`' intrinsic is designed for conditional reading of
-selected vector elements in a single IR operation. It is useful for targets
-that support vector masked loads and allows vectorizing predicated basic blocks
-on these targets. Other targets may support this intrinsic differently, for
-example by lowering it into a sequence of branches that guard scalar load
-operations. The result of this operation is equivalent to a regular vector load
-instruction followed by a 'select' between the loaded and the passthru values,
-predicated on the same mask, except that the masked-off lanes are not accessed.
-Only the masked-on lanes of the vector need to be inbounds of an allocation
-(but all these lanes need to be inbounds of the same allocation). In
-particular, using this intrinsic prevents exceptions on memory accesses to
-masked-off lanes. Masked-off lanes are also not considered accessed for the
-purpose of data races or `noalias` constraints.
+The '`llvm.masked.load`' intrinsic is designed for conditional reading of selected vector elements in a single IR operation. It is useful for targets that support vector masked loads and allows vectorizing predicated basic blocks on these targets. Other targets may support this intrinsic differently, for example by lowering it into a sequence of branches that guard scalar load operations.
+The result of this operation is equivalent to a regular vector load instruction followed by a 'select' between the loaded and the passthru values, predicated on the same mask, except that the masked-off lanes are not accessed.
+Only the masked-on lanes of the vector need to be inbounds of an allocation (but all these lanes need to be inbounds of the same allocation).
+In particular, using this intrinsic prevents exceptions on memory accesses to masked-off lanes.
+Masked-off lanes are also not considered accessed for the purpose of data races or `noalias` constraints.
 
     %res = call <16 x float> @llvm.masked.load.v16f32.p0(ptr align 4 %ptr, <16 x i1>%mask, <16 x float> %passthru)
 
@@ -24206,8 +24302,7 @@ the value argument. The third argument, mask, is a vector of boolean values.
 The types of the mask and the value argument must have the same number of
 vector elements.
 
-The alignment of the base pointer can be specified using the `align` attribute
-on the second argument.
+The alignment of the base pointer can be specified using the `align` attribute on the second argument.
 
 ##### Semantics:
 
@@ -24233,13 +24328,8 @@ or `noalias` constraints.
 
 ### Masked Vector Gather and Scatter Intrinsics
 
-LLVM provides intrinsics for vector gather and scatter operations. They are
-similar to {ref}`Masked Vector Load and Store <int_mload_mstore>`, except they
-are designed for arbitrary memory accesses, rather than sequential memory
-accesses. Gather and scatter also employ a mask argument, which holds one bit
-per vector element, switching the associated vector lane on or off. The memory
-addresses corresponding to the \"off\" lanes are not accessed. When all bits
-are off, no memory is accessed.
+LLVM provides intrinsics for vector gather and scatter operations. They are similar to {ref}`Masked Vector Load and Store <int_mload_mstore>`, except they are designed for arbitrary memory accesses, rather than sequential memory accesses. Gather and scatter also employ a mask argument, which holds one bit per vector element, switching the associated vector lane on or off. The memory addresses corresponding to the \"off\" lanes are not accessed. When all bits are off, no memory is
+accessed.
 
 (int_mgather)=
 #### '`llvm.masked.gather.*`' Intrinsics
@@ -24256,36 +24346,19 @@ vector.
 
 ##### Overview:
 
-Reads scalar values from arbitrary memory locations and gathers them into one
-vector. The memory locations are provided in the vector of pointers '`ptrs`'.
-The memory is accessed according to the provided mask. The mask holds a bit for
-each vector lane, and is used to prevent memory accesses to the masked-off
-lanes. The masked-off lanes in the result vector are taken from the
-corresponding lanes of the '`passthru`' argument.
+Reads scalar values from arbitrary memory locations and gathers them into one vector. The memory locations are provided in the vector of pointers '`ptrs`'. The memory is accessed according to the provided mask. The mask holds a bit for each vector lane, and is used to prevent memory accesses to the masked-off lanes. The masked-off lanes in the result vector are taken from the corresponding lanes of the '`passthru`' argument.
 
 ##### Arguments:
 
-The first argument is a vector of pointers which holds all memory addresses to
-read. The second argument, mask, is a vector of boolean values with the same
-number of elements as the return type. The third is a pass-through value that
-is used to fill the masked-off lanes of the result. The return type, underlying
-type of the vector of pointers and the type of the '`passthru`' argument are
-the same vector types.
+The first argument is a vector of pointers which holds all memory addresses to read. The second argument, mask, is a vector of boolean values with the same number of elements as the return type. The third is a pass-through value that is used to fill the masked-off lanes of the result. The return type, underlying type of the vector of pointers and the type of the '`passthru`' argument are the same vector types.
 
 The alignment of the pointers can be specified using the `align` attribute on
 the first argument.
 
 ##### Semantics:
 
-The '`llvm.masked.gather`' intrinsic is designed for conditional reading of
-multiple scalar values from arbitrary memory locations in a single IR
-operation. It is useful for targets that support vector masked gathers and
-allows vectorizing basic blocks with data and control divergence. Other targets
-may support this intrinsic differently, for example by lowering it into a
-sequence of scalar load operations. The semantics of this operation are
-equivalent to a sequence of conditional scalar loads with subsequent gathering
-all loaded values into a single vector. The mask restricts memory access to
-certain lanes and facilitates vectorization of predicated basic blocks.
+The '`llvm.masked.gather`' intrinsic is designed for conditional reading of multiple scalar values from arbitrary memory locations in a single IR operation. It is useful for targets that support vector masked gathers and allows vectorizing basic blocks with data and control divergence. Other targets may support this intrinsic differently, for example by lowering it into a sequence of scalar load operations.
+The semantics of this operation are equivalent to a sequence of conditional scalar loads with subsequent gathering all loaded values into a single vector. The mask restricts memory access to certain lanes and facilitates vectorization of predicated basic blocks.
 
     %res = call <4 x double> @llvm.masked.gather.v4f64.v4p0(<4 x ptr> align 8 %ptrs, <4 x i1> <i1 true, i1 true, i1 true, i1 true>, <4 x double> poison)
 
@@ -24321,31 +24394,18 @@ to be ordered from least-significant to most-significant element.
 
 ##### Overview:
 
-Writes each element from the value vector to the corresponding memory address.
-The memory addresses are represented as a vector of pointers. Writing is done
-according to the provided mask. The mask holds a bit for each vector lane, and
-is used to prevent memory accesses to the masked-off lanes.
+Writes each element from the value vector to the corresponding memory address. The memory addresses are represented as a vector of pointers. Writing is done according to the provided mask. The mask holds a bit for each vector lane, and is used to prevent memory accesses to the masked-off lanes.
 
 ##### Arguments:
 
-The first argument is a vector value to be written to memory. The second
-argument is a vector of pointers, pointing to where the value elements should
-be stored. It has the same underlying type as the value argument. The third
-argument, mask, is a vector of boolean values. The types of the mask and the
-value argument must have the same number of vector elements.
+The first argument is a vector value to be written to memory. The second argument is a vector of pointers, pointing to where the value elements should be stored. It has the same underlying type as the value argument. The third argument, mask, is a vector of boolean values. The types of the mask and the value argument must have the same number of vector elements.
 
 The alignment of the pointers can be specified using the `align` attribute on
 the second argument.
 
 ##### Semantics:
 
-The '`llvm.masked.scatter`' intrinsics is designed for writing selected vector
-elements to arbitrary memory addresses in a single IR operation. The operation
-may be conditional, when not all bits in the mask are switched on. It is useful
-for targets that support vector masked scatter and allows vectorizing basic
-blocks with data and control divergence. Other targets may support this
-intrinsic differently, for example by lowering it into a sequence of branches
-that guard scalar store operations.
+The '`llvm.masked.scatter`' intrinsics is designed for writing selected vector elements to arbitrary memory addresses in a single IR operation. The operation may be conditional, when not all bits in the mask are switched on. It is useful for targets that support vector masked scatter and allows vectorizing basic blocks with data and control divergence. Other targets may support this intrinsic differently, for example by lowering it into a sequence of branches that guard scalar store operations.
 
     ;; This instruction unconditionally stores data vector in multiple addresses
     call @llvm.masked.scatter.v8i32.v8p0(<8 x i32> %value, <8 x ptr> align 4 %ptrs,  <8 x i1>  <true, true, .. true>)
@@ -24413,10 +24473,7 @@ argument. The pointer alignment defaults to 1.
 
 ##### Semantics:
 
-The '`llvm.masked.expandload`' intrinsic is designed for reading multiple
-scalar values from adjacent memory addresses into possibly non-adjacent vector
-lanes. It is useful for targets that support vector expanding loads and allows
-vectorizing loop with cross-iteration dependency like in the following example:
+The '`llvm.masked.expandload`' intrinsic is designed for reading multiple scalar values from adjacent memory addresses into possibly non-adjacent vector lanes. It is useful for targets that support vector expanding loads and allows vectorizing loop with cross-iteration dependency like in the following example:
 
 ``` c
 // In this loop we load from B and spread the elements into array A.
@@ -24461,30 +24518,18 @@ vector.
 
 ##### Overview:
 
-Selects elements from input vector '`value`' according to the '`mask`'. All
-selected elements are written into adjacent memory addresses starting at
-address '`ptr`', from lower to higher. The mask holds a bit for each vector
-lane, and is used to select elements to be stored. The number of elements to be
-stored is equal to the number of active bits in the mask.
+Selects elements from input vector '`value`' according to the '`mask`'. All selected elements are written into adjacent memory addresses starting at address '`ptr`', from lower to higher. The mask holds a bit for each vector lane, and is used to select elements to be stored. The number of elements to be stored is equal to the number of active bits in the mask.
 
 ##### Arguments:
 
-The first argument is the input vector, from which elements are collected and
-written to memory. The second argument is the base pointer for the store, it
-has the same underlying type as the element of the input vector argument. The
-third argument is the mask, a vector of boolean values. The mask and the input
-vector must have the same number of vector elements.
+The first argument is the input vector, from which elements are collected and written to memory. The second argument is the base pointer for the store, it has the same underlying type as the element of the input vector argument. The third argument is the mask, a vector of boolean values. The mask and the input vector must have the same number of vector elements.
 
-The {ref}`align <attr_align>` parameter attribute can be provided for the
-second argument. The pointer alignment defaults to 1.
+The {ref}`align <attr_align>` parameter attribute can be provided for the second
+argument. The pointer alignment defaults to 1.
 
 ##### Semantics:
 
-The '`llvm.masked.compressstore`' intrinsic is designed for compressing data in
-memory. It allows to collect elements from possibly non-adjacent lanes of a
-vector and store them contiguously in memory in one IR operation. It is useful
-for targets that support compressing store operations and allows vectorizing
-loops with cross-iteration dependencies like in the following example:
+The '`llvm.masked.compressstore`' intrinsic is designed for compressing data in memory. It allows to collect elements from possibly non-adjacent lanes of a vector and store them contiguously in memory in one IR operation. It is useful for targets that support compressing store operations and allows vectorizing loops with cross-iteration dependencies like in the following example:
 
 ``` c
 // In this loop we load elements from A and store them consecutively in B
@@ -24508,8 +24553,7 @@ call <void> @llvm.masked.compressstore.v8f64(<8 x double> %Tmp, ptr %Bptr, <8 x 
 %BNextInd = add i64 %BInd, %MaskI64
 ```
 
-Other targets may support this intrinsic differently, for example, by lowering
-it into a sequence of branches that guard scalar store operations.
+Other targets may support this intrinsic differently, for example, by lowering it into a sequence of branches that guard scalar store operations.
 
 ### Masked Vector Arithmetic Intrinsics
 
@@ -24524,19 +24568,15 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-Performs unsigned division ({ref}`udiv <i_udiv>`) of two vectors of integers,
-but only on enabled lanes.
+Performs unsigned division ({ref}`udiv <i_udiv>`) of two vectors of integers, but only on enabled lanes.
 
 ##### Arguments:
 
-The first two arguments and the result have the same vector of integer type.
-The third argument is the vector mask and has the same number of elements as
-the result vector type.
+The first two arguments and the result have the same vector of integer type. The third argument is the vector mask and has the same number of elements as the result vector type.
 
 ##### Semantics:
 
-Follows the same semantics as {ref}`udiv <i_udiv>` with the exception that
-disabled lanes cannot produce undefined behaviour and always result in poison.
+Follows the same semantics as {ref}`udiv <i_udiv>` with the exception that disabled lanes cannot produce undefined behaviour and always result in poison.
 
 #### '`llvm.masked.sdiv.*`' Intrinsics
 
@@ -24549,19 +24589,15 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-Performs signed division ({ref}`sdiv <i_sdiv>`) of two vectors of integers, but
-only on enabled lanes.
+Performs signed division ({ref}`sdiv <i_sdiv>`) of two vectors of integers, but only on enabled lanes.
 
 ##### Arguments:
 
-The first two arguments and the result have the same vector of integer type.
-The third argument is the vector mask and has the same number of elements as
-the result vector type.
+The first two arguments and the result have the same vector of integer type. The third argument is the vector mask and has the same number of elements as the result vector type.
 
 ##### Semantics:
 
-Follows the same semantics as {ref}`sdiv <i_sdiv>` with the exception that
-disabled lanes cannot produce undefined behaviour and always result in poison.
+Follows the same semantics as {ref}`sdiv <i_sdiv>` with the exception that disabled lanes cannot produce undefined behaviour and always result in poison.
 
 #### '`llvm.masked.urem.*`' Intrinsics
 
@@ -24574,19 +24610,15 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-Computes the remainder from the unsigned division ({ref}`urem <i_urem>`) of two
-vectors of integers, but only on enabled lanes.
+Computes the remainder from the unsigned division ({ref}`urem <i_urem>`) of two vectors of integers, but only on enabled lanes.
 
 ##### Arguments:
 
-The first two arguments and the result have the same vector of integer type.
-The third argument is the vector mask and has the same number of elements as
-the result vector type.
+The first two arguments and the result have the same vector of integer type. The third argument is the vector mask and has the same number of elements as the result vector type.
 
 ##### Semantics:
 
-Follows the same semantics as {ref}`urem <i_urem>` with the exception that
-disabled lanes cannot produce undefined behaviour and always result in poison.
+Follows the same semantics as {ref}`urem <i_urem>` with the exception that disabled lanes cannot produce undefined behaviour and always result in poison.
 
 #### '`llvm.masked.srem.*`' Intrinsics
 
@@ -24599,19 +24631,15 @@ This is an overloaded intrinsic.
 
 ##### Overview:
 
-Computes the remainder from the signed division ({ref}`srem <i_srem>`) of two
-vectors of integers, but only on enabled lanes.
+Computes the remainder from the signed division ({ref}`srem <i_srem>`) of two vectors of integers, but only on enabled lanes.
 
 ##### Arguments:
 
-The first two arguments and the result have the same vector of integer type.
-The third argument is the vector mask and has the same number of elements as
-the result vector type.
+The first two arguments and the result have the same vector of integer type. The third argument is the vector mask and has the same number of elements as the result vector type.
 
 ##### Semantics:
 
-Follows the same semantics as {ref}`srem <i_srem>` with the exception that
-disabled lanes cannot produce undefined behaviour and always result in poison.
+Follows the same semantics as {ref}`srem <i_srem>` with the exception that disabled lanes cannot produce undefined behaviour and always result in poison.
 
 ### Memory Use Markers
 
@@ -24633,17 +24661,18 @@ lifetime.
 ##### Arguments:
 
 The argument is either a `poison` value or an SSA variable whose defining
-instruction is `alloca` or a call of the `llvm.structured.alloca` intrinsics.
-Otherwise, the IR is considered ill-formed.
+instruction is `alloca` or a call of the `llvm.structured.alloca`
+intrinsics. Otherwise, the IR is considered ill-formed.
 
 ##### Semantics:
 
 If `ptr` is a `poison` value, the intrinsic has no effect.
 
-Otherwise, the stack-allocated object that `ptr` points to is initially marked
-as dead. After '`llvm.lifetime.start`', the stack object is marked as alive and
-has an uninitialized value. Calling `llvm.lifetime.start` when the stack object
-is already alive just resets its contents to be uninitialized.
+Otherwise, the stack-allocated object that `ptr` points to is initially
+marked as dead. After '`llvm.lifetime.start`', the stack object is marked as
+alive and has an uninitialized value.
+Calling `llvm.lifetime.start` when the stack object is already alive just
+resets its contents to be uninitialized.
 
 The stack object is marked as dead again when either {ref}`llvm.lifetime.end
 <int_lifeend>` to the alloca/structured.alloca is executed or the function
@@ -24667,8 +24696,8 @@ object's lifetime<objectlifetime>`.
 ##### Arguments:
 
 The argument is either a `poison` value or an SSA variable whose defining
-instruction is `alloca` or a call of the `llvm.structured.alloca` intrinsics.
-Otherwise, the IR is considered ill-formed.
+instruction is `alloca` or a call of the `llvm.structured.alloca`
+intrinsics. Otherwise, the IR is considered ill-formed.
 
 ##### Semantics:
 
@@ -24720,9 +24749,10 @@ The '`llvm.invariant.end`' intrinsic specifies that the contents of an
 
 ##### Arguments:
 
-The first argument is the matching `llvm.invariant.start` intrinsic. The second
-argument is a constant integer representing the size of the object, or -1 if it
-is variable sized and the third argument is a pointer to the object.
+The first argument is the matching `llvm.invariant.start` intrinsic.
+The second argument is a constant integer representing the size of the
+object, or -1 if it is variable sized and the third argument is a
+pointer to the object.
 
 ##### Semantics:
 
@@ -24753,9 +24783,9 @@ to the memory.
 
 ##### Semantics:
 
-Returns another pointer that aliases its argument but which is considered
-different for the purposes of `load`/`store` `invariant.group` metadata. It
-does not read any accessible memory and the execution can be speculated.
+Returns another pointer that aliases its argument but which is considered different
+for the purposes of `load`/`store` `invariant.group` metadata.
+It does not read any accessible memory and the execution can be speculated.
 
 #### '`llvm.strip.invariant.group`' Intrinsic
 
@@ -24797,20 +24827,20 @@ accurately preserve exception behavior without compromising LLVM's ability to
 optimize FP code when the default behavior is used.
 
 If any FP operation in a function is constrained then they all must be
-constrained. This is required for correct LLVM IR. Optimizations that move code
-around can create miscompiles if mixing of constrained and normal operations is
-done. The correct way to mix constrained and less constrained operations is to
-use the rounding mode and exception handling metadata to mark constrained
-intrinsics as having LLVM's default behavior.
+constrained. This is required for correct LLVM IR. Optimizations that
+move code around can create miscompiles if mixing of constrained and normal
+operations is done. The correct way to mix constrained and less constrained
+operations is to use the rounding mode and exception handling metadata to
+mark constrained intrinsics as having LLVM's default behavior.
 
 Each of these intrinsics corresponds to a normal floating-point operation. The
 data arguments and the return value are the same as the corresponding FP
 operation.
 
-The rounding mode argument is a metadata string specifying what assumptions, if
-any, the optimizer can make when transforming constant values. Some constrained
-FP intrinsics omit this argument. If required by the intrinsic, this argument
-must be one of the following strings:
+The rounding mode argument is a metadata string specifying what
+assumptions, if any, the optimizer can make when transforming constant
+values. Some constrained FP intrinsics omit this argument. If required
+by the intrinsic, this argument must be one of the following strings:
 
     "round.dynamic"
     "round.tonearest"
@@ -24819,9 +24849,10 @@ must be one of the following strings:
     "round.towardzero"
     "round.tonearestaway"
 
-If this argument is \"round.dynamic\" optimization passes must assume that the
-rounding mode is unknown and may change at runtime. No transformations that
-depend on rounding mode may be performed in this case.
+If this argument is \"round.dynamic\" optimization passes must assume that
+the rounding mode is unknown and may change at runtime. No transformations
+that depend on rounding mode may be performed in this
+case.
 
 The other possible values for the rounding mode argument correspond to the
 similarly named IEEE rounding modes. If the argument is any of these values
@@ -24833,41 +24864,45 @@ For example, 'x-0'-\>'x' is not a valid transformation if the rounding mode is
 'x-0' should evaluate to '-0' when rounding downward. However, this
 transformation is legal for all other rounding modes.
 
-For values other than \"round.dynamic\" optimization passes may assume that the
-actual runtime rounding mode (as defined in a target-specific manner) matches
-the specified rounding mode, but this is not guaranteed. Using a specific
-non-dynamic rounding mode which does not match the actual rounding mode at
-runtime results in undefined behavior.
+For values other than \"round.dynamic\" optimization passes may assume that
+the actual runtime rounding mode (as defined in a target-specific manner)
+matches the specified rounding mode, but this is not guaranteed. Using a
+specific non-dynamic rounding mode which does not match the actual
+rounding mode at runtime results in
+undefined behavior.
 
 The exception behavior argument is a metadata string describing the floating
-point exception semantics that required for the intrinsic. This argument must
-be one of the following strings:
+point exception semantics that required for the intrinsic. This argument
+must be one of the following strings:
 
     "fpexcept.ignore"
     "fpexcept.maytrap"
     "fpexcept.strict"
 
-If this argument is \"fpexcept.ignore\" optimization passes may assume that the
-exception status flags will not be read and that floating-point exceptions will
-be masked. This allows transformations to be performed that may change the
-exception semantics of the original code. For example, FP operations may be
-speculatively executed in this case whereas they must not be for either of the
-other possible values of this argument.
+If this argument is \"fpexcept.ignore\" optimization passes may assume that
+the exception status flags will not be read and that floating-point exceptions
+will be masked. This allows transformations to be performed that may change
+the exception semantics of the original code. For example, FP operations may
+be speculatively executed in this case whereas they must not be for either of
+the other possible values of this
+argument.
 
-If the exception behavior argument is \"fpexcept.maytrap\" optimization passes
-must avoid transformations that may raise exceptions that would not have been
-raised by the original code (such as speculatively executing FP operations),
-but passes are not required to preserve all exceptions that are implied by the
-original code. For example, exceptions may be potentially hidden by constant
+If the exception behavior argument is \"fpexcept.maytrap\" optimization
+passes must avoid transformations that may raise exceptions that would not
+have been raised by the original code (such as speculatively executing FP
+operations), but passes are not required to preserve all exceptions that
+are implied by the original code. For example, exceptions may be potentially
+hidden by constant
 folding.
 
 If the exception behavior argument is \"fpexcept.strict\" all transformations
 must strictly preserve the floating-point exception semantics of the original
 code. Any FP exception that would have been raised by the original code must be
-raised by the transformed code, and the transformed code must not raise any FP
-exceptions that would not have been raised by the original code. This is the
-exception behavior argument that will be used if the code being compiled reads
-the FP exception status flags, but this mode can also be used with code that
+raised by the transformed code, and the transformed code must not raise
+any FP exceptions that would not have been raised by the original code. This
+is the exception behavior argument that will be used if the code being
+compiled reads the FP exception status flags, but this mode can also be used
+with code that
 unmasks FP exceptions.
 
 The number and order of floating-point exceptions is NOT guaranteed. For
@@ -24882,8 +24917,8 @@ All function *calls* done in a function that uses constrained floating point
 intrinsics must have the `strictfp` attribute either on the calling instruction
 or on the declaration or definition of the function being called.
 
-All function *definitions* that use constrained floating point intrinsics must
-have the `strictfp` attribute.
+All function *definitions* that use constrained floating point intrinsics
+must have the `strictfp` attribute.
 
 #### '`llvm.experimental.constrained.fadd`' Intrinsic
 
@@ -24901,9 +24936,9 @@ arguments.
 
 ##### Arguments:
 
-The first two arguments to the '`llvm.experimental.constrained.fadd`' intrinsic
-must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>` of
-floating-point values. Both arguments must have identical types.
+The first two arguments to the '`llvm.experimental.constrained.fadd`'
+intrinsic must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>`
+of floating-point values. Both arguments must have identical types.
 
 The third and fourth arguments specify the rounding mode and exception behavior
 as described above.
@@ -24929,9 +24964,9 @@ its two arguments.
 
 ##### Arguments:
 
-The first two arguments to the '`llvm.experimental.constrained.fsub`' intrinsic
-must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>` of
-floating-point values. Both arguments must have identical types.
+The first two arguments to the '`llvm.experimental.constrained.fsub`'
+intrinsic must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>`
+of floating-point values. Both arguments must have identical types.
 
 The third and fourth arguments specify the rounding mode and exception behavior
 as described above.
@@ -24957,9 +24992,9 @@ two arguments.
 
 ##### Arguments:
 
-The first two arguments to the '`llvm.experimental.constrained.fmul`' intrinsic
-must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>` of
-floating-point values. Both arguments must have identical types.
+The first two arguments to the '`llvm.experimental.constrained.fmul`'
+intrinsic must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>`
+of floating-point values. Both arguments must have identical types.
 
 The third and fourth arguments specify the rounding mode and exception behavior
 as described above.
@@ -24985,17 +25020,17 @@ its two arguments.
 
 ##### Arguments:
 
-The first two arguments to the '`llvm.experimental.constrained.fdiv`' intrinsic
-must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>` of
-floating-point values. Both arguments must have identical types.
+The first two arguments to the '`llvm.experimental.constrained.fdiv`'
+intrinsic must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>`
+of floating-point values. Both arguments must have identical types.
 
 The third and fourth arguments specify the rounding mode and exception behavior
 as described above.
 
 ##### Semantics:
 
-The value produced is the floating-point quotient of the two value arguments
-and has the same type as the arguments.
+The value produced is the floating-point quotient of the two value arguments and
+has the same type as the arguments.
 
 #### '`llvm.experimental.constrained.frem`' Intrinsic
 
@@ -25008,19 +25043,19 @@ and has the same type as the arguments.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.frem`' intrinsic returns the remainder from
-the division of its two arguments.
+The '`llvm.experimental.constrained.frem`' intrinsic returns the remainder
+from the division of its two arguments.
 
 ##### Arguments:
 
-The first two arguments to the '`llvm.experimental.constrained.frem`' intrinsic
-must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>` of
-floating-point values. Both arguments must have identical types.
+The first two arguments to the '`llvm.experimental.constrained.frem`'
+intrinsic must be {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>`
+of floating-point values. Both arguments must have identical types.
 
-The third and fourth arguments specify the rounding mode and exception behavior
-as described above. The rounding mode argument has no effect, since the result
-of frem is never rounded, but the argument is included for consistency with the
-other constrained floating-point intrinsics.
+The third and fourth arguments specify the rounding mode and exception
+behavior as described above. The rounding mode argument has no effect, since
+the result of frem is never rounded, but the argument is included for
+consistency with the other constrained floating-point intrinsics.
 
 ##### Semantics:
 
@@ -25053,8 +25088,8 @@ as described above.
 
 ##### Semantics:
 
-The result produced is the product of the first two arguments added to the
-third argument computed with infinite precision, and then rounded to the target
+The result produced is the product of the first two arguments added to the third
+argument computed with infinite precision, and then rounded to the target
 precision.
 
 #### '`llvm.experimental.constrained.fptoui`' Intrinsic
@@ -25080,8 +25115,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-The result produced is an unsigned integer converted from the floating point
-argument. The value is truncated, so it is rounded towards zero.
+The result produced is an unsigned integer converted from the floating
+point argument. The value is truncated, so it is rounded towards zero.
 
 #### '`llvm.experimental.constrained.fptosi`' Intrinsic
 
@@ -25106,8 +25141,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-The result produced is a signed integer converted from the floating point
-argument. The value is truncated, so it is rounded towards zero.
+The result produced is a signed integer converted from the floating
+point argument. The value is truncated, so it is rounded towards zero.
 
 #### '`llvm.experimental.constrained.uitofp`' Intrinsic
 
@@ -25120,8 +25155,8 @@ argument. The value is truncated, so it is rounded towards zero.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.uitofp`' intrinsic converts an unsigned
-integer `value` to a floating-point of type `ty2`.
+The '`llvm.experimental.constrained.uitofp`' intrinsic converts an
+unsigned integer `value` to a floating-point of type `ty2`.
 
 ##### Arguments:
 
@@ -25149,8 +25184,8 @@ argument.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.sitofp`' intrinsic converts a signed
-integer `value` to a floating-point of type `ty2`.
+The '`llvm.experimental.constrained.sitofp`' intrinsic converts a
+signed integer `value` to a floating-point of type `ty2`.
 
 ##### Arguments:
 
@@ -25205,8 +25240,8 @@ than the argument.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.fpext`' intrinsic extends a floating-point
-`value` to a larger floating-point value.
+The '`llvm.experimental.constrained.fpext`' intrinsic extends a
+floating-point `value` to a larger floating-point value.
 
 ##### Arguments:
 
@@ -25238,8 +25273,8 @@ apply to this intrinsic.
 ##### Overview:
 
 The '`llvm.experimental.constrained.fcmp`' and
-'`llvm.experimental.constrained.fcmps`' intrinsics return a boolean value or
-vector of boolean values based on comparison of its arguments.
+'`llvm.experimental.constrained.fcmps`' intrinsics return a boolean
+value or vector of boolean values based on comparison of its arguments.
 
 If the arguments are floating-point scalars, then the result type is a boolean
 ({ref}`i1 <t_integer>`).
@@ -25258,8 +25293,8 @@ The first two arguments to the '`llvm.experimental.constrained.fcmp`' and
 <t_floating>` or {ref}`vector <t_vector>` of floating-point values. Both
 arguments must have identical types.
 
-The third argument is the condition code indicating the kind of comparison to
-perform. It must be a metadata string with one of the following values:
+The third argument is the condition code indicating the kind of comparison
+to perform. It must be a metadata string with one of the following values:
 
 (fcmp_md_cc)=
 -   \"`oeq`\": ordered and equal
@@ -25277,8 +25312,8 @@ perform. It must be a metadata string with one of the following values:
 -   \"`une`\": unordered or not equal
 -   \"`uno`\": unordered (either nans)
 
-*Ordered* means that neither argument is a NAN while *unordered* means that
-either argument may be a NAN.
+*Ordered* means that neither argument is a NAN while *unordered* means
+that either argument may be a NAN.
 
 The fourth argument specifies the exception behavior as described above.
 
@@ -25318,12 +25353,13 @@ to `op2`.
 -   \"`uno`\": yields `true` if either argument is a NAN.
 
 The quiet comparison operation performed by
-'`llvm.experimental.constrained.fcmp`' will only raise an exception if either
-argument is a SNAN. The signaling comparison operation performed by
-'`llvm.experimental.constrained.fcmps`' will raise an exception if either
-argument is a NAN (QNAN or SNAN). Such an exception does not preclude a result
-being produced (e.g., exception might only set a flag), therefore the
-distinction between ordered and unordered comparisons is also relevant for the
+'`llvm.experimental.constrained.fcmp`' will only raise an exception
+if either argument is a SNAN. The signaling comparison operation
+performed by '`llvm.experimental.constrained.fcmps`' will raise an
+exception if either argument is a NAN (QNAN or SNAN). Such an exception
+does not preclude a result being produced (e.g., exception might only
+set a flag), therefore the distinction between ordered and unordered
+comparisons is also relevant for the
 '`llvm.experimental.constrained.fcmps`' intrinsic.
 
 #### '`llvm.experimental.constrained.fmuladd`' Intrinsic
@@ -25347,8 +25383,8 @@ add instructions.
 ##### Arguments:
 
 The first three arguments to the '`llvm.experimental.constrained.fmuladd`'
-intrinsic must be floating-point or vector of floating-point values. All three
-arguments must have identical types.
+intrinsic must be floating-point or vector of floating-point values.
+All three arguments must have identical types.
 
 The fourth and fifth arguments specify the rounding mode and exception behavior
 as described above.
@@ -25385,9 +25421,9 @@ operations which provide equivalent behavior to a corresponding libm function.
 These intrinsics allow the precise behavior of these operations with respect to
 rounding mode and exception behavior to be controlled.
 
-As with the basic constrained floating-point intrinsics, the rounding mode and
-exception behavior arguments only control the behavior of the optimizer. They
-do not change the runtime floating-point environment.
+As with the basic constrained floating-point intrinsics, the rounding mode
+and exception behavior arguments only control the behavior of the optimizer.
+They do not change the runtime floating-point environment.
 
 #### '`llvm.experimental.constrained.sqrt`' Intrinsic
 
@@ -25400,9 +25436,9 @@ do not change the runtime floating-point environment.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.sqrt`' intrinsic returns the square root of
-the specified value, returning the same value as the libm '`sqrt`' functions
-would, but without setting `errno`.
+The '`llvm.experimental.constrained.sqrt`' intrinsic returns the square root
+of the specified value, returning the same value as the libm '`sqrt`'
+functions would, but without setting `errno`.
 
 ##### Arguments:
 
@@ -25414,9 +25450,9 @@ as described above.
 
 ##### Semantics:
 
-This function returns the nonnegative square root of the specified value. If
-the value is less than negative zero, a floating-point exception occurs and the
-return value is architecture specific.
+This function returns the nonnegative square root of the specified value.
+If the value is less than negative zero, a floating-point exception occurs
+and the return value is architecture specific.
 
 #### '`llvm.experimental.constrained.pow`' Intrinsic
 
@@ -25687,8 +25723,8 @@ the same way.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.atan2`' intrinsic returns the arctangent of
-`<op1>` divided by `<op2>` accounting for the quadrant.
+The '`llvm.experimental.constrained.atan2`' intrinsic returns the arctangent
+of `<op1>` divided by `<op2>` accounting for the quadrant.
 
 ##### Arguments:
 
@@ -25728,8 +25764,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the hyperbolic sine of the specified operand, returning
-the same values as the libm `sinh` functions would, and handles error
+This function returns the hyperbolic sine of the specified operand, returning the
+same values as the libm `sinh` functions would, and handles error
 conditions in the same way.
 
 #### '`llvm.experimental.constrained.cosh`' Intrinsic
@@ -25756,8 +25792,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the hyperbolic cosine of the specified operand, returning
-the same values as the libm `cosh` functions would, and handles error
+This function returns the hyperbolic cosine of the specified operand, returning the
+same values as the libm `cosh` functions would, and handles error
 conditions in the same way.
 
 #### '`llvm.experimental.constrained.tanh`' Intrinsic
@@ -25784,8 +25820,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the hyperbolic tangent of the specified operand,
-returning the same values as the libm `tanh` functions would, and handles error
+This function returns the hyperbolic tangent of the specified operand, returning the
+same values as the libm `tanh` functions would, and handles error
 conditions in the same way.
 
 #### '`llvm.experimental.constrained.exp`' Intrinsic
@@ -25812,8 +25848,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `exp` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `exp` functions
+would, and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.exp2`' Intrinsic
 
@@ -25839,8 +25875,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `exp2` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `exp2` functions
+would, and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.log`' Intrinsic
 
@@ -25866,8 +25902,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `log` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `log` functions
+would, and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.log10`' Intrinsic
 
@@ -25893,8 +25929,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `log10` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `log10` functions
+would, and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.log2`' Intrinsic
 
@@ -25920,8 +25956,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `log2` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `log2` functions
+would, and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.rint`' Intrinsic
 
@@ -25934,8 +25970,8 @@ handles error conditions in the same way.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.rint`' intrinsic returns the first argument
-rounded to the nearest integer. It may raise an inexact floating-point
+The '`llvm.experimental.constrained.rint`' intrinsic returns the first
+argument rounded to the nearest integer. It may raise an inexact floating-point
 exception if the argument is not an integer.
 
 ##### Arguments:
@@ -25948,11 +25984,11 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `rint` functions would, and
-handles error conditions in the same way. The rounding mode is described, not
-determined, by the rounding mode argument. The actual rounding mode is
-determined by the runtime floating-point environment. The rounding mode
-argument is only intended as information to the compiler.
+This function returns the same values as the libm `rint` functions
+would, and handles error conditions in the same way. The rounding mode is
+described, not determined, by the rounding mode argument. The actual rounding
+mode is determined by the runtime floating-point environment. The rounding
+mode argument is only intended as information to the compiler.
 
 #### '`llvm.experimental.constrained.lrint`' Intrinsic
 
@@ -25982,8 +26018,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `lrint` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `lrint` functions
+would, and handles error conditions in the same way.
 
 The rounding mode is described, not determined, by the rounding mode argument.
 The actual rounding mode is determined by the runtime floating-point
@@ -26021,8 +26057,8 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `llrint` functions would, and
-handles error conditions in the same way.
+This function returns the same values as the libm `llrint` functions
+would, and handles error conditions in the same way.
 
 The rounding mode is described, not determined, by the rounding mode argument.
 The actual rounding mode is determined by the runtime floating-point
@@ -26057,11 +26093,11 @@ as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `nearbyint` functions would,
-and handles error conditions in the same way. The rounding mode is described,
-not determined, by the rounding mode argument. The actual rounding mode is
-determined by the runtime floating-point environment. The rounding mode
-argument is only intended as information to the compiler.
+This function returns the same values as the libm `nearbyint` functions
+would, and handles error conditions in the same way. The rounding mode is
+described, not determined, by the rounding mode argument. The actual rounding
+mode is determined by the runtime floating-point environment. The rounding
+mode argument is only intended as information to the compiler.
 
 #### '`llvm.experimental.constrained.maxnum`' Intrinsic
 
@@ -26121,8 +26157,8 @@ This function follows the IEEE 754-2008 semantics for minNum.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.maximum`' intrinsic returns the maximum of
-the two arguments, propagating NaNs and treating -0.0 as less than +0.0.
+The '`llvm.experimental.constrained.maximum`' intrinsic returns the maximum
+of the two arguments, propagating NaNs and treating -0.0 as less than +0.0.
 
 ##### Arguments:
 
@@ -26145,8 +26181,8 @@ This function follows semantics specified in the draft of IEEE 754-2019.
 
 ##### Overview:
 
-The '`llvm.experimental.constrained.minimum`' intrinsic returns the minimum of
-the two arguments, propagating NaNs and treating -0.0 as less than +0.0.
+The '`llvm.experimental.constrained.minimum`' intrinsic returns the minimum
+of the two arguments, propagating NaNs and treating -0.0 as less than +0.0.
 
 ##### Arguments:
 
@@ -26181,8 +26217,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `ceil` functions would and
-handles error conditions in the same way.
+This function returns the same values as the libm `ceil` functions
+would and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.floor`' Intrinsic
 
@@ -26206,8 +26242,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `floor` functions would and
-handles error conditions in the same way.
+This function returns the same values as the libm `floor` functions
+would and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.round`' Intrinsic
 
@@ -26231,8 +26267,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `round` functions would and
-handles error conditions in the same way.
+This function returns the same values as the libm `round` functions
+would and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.roundeven`' Intrinsic
 
@@ -26289,8 +26325,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `lround` functions would and
-handles error conditions in the same way.
+This function returns the same values as the libm `lround` functions
+would and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.llround`' Intrinsic
 
@@ -26319,8 +26355,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `llround` functions would and
-handles error conditions in the same way.
+This function returns the same values as the libm `llround` functions
+would and handles error conditions in the same way.
 
 #### '`llvm.experimental.constrained.trunc`' Intrinsic
 
@@ -26345,8 +26381,8 @@ The second argument specifies the exception behavior as described above.
 
 ##### Semantics:
 
-This function returns the same values as the libm `trunc` functions would and
-handles error conditions in the same way.
+This function returns the same values as the libm `trunc` functions
+would and handles error conditions in the same way.
 
 (int_experimental_noalias_scope_decl)=
 #### '`llvm.experimental.noalias.scope.decl`' Intrinsic
@@ -26357,23 +26393,23 @@ handles error conditions in the same way.
 
 ##### Overview:
 
-The `llvm.experimental.noalias.scope.decl` intrinsic identifies where a noalias
-scope is declared. When the intrinsic is duplicated, a decision must also be
-made about the scope: depending on the reason of the duplication, the scope
-might need to be duplicated as well.
+The `llvm.experimental.noalias.scope.decl` intrinsic identifies where a
+noalias scope is declared. When the intrinsic is duplicated, a decision must
+also be made about the scope: depending on the reason of the duplication,
+the scope might need to be duplicated as well.
 
 ##### Arguments:
 
-The `!id.scope.list` argument is metadata that is a list of `noalias` metadata
-references. The format is identical to that required for `noalias` metadata.
-This list must have exactly one element.
+The `!id.scope.list` argument is metadata that is a list of `noalias`
+metadata references. The format is identical to that required for `noalias`
+metadata. This list must have exactly one element.
 
 ##### Semantics:
 
-The `llvm.experimental.noalias.scope.decl` intrinsic identifies where a noalias
-scope is declared. When the intrinsic is duplicated, a decision must also be
-made about the scope: depending on the reason of the duplication, the scope
-might need to be duplicated as well.
+The `llvm.experimental.noalias.scope.decl` intrinsic identifies where a
+noalias scope is declared. When the intrinsic is duplicated, a decision must
+also be made about the scope: depending on the reason of the duplication,
+the scope might need to be duplicated as well.
 
 For example, when the intrinsic is used inside a loop body, and that loop is
 unrolled, the associated noalias scope must also be duplicated. Otherwise, the
@@ -26416,9 +26452,9 @@ the input.
 
 ### Floating Point Environment Manipulation intrinsics
 
-These functions read or write floating point environment, such as rounding mode
-or state of floating point exceptions. Altering the floating point environment
-requires special care. See {ref}`Floating Point Environment <floatenv>`.
+These functions read or write floating point environment, such as rounding
+mode or state of floating point exceptions. Altering the floating point
+environment requires special care. See {ref}`Floating Point Environment <floatenv>`.
 
 (int_get_rounding)=
 #### '`llvm.get.rounding`' Intrinsic
@@ -26438,10 +26474,10 @@ of the returned values is same as the result of `FLT_ROUNDS`, specified by C
 standard:
 
     0  - toward zero
-    1  - to nearest, ties to even
-    2  - toward positive infinity
-    3  - toward negative infinity
-    4  - to nearest, ties away from zero
+    1 - to nearest, ties to even
+    2 - toward positive infinity
+    3 - toward negative infinity
+    4 - to nearest, ties away from zero
 
 Other values may be used to represent additional rounding modes, supported by a
 target. These values are target-specific.
@@ -26459,8 +26495,8 @@ The '`llvm.set.rounding`' intrinsic sets current rounding mode.
 
 ##### Arguments:
 
-The argument is the required rounding mode. Encoding of rounding mode is the
-same as used by '`llvm.get.rounding`'.
+The argument is the required rounding mode. Encoding of rounding mode is
+the same as used by '`llvm.get.rounding`'.
 
 ##### Semantics:
 
@@ -26504,8 +26540,8 @@ integer type is platform-specific.
 
 ##### Semantics:
 
-The '`llvm.set.fpenv`' intrinsic sets the current floating-point environment to
-the state specified by the argument. The state may be previously obtained by a
+The '`llvm.set.fpenv`' intrinsic sets the current floating-point environment
+to the state specified by the argument. The state may be previously obtained by a
 call to '`llvm.get.fpenv`' or synthesized in a platform-dependent way.
 
 #### '`llvm.reset.fpenv`' Intrinsic
@@ -26546,8 +26582,8 @@ None.
 ##### Semantics:
 
 The '`llvm.get.fpmode`' intrinsic reads the current dynamic floating-point
-control modes, such as rounding direction, precision, treatment of denormals
-and so on. It is similar to the C library function 'fegetmode', however this
+control modes, such as rounding direction, precision, treatment of denormals and
+so on. It is similar to the C library function 'fegetmode', however this
 function does not store the set of control modes into memory but returns it as
 an integer value. Interpretation of the bits in this value is target-dependent.
 
@@ -26567,8 +26603,8 @@ control modes.
 
 ##### Arguments:
 
-The argument is a set of floating-point control modes, represented as an
-integer value in a target-dependent way.
+The argument is a set of floating-point control modes, represented as an integer
+value in a target-dependent way.
 
 ##### Semantics:
 
@@ -26678,9 +26714,9 @@ The '`llvm.var.annotation`' intrinsic.
 
 ##### Arguments:
 
-The first argument is a pointer to a value, the second is a pointer to a global
-string, the third is a pointer to a global string which is the source file
-name, and the last argument is the line number.
+The first argument is a pointer to a value, the second is a pointer to a
+global string, the third is a pointer to a global string which is the
+source file name, and the last argument is the line number.
 
 ##### Semantics:
 
@@ -26694,8 +26730,8 @@ generation and optimization.
 ##### Syntax:
 
 This is an overloaded intrinsic. You can use '`llvm.ptr.annotation`' on a
-pointer to an integer of any width. *NOTE* you must specify an address space
-for the pointer. The identifier for the default address space is the integer
+pointer to an integer of any width. *NOTE* you must specify an address space for
+the pointer. The identifier for the default address space is the integer
 '`0`'.
 
     declare ptr @llvm.ptr.annotation.p0(ptr <val>, ptr <str>, ptr <str>, i32 <int>)
@@ -26716,10 +26752,10 @@ last argument is the line number. It returns the value of the first argument.
 
 This intrinsic allows annotation of a pointer to an integer with arbitrary
 strings. This can be useful for special purpose optimizations that want to look
-for these annotations. These have no other defined use; transformations
-preserve annotations on a best-effort basis but are allowed to replace the
-intrinsic with its first argument without breaking semantics and the intrinsic
-is completely dropped during instruction selection.
+for these annotations. These have no other defined use; transformations preserve
+annotations on a best-effort basis but are allowed to replace the intrinsic with
+its first argument without breaking semantics and the intrinsic is completely
+dropped during instruction selection.
 
 #### '`llvm.annotation.*`' Intrinsic
 
@@ -26740,10 +26776,10 @@ The '`llvm.annotation`' intrinsic.
 
 ##### Arguments:
 
-The first argument is an integer value (result of some expression), the second
-is a pointer to a global string, the third is a pointer to a global string
-which is the source file name, and the last argument is the line number. It
-returns the value of the first argument.
+The first argument is an integer value (result of some expression), the
+second is a pointer to a global string, the third is a pointer to a
+global string which is the source file name, and the last argument is
+the line number. It returns the value of the first argument.
 
 ##### Semantics:
 
@@ -26751,8 +26787,8 @@ This intrinsic allows annotations to be put on arbitrary expressions with
 arbitrary strings. This can be useful for special purpose optimizations that
 want to look for these annotations. These have no other defined use;
 transformations preserve annotations on a best-effort basis but are allowed to
-replace the intrinsic with its first argument without breaking semantics and
-the intrinsic is completely dropped during instruction selection.
+replace the intrinsic with its first argument without breaking semantics and the
+intrinsic is completely dropped during instruction selection.
 
 #### '`llvm.codeview.annotation`' Intrinsic
 
@@ -26841,9 +26877,9 @@ Equivalent to `@llvm.trap` for targets that do not support this behavior.
 
 ##### Overview:
 
-The `llvm.stackprotector` intrinsic takes the `guard` and stores it onto the
-stack at `slot`. The stack slot is adjusted to ensure that it is placed on the
-stack before local variables.
+The `llvm.stackprotector` intrinsic takes the `guard` and stores it
+onto the stack at `slot`. The stack slot is adjusted to ensure that it
+is placed on the stack before local variables.
 
 ##### Arguments:
 
@@ -26944,13 +26980,13 @@ width.
 
 ##### Overview:
 
-The `llvm.expect` intrinsic provides information about expected (the most
-probable) value of `val`, which can be used by optimizers.
+The `llvm.expect` intrinsic provides information about expected (the
+most probable) value of `val`, which can be used by optimizers.
 
 ##### Arguments:
 
-The `llvm.expect` intrinsic takes two arguments. The first argument is a value.
-The second argument is an expected value.
+The `llvm.expect` intrinsic takes two arguments. The first argument is
+a value. The second argument is an expected value.
 
 ##### Semantics:
 
@@ -27032,12 +27068,12 @@ The first argument is an operand which is used as the returned value.
 
 ##### Overview:
 
-The `llvm.ssa.copy` intrinsic can be used to attach information to operations
-by copying them and giving them new names. For example, the PredicateInfo
-utility uses it to build Extended SSA form, and attach various forms of
-information to operands that dominate specific uses. It is not meant for
-general use, only for building temporary renaming forms that require value
-splits at certain points.
+The `llvm.ssa.copy` intrinsic can be used to attach information to
+operations by copying them and giving them new names. For example,
+the PredicateInfo utility uses it to build Extended SSA form, and
+attach various forms of information to operands that dominate specific
+uses. It is not meant for general use, only for building temporary
+renaming forms that require value splits at certain points.
 
 (type.test)=
 #### '`llvm.type.test`' Intrinsic
@@ -27048,8 +27084,8 @@ splits at certain points.
 
 ##### Arguments:
 
-The first argument is a pointer to be tested. The second argument is a metadata
-object representing a {doc}`type identifier <TypeMetadata>`.
+The first argument is a pointer to be tested. The second argument is a
+metadata object representing a {doc}`type identifier <TypeMetadata>`.
 
 ##### Overview:
 
@@ -27076,15 +27112,15 @@ The `llvm.type.checked.load` intrinsic safely loads a function pointer from a
 virtual table pointer using type metadata. This intrinsic is used to implement
 control flow integrity in conjunction with virtual call optimization. The
 virtual call optimization pass will optimize away `llvm.type.checked.load`
-intrinsics associated with devirtualized calls, thereby removing the type check
-in cases where it is not needed to enforce the control flow integrity
+intrinsics associated with devirtualized calls, thereby removing the type
+check in cases where it is not needed to enforce the control flow integrity
 constraint.
 
 If the given pointer is associated with a type metadata identifier, this
-function returns true as the second element of its return value. (Note that the
-function may also return true if the given pointer is not associated with a
-type metadata identifier.) If the function's return value's second element is
-true, the following rules apply to the first element:
+function returns true as the second element of its return value. (Note that
+the function may also return true if the given pointer is not associated
+with a type metadata identifier.) If the function's return value's second
+element is true, the following rules apply to the first element:
 
 -   If the given pointer is associated with the given type metadata identifier,
     it is the function pointer loaded from the given byte offset from the given
@@ -27095,8 +27131,8 @@ true, the following rules apply to the first element:
     1.  The function pointer that would have been loaded from an arbitrarily
         chosen (through an unspecified mechanism) pointer associated with the
         type metadata.
-    2.  If the function has a non-void return type, a pointer to a function
-        that returns an unspecified value without causing side effects.
+    2.  If the function has a non-void return type, a pointer to a function that
+        returns an unspecified value without causing side effects.
 
 If the function's return value's second element is false, the value of the
 first element is undefined.
@@ -27111,8 +27147,8 @@ first element is undefined.
 ##### Overview:
 
 The `llvm.type.checked.load.relative` intrinsic loads a relative pointer to a
-function from a virtual table pointer using metadata. Otherwise, its semantic
-is identical to the `llvm.type.checked.load` intrinsic.
+function from a virtual table pointer using metadata. Otherwise, its semantic is
+identical to the `llvm.type.checked.load` intrinsic.
 
 A relative pointer is a pointer to an offset. This is the offset between the
 destination pointer and the original pointer. The address of the destination
@@ -27142,10 +27178,10 @@ of the same type.
 
 ##### Semantics:
 
-This intrinsic returns the value of its operand. The optimizer can optimize the
-argument, but the optimizer cannot hoist any component of the operand to the
-containing context, and the optimizer cannot move the calculation of any
-expression in the containing context into the operand.
+This intrinsic returns the value of its operand. The optimizer can optimize
+the argument, but the optimizer cannot hoist any component of the operand
+to the containing context, and the optimizer cannot move the calculation of
+any expression in the containing context into the operand.
 
 #### '`llvm.donothing`' Intrinsic
 
@@ -27184,14 +27220,15 @@ hence faster) version of a function into another (typically more generic, hence
 slower) version.
 
 In languages with a fully integrated managed runtime like Java and JavaScript
-this intrinsic can be used to implement \"uncommon trap\" or \"side exit\" like
-functionality. In unmanaged languages like C and C++, this intrinsic can be
-used to represent the slow paths of specialized functions.
+this intrinsic can be used to implement \"uncommon trap\" or \"side exit\"
+like functionality. In unmanaged languages like C and C++, this intrinsic
+can be used to represent the slow paths of specialized
+functions.
 
 ##### Arguments:
 
-The intrinsic takes an arbitrary number of arguments, whose meaning is decided
-by the {ref}`lowering strategy<deoptimize_lowering>`.
+The intrinsic takes an arbitrary number of arguments, whose meaning is
+decided by the {ref}`lowering strategy<deoptimize_lowering>`.
 
 ##### Semantics:
 
@@ -27385,16 +27422,18 @@ with
 br i1 %new_guard_cond, label %guarded, label %deopt
 ```
 
-for this branch. Here `%any_other_cond` is an arbitrarily chosen well-defined
-`i1` value. By making guard widening, we may impose stricter conditions on
-`guarded` block and bail to the deopt when the new condition is not met.
+for this branch. Here `%any_other_cond` is an arbitrarily chosen
+well-defined `i1` value. By making guard widening, we may
+impose stricter conditions on `guarded` block and bail to the
+deopt when the new condition is not met.
 
 ##### Lowering:
 
-Default lowering strategy is replacing the result of call of
-`@llvm.experimental.widenable.condition` with constant `true`. However it is
-always correct to replace it with any other `i1` value. Any pass can freely do
-it if it can benefit from non-default lowering.
+Default lowering strategy is replacing the result of
+call of `@llvm.experimental.widenable.condition` with
+constant `true`. However it is always correct to replace
+it with any other `i1` value. Any pass can
+freely do it if it can benefit from non-default lowering.
 
 #### '`llvm.allow.ubsan.check`' Intrinsic
 
@@ -27418,8 +27457,8 @@ An integer describing the kind of ubsan check guarded by the intrinsic.
 
 ##### Semantics:
 
-The intrinsic `@llvm.allow.ubsan.check()` returns either `true` or `false`,
-depending on compiler options.
+The intrinsic `@llvm.allow.ubsan.check()` returns either `true` or
+`false`, depending on compiler options.
 
 For each evaluation of a call to this intrinsic, the program must be valid and
 correct both if it returns `true` and if it returns `false`.
@@ -27468,14 +27507,14 @@ string can be used to control rules to allow checks.
 
 ##### Semantics:
 
-The intrinsic `@llvm.allow.runtime.check()` returns either `true` or `false`,
-depending on compiler options.
+The intrinsic `@llvm.allow.runtime.check()` returns either `true` or
+`false`, depending on compiler options.
 
 For each evaluation of a call to this intrinsic, the program must be valid and
 correct both if it returns `true` and if it returns `false`.
 
-When used in a branch condition, it allows us to choose between two alternative
-correct solutions for the same problem.
+When used in a branch condition, it allows us to choose between
+two alternative correct solutions for the same problem.
 
 If the intrinsic is evaluated as `true`, program should execute a guarded
 check. If the intrinsic is evaluated as `false`, the program should avoid any
@@ -27508,11 +27547,11 @@ recognizes the form of this intrinsic and the constant initializers it may load
 from; if a loaded constant initializer is known to have the form `i32 trunc(x -
 %ptr)`, the intrinsic call is folded to `x`.
 
-LLVM provides that the calculation of such a constant initializer will not
-overflow at link time under the medium code model if `x` is an `unnamed_addr`
-function. However, it does not provide this guarantee for a constant
-initializer folded into a function body. This intrinsic can be used to avoid
-the possibility of overflows when loading from such a constant.
+LLVM provides that the calculation of such a constant initializer will
+not overflow at link time under the medium code model if `x` is an
+`unnamed_addr` function. However, it does not provide this guarantee for
+a constant initializer folded into a function body. This intrinsic can be
+used to avoid the possibility of overflows when loading from such a constant.
 
 (llvm_sideeffect)=
 #### '`llvm.sideeffect`' Intrinsic
@@ -27535,8 +27574,8 @@ None.
 
 ##### Semantics:
 
-This intrinsic actually does nothing, but optimizers must assume that it has
-externally observable side effects.
+This intrinsic actually does nothing, but optimizers must assume that it
+has externally observable side effects.
 
 #### '`llvm.is.constant.*`' Intrinsic
 
@@ -27551,15 +27590,16 @@ argument type.
 
 ##### Overview:
 
-The '`llvm.is.constant`' intrinsic will return true if the argument is known to
-be a manifest compile-time constant. It is guaranteed to fold to either true or
-false before generating machine code.
+The '`llvm.is.constant`' intrinsic will return true if the argument
+is known to be a manifest compile-time constant. It is guaranteed to
+fold to either true or false before generating machine code.
 
 ##### Semantics:
 
-This intrinsic generates no code. If its argument is known to be a manifest
-compile-time constant value, then the intrinsic will be converted to a constant
-true value. Otherwise, it will be converted to a constant false value.
+This intrinsic generates no code. If its argument is known to be a
+manifest compile-time constant value, then the intrinsic will be
+converted to a constant true value. Otherwise, it will be converted to
+a constant false value.
 
 In particular, note that if the argument is a constant expression which refers
 to a global (the address of which *is* a constant, but not manifest during the
@@ -27581,8 +27621,8 @@ inlined, if the value passed to the function parameter was a constant.
 ##### Arguments:
 
 The first argument is a pointer or vector of pointers. The second argument is
-an integer or vector of integers with the same bit width as the index type size
-of the first argument.
+an integer or vector of integers with the same bit width as the index type
+size of the first argument.
 
 ##### Overview:
 
@@ -27626,9 +27666,9 @@ The `llvm.threadlocal.address` intrinsic requires a global value argument (a
 
 ##### Semantics:
 
-The address of a thread local global is not a constant, since it depends on the
-calling thread. The `llvm.threadlocal.address` intrinsic returns the address of
-the given thread local global in the calling thread.
+The address of a thread local global is not a constant, since it depends on
+the calling thread. The `llvm.threadlocal.address` intrinsic returns the
+address of the given thread local global in the calling thread.
 
 (int_vscale)=
 #### '`llvm.vscale`' Intrinsic
@@ -27645,9 +27685,10 @@ such as `<vscale x 16 x i8>`.
 
 ##### Semantics:
 
-`vscale` is a positive power-of-two integer that is constant throughout program
-execution, but is unknown at compile time. If the result value does not fit in
-the result type, then the result is a {ref}`poison value <poisonvalues>`.
+`vscale` is a positive power-of-two integer that is constant throughout
+program execution, but is unknown at compile time.
+If the result value does not fit in the result type, then the result is
+a {ref}`poison value <poisonvalues>`.
 
 (llvm_fake_use)=
 #### '`llvm.fake.use`' Intrinsic
@@ -27658,11 +27699,11 @@ the result type, then the result is a {ref}`poison value <poisonvalues>`.
 
 ##### Overview:
 
-The `llvm.fake.use` intrinsic is a no-op. It takes a single value as an operand
-and is treated as a use of that operand, to force the optimizer to preserve
-that value prior to the fake use. This is used for extending the lifetimes of
-variables, where this intrinsic placed at the end of a variable's scope helps
-prevent that variable from being optimized out.
+The `llvm.fake.use` intrinsic is a no-op. It takes a single
+value as an operand and is treated as a use of that operand, to force the
+optimizer to preserve that value prior to the fake use. This is used for
+extending the lifetimes of variables, where this intrinsic placed at the end of
+a variable's scope helps prevent that variable from being optimized out.
 
 ##### Arguments:
 
@@ -27673,8 +27714,8 @@ will result in an error.
 
 ##### Semantics:
 
-This intrinsic does nothing, but optimizers must consider it a use of its
-single operand and should try to preserve the intrinsic and its position in the
+This intrinsic does nothing, but optimizers must consider it a use of its single
+operand and should try to preserve the intrinsic and its position in the
 function.
 
 (llvm_reloc_none)=
@@ -27715,9 +27756,9 @@ that they perform memory transfer as a sequence of atomic memory accesses.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use
-`llvm.memcpy.element.unordered.atomic` on any integer bit width and for
-different address spaces. Not all targets support all bit widths however.
+This is an overloaded intrinsic. You can use `llvm.memcpy.element.unordered.atomic` on
+any integer bit width and for different address spaces. Not all targets
+support all bit widths however.
 
     declare void @llvm.memcpy.element.unordered.atomic.p0.p0.i32(ptr <dest>,
                                                                  ptr <src>,
@@ -27745,20 +27786,20 @@ a positive integer multiple of the `element_size`. If `len` is not a positive
 integer multiple of `element_size`, then the behavior of the intrinsic is
 undefined.
 
-`element_size` must be a compile-time constant positive power of two no greater
-than target-specific atomic access size limit.
+`element_size` must be a compile-time constant positive power of two no greater than
+target-specific atomic access size limit.
 
-For each of the input pointers `align` parameter attribute must be specified.
-It must be a power of two no less than the `element_size`. Caller guarantees
-that both the source and destination pointers are aligned to that boundary.
+For each of the input pointers `align` parameter attribute must be specified. It
+must be a power of two no less than the `element_size`. Caller guarantees that
+both the source and destination pointers are aligned to that boundary.
 
 ##### Semantics:
 
 The '`llvm.memcpy.element.unordered.atomic.*`' intrinsic copies `len` bytes of
-memory from the source location to the destination location. These locations
-are not allowed to overlap. The memory copy is performed as a sequence of
-load/store operations where each access is guaranteed to be a multiple of
-`element_size` bytes wide and aligned at an `element_size` boundary.
+memory from the source location to the destination location. These locations are not
+allowed to overlap. The memory copy is performed as a sequence of load/store operations
+where each access is guaranteed to be a multiple of `element_size` bytes wide and
+aligned at an `element_size` boundary.
 
 The order of the copy is unspecified. The same value may be read from the
 source buffer many times, but only one write is issued to the destination
@@ -27815,8 +27856,8 @@ be a positive integer multiple of the `element_size`. If `len` is not a
 positive integer multiple of `element_size`, then the behavior of the intrinsic
 is undefined.
 
-`element_size` must be a compile-time constant positive power of two no greater
-than a target-specific atomic access size limit.
+`element_size` must be a compile-time constant positive power of two no
+greater than a target-specific atomic access size limit.
 
 For each of the input pointers the `align` parameter attribute must be
 specified. It must be a power of two no less than the `element_size`. Caller
@@ -27825,11 +27866,11 @@ boundary.
 
 ##### Semantics:
 
-The '`llvm.memmove.element.unordered.atomic.*`' intrinsic copies `len` bytes of
-memory from the source location to the destination location. These locations
-are allowed to overlap. The memory copy is performed as a sequence of
-load/store operations where each access is guaranteed to be a multiple of
-`element_size` bytes wide and aligned at an `element_size` boundary.
+The '`llvm.memmove.element.unordered.atomic.*`' intrinsic copies `len` bytes
+of memory from the source location to the destination location. These locations
+are allowed to overlap. The memory copy is performed as a sequence of load/store
+operations where each access is guaranteed to be a multiple of `element_size`
+bytes wide and aligned at an `element_size` boundary.
 
 The order of the copy is unspecified. The same value may be read from the
 source buffer many times, but only one write is issued to the destination
@@ -27858,9 +27899,9 @@ so.
 
 ##### Syntax:
 
-This is an overloaded intrinsic. You can use
-`llvm.memset.element.unordered.atomic` on any integer bit width and for
-different address spaces. Not all targets support all bit widths however.
+This is an overloaded intrinsic. You can use `llvm.memset.element.unordered.atomic` on
+any integer bit width and for different address spaces. Not all targets
+support all bit widths however.
 
     declare void @llvm.memset.element.unordered.atomic.p0.i32(ptr <dest>,
                                                               i8 <value>,
@@ -27873,11 +27914,11 @@ different address spaces. Not all targets support all bit widths however.
 
 ##### Overview:
 
-The '`llvm.memset.element.unordered.atomic.*`' intrinsic is a specialization of
-the '`llvm.memset.*`' intrinsic. It differs in that the `dest` is treated as an
-array with elements that are exactly `element_size` bytes, and the assignment
-to that array uses uses a sequence of {ref}`unordered atomic <ordering>` store
-operations that are a positive integer multiple of the `element_size` in size.
+The '`llvm.memset.element.unordered.atomic.*`' intrinsic is a specialization of the
+'`llvm.memset.*`' intrinsic. It differs in that the `dest` is treated as an array
+with elements that are exactly `element_size` bytes, and the assignment to that array
+uses uses a sequence of {ref}`unordered atomic <ordering>` store operations
+that are a positive integer multiple of the `element_size` in size.
 
 ##### Arguments:
 
@@ -27887,12 +27928,12 @@ a positive integer multiple of the `element_size`. If `len` is not a positive
 integer multiple of `element_size`, then the behavior of the intrinsic is
 undefined.
 
-`element_size` must be a compile-time constant positive power of two no greater
-than target-specific atomic access size limit.
+`element_size` must be a compile-time constant positive power of two no greater than
+target-specific atomic access size limit.
 
-The `dest` input pointer must have the `align` parameter attribute specified.
-It must be a power of two no less than the `element_size`. Caller guarantees
-that the destination pointer is aligned to that boundary.
+The `dest` input pointer must have the `align` parameter attribute specified. It
+must be a power of two no less than the `element_size`. Caller guarantees that
+the destination pointer is aligned to that boundary.
 
 ##### Semantics:
 
@@ -27912,9 +27953,9 @@ provided by a set of unordered stores to the destination.
 
 ##### Lowering:
 
-In the most general case call to the '`llvm.memset.element.unordered.atomic.*`'
-is lowered to a call to the symbol `__llvm_memset_element_unordered_atomic_*`.
-Where '\*' is replaced with an actual element size.
+In the most general case call to the '`llvm.memset.element.unordered.atomic.*`' is
+lowered to a call to the symbol `__llvm_memset_element_unordered_atomic_*`. Where '\*'
+is replaced with an actual element size.
 
 The optimizer is allowed to inline the memory assignment when it's profitable
 to do so.
@@ -28126,11 +28167,12 @@ Lowers to a call to
 
 ### Preserving Debug Information Intrinsics
 
-These intrinsics are used to carry certain debuginfo together with IR-level
-operations. For example, it may be desirable to know the structure/union name
-and the original user-level field indices. Such information got lost in IR
-GetElementPtr instruction since the IR types are different from debugInfo types
-and unions are converted to structs in IR.
+These intrinsics are used to carry certain debuginfo together with
+IR-level operations. For example, it may be desirable to
+know the structure/union name and the original user-level field
+indices. Such information got lost in IR GetElementPtr instruction
+since the IR types are different from debugInfo types and unions
+are converted to structs in IR.
 
 #### '`llvm.preserve.array.access.index`' Intrinsic
 
@@ -28155,9 +28197,9 @@ version of `type`.
 
 ##### Arguments:
 
-The `base` is the array base address. The `dim` is the array dimension. The
-`base` is a pointer if `dim` equals 0. The `index` is the last access index
-into the array or pointer.
+The `base` is the array base address. The `dim` is the array dimension.
+The `base` is a pointer if `dim` equals 0.
+The `index` is the last access index into the array or pointer.
 
 The `base` argument must be annotated with an {ref}`elementtype
 <attr_elementtype>` attribute at the call-site. This attribute specifies the
@@ -28165,8 +28207,8 @@ getelementptr element type.
 
 ##### Semantics:
 
-The '`llvm.preserve.array.access.index`' intrinsic produces the same result as
-a getelementptr with base `base` and access operands `{dim's 0's, index}`.
+The '`llvm.preserve.array.access.index`' intrinsic produces the same result
+as a getelementptr with base `base` and access operands `{dim's 0's, index}`.
 
 #### '`llvm.preserve.union.access.index`' Intrinsic
 
@@ -28178,12 +28220,12 @@ a getelementptr with base `base` and access operands `{dim's 0's, index}`.
 
 ##### Overview:
 
-The '`llvm.preserve.union.access.index`' intrinsic carries the debuginfo field
-index `di_index` and returns the `base` address. The
-`llvm.preserve.access.index` type of metadata is attached to this call
-instruction to provide union debuginfo type. The metadata is a
-`DICompositeType` representing the debuginfo version of `type`. The return type
-`type` is the same as the `base` type.
+The '`llvm.preserve.union.access.index`' intrinsic carries the debuginfo field index
+`di_index` and returns the `base` address.
+The `llvm.preserve.access.index` type of metadata is attached to this call instruction
+to provide union debuginfo type.
+The metadata is a `DICompositeType` representing the debuginfo version of `type`.
+The return type `type` is the same as the `base` type.
 
 ##### Arguments:
 
@@ -28205,12 +28247,12 @@ The '`llvm.preserve.union.access.index`' intrinsic returns the `base` address.
 
 ##### Overview:
 
-The '`llvm.preserve.struct.access.index`' intrinsic returns the getelementptr
-address based on struct base `base` and IR struct member index `gep_index`. The
-`llvm.preserve.access.index` type of metadata is attached to this call
-instruction to provide struct debuginfo type. The metadata is a
-`DICompositeType` representing the debuginfo version of `type`. The return type
-`ret_type` is a pointer type to the structure member.
+The '`llvm.preserve.struct.access.index`' intrinsic returns the getelementptr address
+based on struct base `base` and IR struct member index `gep_index`.
+The `llvm.preserve.access.index` type of metadata is attached to this call instruction
+to provide struct debuginfo type.
+The metadata is a `DICompositeType` representing the debuginfo version of `type`.
+The return type `ret_type` is a pointer type to the structure member.
 
 ##### Arguments:
 
@@ -28239,26 +28281,27 @@ location of a pointer that has special properties as described below.
 
 ##### Arguments:
 
-The first argument is the pointer specifying the location to store the pointer.
-The second argument is the discriminator, which is used as an input for the
-pointer encoding. The third argument specifies whether to use a target-specific
-mechanism to encode the pointer.
+The first argument is the pointer specifying the location to store the
+pointer. The second argument is the discriminator, which is used as an
+input for the pointer encoding. The third argument specifies whether to
+use a target-specific mechanism to encode the pointer.
 
 ##### Semantics:
 
-This intrinsic returns a pointer which may be used to store a pointer at the
-specified address that is encoded using the specified discriminator. Stores via
-the pointer will cause the stored pointer to be blended with the second
-argument before being stored. The blend operation shall be either a weak but
-cheap and target-independent operation (if the third argument is 0) or a
-stronger target-specific operation (if the third argument is 1). When loading
-from the pointer, the inverse operation is done on the loaded pointer after it
-is loaded. Specifically, when the third argument is 1, the pointer is signed
-(using pointer authentication instructions or emulated PAC if not supported by
-the hardware) using the discriminator before being stored, and authenticated
-after being loaded. Note that it is currently unsupported to have the third
-argument be 1 on targets other than AArch64, and it is also currently
-unsupported to have the third argument be 0 at all.
+This intrinsic returns a pointer which may be used to store a
+pointer at the specified address that is encoded using the specified
+discriminator. Stores via the pointer will cause the stored pointer to be
+blended with the second argument before being stored. The blend operation
+shall be either a weak but cheap and target-independent operation (if
+the third argument is 0) or a stronger target-specific operation (if the
+third argument is 1). When loading from the pointer, the inverse operation
+is done on the loaded pointer after it is loaded. Specifically, when the
+third argument is 1, the pointer is signed (using pointer authentication
+instructions or emulated PAC if not supported by the hardware) using
+the discriminator before being stored, and authenticated after being
+loaded. Note that it is currently unsupported to have the third argument
+be 1 on targets other than AArch64, and it is also currently unsupported
+to have the third argument be 0 at all.
 
 If the pointer is used other than for loading or storing (e.g. its address
 escapes), that will disable all blending operations using the deactivation
