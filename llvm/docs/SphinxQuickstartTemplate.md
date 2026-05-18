@@ -8,8 +8,11 @@ This article is intended to take someone in the state of “I want to write docu
 
 ## Overview
 
-LLVM documentation is written in [reStructuredText], a markup syntax similar to markdown (but much more powerful). The LLVM documentation site itself uses [Sphinx], a documentation generator originally written for Python documentation.
+LLVM documentation is written in [Markedly Structured Text (MyST)][myst] and [reStructuredText (reST)][reStructuredText].
+MyST is a Markdown flavor that adds Sphinx documentation extensions, and it is preferred for new docs while we migrate old docs to MyST.
+[Sphinx], a documentation generator originally written for Python documentation, generates the LLVM HTML documentation from MyST and reST.
 
+[myst]: https://myst-parser.readthedocs.io/en/latest/
 [reStructuredText]: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 [Sphinx]: http://www.sphinx-doc.org
 
