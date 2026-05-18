@@ -14,15 +14,15 @@ as VS Code, IntelliJ, NeoVim, etc, supports rendering Markdown dialects live in
 some way. reST has served us well, but I believe that now is the time to revise
 that choice and set a long-term goal to migrate our docs to Markdown.
 
-Since 2018 ([D44910](https://reviews.llvm.org/D44910)), LLVM has used a
-Markdown dialect called Markedly Structured Text (MyST) for portions of its
-documentation. Individual subprojects have effectively been free to choose
-between reST and MyST at their own discretion, and there has been no coherent
-policy about which is preferred. This has led to [backporting the CIR docs to
-reST][cir-rest]. The CIR docs were originally Markdown, but were converted back
-to the legacy reST format. The point of this RFC is to declare affirmatively
-which format we prefer, update the [Sphinx quickstart template][llvm-sphinx-docs]
-to that effect, and make a full migration the desired end state.
+Since 2018 ([D44910]), LLVM has used a Markdown dialect called Markedly
+Structured Text (MyST) for portions of its documentation. Individual subprojects
+have effectively been free to choose between reST and MyST at their own
+discretion, and there has been no coherent policy about which is preferred. This
+has led to [backporting the CIR docs to reST][cir-rest]. The CIR docs were
+originally Markdown, but were converted back to the legacy reST format. The
+point of this RFC is to declare affirmatively which format we prefer, update the
+[Sphinx quickstart template][llvm-sphinx-docs] to that effect, and make a full
+migration the desired end state.
 
 ## Proposal
 
@@ -34,7 +34,26 @@ to that effect, and make a full migration the desired end state.
   we should welcome mechanical conversion PRs.
 * `myst_parser` should become a hard dependency for Sphinx documentation builds,
   including the man-page builder.
-* The Sphinx quickstart template should default to Markdown.
+* The [Sphinx quickstart template][llvm-sphinx-docs] should recommend Markdown
+  for new docs.
+
+I'm willing to commit to migrating some key documents one at a time, but I can't
+promise to drive this to completion. This is what I handle:
+
+* [SphinxQuickStartTemplate](llvm-sphinx-docs): Important, because this tells
+  people how to write docs.
+* [LangRef](https://llvm.org/docs/LangRef.html): The most important doc. The
+  edits *must not reflow text* needlessly to avoid conflicts with pending
+  patches.
+* [DeveloperPolicy](https://llvm.org/docs/DeveloperPolicy.html): Also an
+  important doc.
+* [CMake](https://llvm.org/docs/CMake.html): Next most important doc.
+
+I've actually already prototyped the migration on GitHub in [rnk:llvm-markdown],
+and I am serving up a copy of the generated documents [here (starting with the
+quickstart)][staging-llvmdocs], if you want to compare.
+
+
 
 ## What the tree is doing today
 
@@ -67,34 +86,10 @@ old reST weight.
 | Excluding AMDGPU reference and clang-tidy check pages | 56 files by 26 authors | 55 files by 35 authors |
 | Also excluding release notes and Flang meeting notes | 44 files by 25 authors | 53 files by 34 authors |
 
-## Conversion experiment
-
-I converted three important LLVM documents with `pandoc 3.1.11.1` and
-heavy post-processing:
-
-* [SphinxQuickStartTemplate](https://llvm.org/docs/SphinxQuickStartTemplate.html)
-* [LangRef](https://llvm.org/docs/LangRef.html)
-* [DeveloperPolicy](https://llvm.org/docs/DeveloperPolicy.html)
-* [CMake](https://llvm.org/docs/CMake.html)
-
-The before and after HTML builds both succeed. The converted tree also succeeds
-with the Sphinx man-page builder.
-
-| Page | Block comparison | Visible text | Notes |
-| --- | --- | --- | --- |
-| CMake | 474 blocks before and after, 0.9979 similarity | one small difference | removes visible backticks around one `llvm-mt` mention |
-| DeveloperPolicy | 413 blocks before and after, 1.0000 similarity | identical | no visible text changes |
-| LangRef | 9,146 to 9,175 blocks, 0.9898 similarity | small differences | mostly field-list/definition-list normalization and code quoting; 20 tables before and after; 5,318 links before and after |
-
-This is not an argument that the whole migration is a one-click `pandoc` job.
-There will be cleanup. But even very large, link-heavy core documents can be
-converted without changing their substance or breaking the docs build.
-
 ## Man pages are not a blocker
 
-Sphinx's man builder consumes a Sphinx/docutils document tree. MyST parses
-Markdown into that same tree. In this branch, the existing man-page build still
-succeeds with `myst_parser` installed.
+Sphinx is able to generate man pages from MyST when the `myst_parser` module is
+installed, but it isn't always present.
 
 `llvm/docs/conf.py` currently treats `myst_parser` as optional for
 `builder-man`, because the man build does not use Markdown pages today. That
@@ -102,24 +97,14 @@ assumption stops being true if command-guide pages move to Markdown. I would
 rather make `myst_parser` required than add a second documentation pipeline with
 `pandoc -t man`, `scdoc`, or `ronn`.
 
-## Why full migration matters
-
-A "both formats are fine" policy sounds low-risk, but it has already produced
-format churn. Contributors cannot tell which format is preferred, reviewers can
-ask for Markdown to be converted back to reST, and subprojects converge on
-different conventions. That is worse than either format by itself.
-
-Markdown is the format most contributors already know, most editors preview, and
-most external documentation systems understand. MyST gives us the Sphinx features
-we still need. A full migration gives contributors one answer and lets tooling
-improve around one source format.
-
 [myst]: https://myst-parser.readthedocs.io/en/latest/
 [rest]: https://devguide.python.org/documentation/markup/
-[mdn]: https://developer.mozilla.org/en-US/
+[rnk:llvm-markdown]: https://github.com/rnk/llvm-project/tree/llvm-markdown
+[staging-llvmdocs]: https://llvmdocs.staging.reidkleckner.dev/
 [ai-tool-policy-md]: http://github.com/llvm/llvm-project/blob/main/llvm/docs/AIToolPolicy.md
 [dev-policy-md]: http://github.com/llvm/llvm-project/blob/main/llvm/docs/DeveloperPolicy.md
 [ai-policy-html]: https://llvm.org/docs/AIToolPolicy.html
+[D44910]: https://reviews.llvm.org/D44910
 [cir-rest]: https://github.com/llvm/llvm-project/issues/191850
 [llvm-sphinx-docs]: https://llvm.org/docs/SphinxQuickstartTemplate.html
 [doc-history-script]: https://github.com/rnk/llvm-project/blob/llvm-markdown/llvm/utils/analyze-doc-edit-history.py

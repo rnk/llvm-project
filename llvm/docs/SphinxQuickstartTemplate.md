@@ -9,7 +9,8 @@ This article is intended to take someone in the state of “I want to write docu
 ## Overview
 
 LLVM documentation is written in [Markedly Structured Text (MyST)][myst] and [reStructuredText (reST)][reStructuredText].
-MyST is a Markdown flavor that adds Sphinx documentation extensions, and it is preferred for new docs while we migrate old docs to MyST.
+MyST is a Markdown flavor that adds Sphinx documentation extensions.
+MyST is preferred for new docs, and migrating old docs from reST to MyST is an open, ongoing project.
 [Sphinx], a documentation generator originally written for Python documentation, generates the LLVM HTML documentation from MyST and reST.
 
 [myst]: https://myst-parser.readthedocs.io/en/latest/
@@ -18,7 +19,9 @@ MyST is a Markdown flavor that adds Sphinx documentation extensions, and it is p
 
 ## How to use this template
 
-This article is located in `docs/SphinxQuickstartTemplate.md`. To use it as a template, make a copy and open it in a text editor. You can then write your docs, and then send the new article to llvm-commits for review.
+This article is located in `docs/SphinxQuickstartTemplate.md`.
+To use it as a template, make a copy and open it in a text editor.
+You can then write your docs, and open a [GitHub PR](project:GitHub.rst) to request a review.
 
 To view the Markdown source file for this article, click **Show Source** on the right sidebar.
 
@@ -31,9 +34,8 @@ the document, so the last ~half of this document (starting with
 [Example Section](#example-section)) gives examples which should cover 99% of
 use cases.
 
-Let me say that again: focus on *content*. But if you really need to verify
-Sphinx's output, see `docs/README.txt` for information. Once you have finished
-with the content, please send the `.md` file to llvm-commits for review.
+Let me say that again: focus on *content*.
+But if you really need to verify Sphinx's output, see `docs/README.txt` for information on how to build it.
 
 ### Creating New Articles
 
