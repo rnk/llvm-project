@@ -18,22 +18,22 @@ MyST is a Markdown flavor that adds Sphinx documentation extensions, and it is p
 
 ## How to use this template
 
-This article is located in `docs/SphinxQuickstartTemplate.rst`. To use it as a template, make a copy and open it in a text editor. You can then write your docs, and then send the new article to llvm-commits for review.
+This article is located in `docs/SphinxQuickstartTemplate.md`. To use it as a template, make a copy and open it in a text editor. You can then write your docs, and then send the new article to llvm-commits for review.
 
-To view the restructuredText source file for this article, click **Show Source** on the right sidebar.
+To view the Markdown source file for this article, click **Show Source** on the right sidebar.
 
 ## Authoring Guidelines
 
-Focus on *content*. It is easy to fix the Sphinx (reStructuredText) syntax
-later if necessary, although reStructuredText tries to imitate common
-plain-text conventions so it should be quite natural. A basic knowledge of
-reStructuredText syntax is useful when writing the document, so the last
-~half of this document (starting with [Example Section](#example-section)) gives examples
-which should cover 99% of use cases.
+Focus on *content*. It is easy to fix the Markdown syntax later if necessary,
+and Markdown intentionally imitates common plain-text conventions so it should
+be quite natural. A basic knowledge of Markdown syntax is useful when writing
+the document, so the last ~half of this document (starting with
+[Example Section](#example-section)) gives examples which should cover 99% of
+use cases.
 
 Let me say that again: focus on *content*. But if you really need to verify
-Sphinx's output, see `docs/README.txt` for information. Once you have finished with the content, please send the `.rst` file to
-llvm-commits for review.
+Sphinx's output, see `docs/README.txt` for information. Once you have finished
+with the content, please send the `.md` file to llvm-commits for review.
 
 ### Creating New Articles
 
@@ -49,26 +49,28 @@ A standard best practice is to make your articles task-oriented. You generally s
 unless there's already an existing "how to" article for the topic you're documenting. The reason for this is that without a "how to" article to read first, it might be difficult for
 someone unfamiliar with the topic to understand a more advanced, conceptual article.
 
-When creating a task-oriented article, follow existing LLVM articles by giving it a filename that starts with `HowTo*.rst`. This format is usually the easiest for another person to understand and also the most useful.
+When creating a task-oriented article, follow existing LLVM articles by giving it a filename that starts with `HowTo*.md`. This format is usually the easiest for another person to understand and also the most useful.
 
 Focus on content (yes, I had to say it again).
 
-The rest of this document shows example reStructuredText markup constructs
+The rest of this document shows example Markdown and MyST markup constructs
 that are meant to be read by you in your text editor after you have copied
 this file into a new file for the documentation you are about to write.
 
 ## Example Section
 
-An article can contain one or more sections (i.e., headings). Sections (like `Example Section` above) help give your document its
-structure. Use the same kind of adornments (e.g. `======` vs. `------`)
-as are used in this document. The adornment must be the same length as the
-text above it. For Vim users, variations of `yypVr=` might be handy.
+An article can contain one or more sections (i.e., headings). Sections (like
+`Example Section` above) help give your document its structure. Use `#` for the
+document title, `##` for top-level sections, `###` for subsections, and so on.
+Leave a blank line before and after each heading.
 
 ### Example Nested Subsection
 
-Subsections can also be nested beneath other subsections. For more information on sections, see Sphinx's [reStructuredText Primer].
+Subsections can also be nested beneath other subsections. For more information
+on Markdown syntax, see the [CommonMark spec] and the [MyST syntax guide].
 
-[reStructuredText Primer]: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html#sections
+[CommonMark spec]: https://spec.commonmark.org/
+[MyST syntax guide]: https://myst-parser.readthedocs.io/en/latest/syntax/typography.html
 
 ## Text Formatting
 
@@ -78,16 +80,16 @@ To create a new paragraph, simply insert a blank line.
 
 ## Links
 
-You can format a link [like this](https://llvm.org/). A more [sophisticated syntax] allows you to place the ``.. _`link text`: <URL>`` block
+You can format a link [like this](https://llvm.org/). A more [sophisticated syntax] allows you to place the `[link text]: <URL>` block
 pretty much anywhere else in the document. This is useful when linking to especially long URLs.
 
 [sophisticated syntax]: http://en.wikipedia.org/wiki/LLVM
 
 ## Lists
 
-restructuredText allows you to create ordered lists...
+Markdown allows you to create ordered lists...
 
-1. A list starting with `#.` will be automatically numbered.
+1. A list starting with `1.` will be automatically numbered.
 
 1. This is a second list element.
 
@@ -105,7 +107,7 @@ restructuredText allows you to create ordered lists...
 
 You can make blocks of code like this:
 
-```c++
+```cpp
 int main() {
   return 0;
 }
@@ -119,7 +121,7 @@ $ echo "Goodbye cruel world!"
 $ rm -rf /
 ```
 
-If you need to show LLVM IR use the `llvm` code block.
+If you need to show LLVM IR, use the `llvm` code block.
 
 ```llvm
 define i32 @test1() {
