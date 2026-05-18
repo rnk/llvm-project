@@ -72,6 +72,7 @@ old reST weight.
 I converted three important LLVM documents with `pandoc 3.1.11.1` and
 heavy post-processing:
 
+* [SphinxQuickStartTemplate](https://llvm.org/docs/SphinxQuickStartTemplate.html)
 * [LangRef](https://llvm.org/docs/LangRef.html)
 * [DeveloperPolicy](https://llvm.org/docs/DeveloperPolicy.html)
 * [CMake](https://llvm.org/docs/CMake.html)
