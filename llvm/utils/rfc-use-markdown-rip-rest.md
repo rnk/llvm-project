@@ -43,14 +43,14 @@ migration the desired end state.
   for new docs.
 
 I'm willing to commit to migrating some key documents one at a time, but I can't
-promise to personally hunt down every last `.rst` file in the monorepo. My
-expectation for everyone else is modest: use MyST for new docs, and accept
-mechanical conversion PRs when they preserve content and avoid needless churn.
+promise to personally hunt down every last `.rst` file in the monorepo. I'm
+hoping that, in true open source fashion, volunteers will pitch in and help
+migrate their own docs and help review and approve mechanical conversion PRs.
 
-This is the review order I plan to start with:
+These are the docs I plan to migrate, in this order:
 
-* [SphinxQuickstartTemplate][llvm-sphinx-docs]: Important, because this tells
-  people how to write docs. Already sent for review.
+* [SphinxQuickstartTemplate][llvm-sphinx-docs]: This is effectively our policy
+  doc, so it goes first as an obvious demo of how to write new docs.
 * [LangRef](https://llvm.org/docs/LangRef.html): The most important doc. The
   edits *must not reflow text* needlessly to avoid conflicts with pending
   patches.
@@ -66,7 +66,9 @@ quickstart)][staging-llvmdocs], if you want to compare.
 
 LLVM already uses MyST for HTML documentation when `myst_parser` is available.
 Making it required also keeps man-page generation in the existing Sphinx
-pipeline if command-guide pages eventually move to Markdown.
+pipeline if command-guide pages eventually move to Markdown. I will be honest, I
+am not an expert in our release packaging pipeline, so this is probably going to
+require support from packagers.
 
 [myst]: https://myst-parser.readthedocs.io/en/latest/
 [rest]: https://devguide.python.org/documentation/markup/
