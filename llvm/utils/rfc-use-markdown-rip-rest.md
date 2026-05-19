@@ -17,8 +17,13 @@ that choice and set a long-term goal to migrate our docs to Markdown.
 Since 2018 ([D44910]), LLVM has used a Markdown dialect called Markedly
 Structured Text (MyST) for portions of its documentation. Individual subprojects
 have effectively been free to choose between reST and MyST at their own
-discretion, and there has been no coherent policy about which is preferred. This
-has led to [backporting the CIR docs to reST][cir-rest]. The CIR docs were
+discretion, and there has been no coherent policy about which is preferred.
+
+Newer projects have tended to prefer markdown. MLIR is entirely Markdown, Flang
+is almost entirely Markdown, and LLDB is substantially Markdown. The main LLVM
+docs still carry most of the old reST weight.
+
+This has led to [backporting the CIR docs to reST][cir-rest]. The CIR docs were
 originally Markdown, but were converted back to the legacy reST format. The
 point of this RFC is to declare affirmatively which format we prefer, update the
 [Sphinx quickstart template][llvm-sphinx-docs] to that effect, and make a full
@@ -38,10 +43,14 @@ migration the desired end state.
   for new docs.
 
 I'm willing to commit to migrating some key documents one at a time, but I can't
-promise to drive this to completion. This is what I handle:
+promise to personally hunt down every last `.rst` file in the monorepo. My
+expectation for everyone else is modest: use MyST for new docs, and accept
+mechanical conversion PRs when they preserve content and avoid needless churn.
 
-* [SphinxQuickStartTemplate](llvm-sphinx-docs): Important, because this tells
-  people how to write docs.
+This is the review order I plan to start with:
+
+* [SphinxQuickstartTemplate][llvm-sphinx-docs]: Important, because this tells
+  people how to write docs. Already sent for review.
 * [LangRef](https://llvm.org/docs/LangRef.html): The most important doc. The
   edits *must not reflow text* needlessly to avoid conflicts with pending
   patches.
@@ -53,58 +62,16 @@ I've actually already prototyped the migration on GitHub in [rnk:llvm-markdown],
 and I am serving up a copy of the generated documents [here (starting with the
 quickstart)][staging-llvmdocs], if you want to compare.
 
+## Build impact
 
-
-## What the tree is doing today
-
-I generated these numbers with [a small analysis script][doc-history-script]
-over LLVM documentation paths and recent git history:
-
-```bash
-python3 llvm/utils/analyze-doc-edit-history.py \
-  --since 2025-05-12 --until 2026-05-12 \
-  --max-roots 12 --max-examples 6
-```
-
-The footprint numbers are from this branch after converting LangRef,
-DeveloperPolicy, and CMake. The recent-activity numbers cover one year of
-upstream history ending at `976195f9d5be` on 2026-05-12.
-
-| Scope | Markdown files | Markdown lines | reST files | reST lines |
-| --- | --- | --- | --- | --- |
-| All docs markup | 224 | 112,456 (25.5%) | 2,269 | 328,004 (74.5%) |
-| Excluding AMDGPU reference and clang-tidy check pages | 224 | 112,456 (30.5%) | 614 | 256,182 (69.5%) |
-| Also excluding release notes | 221 | 111,984 (30.6%) | 604 | 254,012 (69.4%) |
-
-MLIR is entirely Markdown in this analysis, Flang is almost entirely Markdown,
-and LLDB is substantially Markdown. The main LLVM docs still carry most of the
-old reST weight.
-
-| Scope | Markdown added files | reST added files |
-| --- | --- | --- |
-| All docs markup | 56 files by 26 authors | 238 files by 64 authors |
-| Excluding AMDGPU reference and clang-tidy check pages | 56 files by 26 authors | 55 files by 35 authors |
-| Also excluding release notes and Flang meeting notes | 44 files by 25 authors | 53 files by 34 authors |
-
-## Man pages are not a blocker
-
-Sphinx is able to generate man pages from MyST when the `myst_parser` module is
-installed, but it isn't always present.
-
-`llvm/docs/conf.py` currently treats `myst_parser` as optional for
-`builder-man`, because the man build does not use Markdown pages today. That
-assumption stops being true if command-guide pages move to Markdown. I would
-rather make `myst_parser` required than add a second documentation pipeline with
-`pandoc -t man`, `scdoc`, or `ronn`.
+LLVM already uses MyST for HTML documentation when `myst_parser` is available.
+Making it required also keeps man-page generation in the existing Sphinx
+pipeline if command-guide pages eventually move to Markdown.
 
 [myst]: https://myst-parser.readthedocs.io/en/latest/
 [rest]: https://devguide.python.org/documentation/markup/
 [rnk:llvm-markdown]: https://github.com/rnk/llvm-project/tree/llvm-markdown
 [staging-llvmdocs]: https://llvmdocs.staging.reidkleckner.dev/
-[ai-tool-policy-md]: http://github.com/llvm/llvm-project/blob/main/llvm/docs/AIToolPolicy.md
-[dev-policy-md]: http://github.com/llvm/llvm-project/blob/main/llvm/docs/DeveloperPolicy.md
-[ai-policy-html]: https://llvm.org/docs/AIToolPolicy.html
 [D44910]: https://reviews.llvm.org/D44910
 [cir-rest]: https://github.com/llvm/llvm-project/issues/191850
 [llvm-sphinx-docs]: https://llvm.org/docs/SphinxQuickstartTemplate.html
-[doc-history-script]: https://github.com/rnk/llvm-project/blob/llvm-markdown/llvm/utils/analyze-doc-edit-history.py
