@@ -11,8 +11,8 @@ the ubiquitous, default way to format plain text. reST has a deep, extensible
 feature set, but simplicity has won out. The most useful docs are the ones that
 exist, and are easy to update with zero friction. Every IDE under the sun, such
 as VS Code, IntelliJ, NeoVim, etc, supports rendering Markdown dialects live in
-some way. reST has served us well, but I believe that now is the time to revise
-that choice and set a long-term goal to migrate our docs to Markdown.
+some way. reST has served us well, but I believe that now is the time set a
+long-term goal to migrate our docs to Markdown.
 
 Since 2018 ([D44910]), LLVM has used a Markdown dialect called Markedly
 Structured Text (MyST) for portions of its documentation. Individual subprojects
