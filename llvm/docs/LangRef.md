@@ -26665,9 +26665,8 @@ The first argument to the '`llvm.is.fpclass`' intrinsic must be
 {ref}`floating-point <t_floating>` or {ref}`vector <t_vector>` of
 floating-point values.
 
-The second argument specifies, which tests to perform. It must be a
-compile-time integer constant, each bit in which specifies floating-point
-class:
+The second argument specifies, which tests to perform. It must be a compile-time
+integer constant, each bit in which specifies floating-point class:
 
 | Bit \# | floating-point class |
 |--------|----------------------|
@@ -26686,17 +26685,17 @@ class:
 
 The function checks if `op` belongs to any of the floating-point classes
 specified by `test`. If `op` is a vector, then the check is made element by
-element. Each check yields an {ref}`i1 <t_integer>` result, which is `true`, if
-the element value satisfies the specified test. The argument `test` is a bit
-mask where each bit specifies floating-point class to test. For example, the
+element. Each check yields an {ref}`i1 <t_integer>` result, which is `true`,
+if the element value satisfies the specified test. The argument `test` is a
+bit mask where each bit specifies floating-point class to test. For example, the
 value 0x108 makes test for normal value, - bits 3 and 8 in it are set, which
-means that the function returns `true` if `op` is a positive or negative normal
-value. The function never raises floating-point exceptions. The function does
-not canonicalize its input value and does not depend on the floating-point
-environment. If the floating-point environment has a zeroing treatment of
-subnormal input values (such as indicated by the {ref}`denormal_fpenv
-<denormal_fpenv>` attribute), a subnormal value will be observed (will not be
-implicitly treated as zero).
+means that the function returns `true` if `op` is a positive or negative
+normal value. The function never raises floating-point exceptions. The
+function does not canonicalize its input value and does not depend
+on the floating-point environment. If the floating-point environment
+has a zeroing treatment of subnormal input values (such as indicated
+by the {ref}`denormal_fpenv <denormal_fpenv>` attribute), a subnormal
+value will be observed (will not be implicitly treated as zero).
 
 ### General Intrinsics
 
@@ -26952,12 +26951,13 @@ smaller than or equal to the actual object size (including 0 if unknown). The
 maximum size may be any size greater than or equal to the actual object size
 (including -1 if unknown).
 
-The third argument controls how `llvm.objectsize` acts when `null` in address
-space 0 is used as its pointer argument. If it's `false`, `llvm.objectsize`
-reports 0 bytes available when given `null`. Otherwise, if the `null` is in a
-non-zero address space or if `true` is given for the third argument of
-`llvm.objectsize`, we assume its size is unknown. The fourth argument to
-`llvm.objectsize` determines if the value should be evaluated at runtime.
+The third argument controls how `llvm.objectsize` acts when `null`
+in address space 0 is used as its pointer argument. If it's `false`,
+`llvm.objectsize` reports 0 bytes available when given `null`. Otherwise, if
+the `null` is in a non-zero address space or if `true` is given for the
+third argument of `llvm.objectsize`, we assume its size is unknown. The fourth
+argument to `llvm.objectsize` determines if the value should be evaluated at
+runtime.
 
 The second, third, and fourth arguments only accept constants.
 
@@ -27233,12 +27233,13 @@ decided by the {ref}`lowering strategy<deoptimize_lowering>`.
 ##### Semantics:
 
 The `@llvm.experimental.deoptimize` intrinsic executes an attached
-deoptimization continuation (denoted using a {ref}`deoptimization operand
-bundle <deopt_opbundles>`) and returns the value returned by the deoptimization
-continuation. Defining the semantic properties of the continuation itself is
-out of scope of the language reference \--as far as LLVM is concerned, the
-deoptimization continuation can invoke arbitrary side effects, including
-reading from and writing to the entire heap.
+deoptimization continuation (denoted using a {ref}`deoptimization
+operand bundle <deopt_opbundles>`) and returns the value returned by
+the deoptimization continuation. Defining the semantic properties of
+the continuation itself is out of scope of the language reference
+\--as far as LLVM is concerned, the deoptimization continuation can
+invoke arbitrary side effects, including reading from and writing to
+the entire heap.
 
 Deoptimization continuations expressed using `"deopt"` operand bundles always
 continue execution to the end of the physical frame containing them, so all
@@ -27263,11 +27264,11 @@ convention.
 (deoptimize_lowering)=
 ##### Lowering:
 
-Calls to `@llvm.experimental.deoptimize` are lowered to calls to the symbol
-`__llvm_deoptimize` (it is the frontend's responsibility to ensure that this
-symbol is defined). The call arguments to `@llvm.experimental.deoptimize` are
-lowered as if they were formal arguments of the specified types, and not as
-varargs.
+Calls to `@llvm.experimental.deoptimize` are lowered to calls to the
+symbol `__llvm_deoptimize` (it is the frontend's responsibility to
+ensure that this symbol is defined). The call arguments to
+`@llvm.experimental.deoptimize` are lowered as if they were formal
+arguments of the specified types, and not as varargs.
 
 #### '`llvm.experimental.guard`' Intrinsic
 
@@ -27297,22 +27298,23 @@ continue:
 }
 ```
 
-with the optional `[, !make.implicit !{}]` present if and only if it is present
-on the call site. For more details on `!make.implicit`, see {doc}`FaultMaps`.
+with the optional `[, !make.implicit !{}]` present if and only if it
+is present on the call site. For more details on `!make.implicit`,
+see {doc}`FaultMaps`.
 
-In words, `@llvm.experimental.guard` executes the attached `"deopt"`
-continuation if (but **not** only if) its first argument is `false`. Since the
-optimizer is allowed to replace the `undef` with an arbitrary value, it can
-optimize guard to fail \"spuriously\", i.e., without the original condition
-being false (hence the \"not only if\"); and this allows for \"check widening\"
-type optimizations.
+In words, `@llvm.experimental.guard` executes the attached
+`"deopt"` continuation if (but **not** only if) its first argument
+is `false`. Since the optimizer is allowed to replace the `undef`
+with an arbitrary value, it can optimize guard to fail \"spuriously\",
+i.e., without the original condition being false (hence the \"not only
+if\"); and this allows for \"check widening\" type optimizations.
 
 `@llvm.experimental.guard` cannot be invoked.
 
-After `@llvm.experimental.guard` was first added, a more general formulation
-was found in `@llvm.experimental.widenable.condition`. Support for
-`@llvm.experimental.guard` is slowly being rephrased in terms of this
-alternate.
+After `@llvm.experimental.guard` was first added, a more general
+formulation was found in `@llvm.experimental.widenable.condition`.
+Support for `@llvm.experimental.guard` is slowly being rephrased in
+terms of this alternate.
 
 #### '`llvm.experimental.widenable.condition`' Intrinsic
 
@@ -27322,19 +27324,22 @@ alternate.
 
 ##### Overview:
 
-This intrinsic represents a \"widenable condition\" which is boolean
-expressions with the following property: whether this expression is `true` or
-`false`, the program is correct and well-defined.
+This intrinsic represents a \"widenable condition\" which is
+boolean expressions with the following property: whether this
+expression is `true` or `false`, the program is correct and
+well-defined.
 
 Together with {ref}`deoptimization operand bundles <deopt_opbundles>`,
-`@llvm.experimental.widenable.condition` allows frontends to express guards or
-checks on optimistic assumptions made during compilation and represent them as
-branch instructions on special conditions.
+`@llvm.experimental.widenable.condition` allows frontends to
+express guards or checks on optimistic assumptions made during
+compilation and represent them as branch instructions on special
+conditions.
 
-While this may appear similar in semantics to `undef`, it is very different in
-that an invocation produces a particular, singular value. It is also intended
-to be lowered late, and remain available for specific optimizations and
-transforms that can benefit from its special properties.
+While this may appear similar in semantics to `undef`, it is very
+different in that an invocation produces a particular, singular
+value. It is also intended to be lowered late, and remain available
+for specific optimizations and transforms that can benefit from its
+special properties.
 
 ##### Arguments:
 
@@ -27342,14 +27347,16 @@ None.
 
 ##### Semantics:
 
-The intrinsic `@llvm.experimental.widenable.condition()` returns either `true`
-or `false`. For each evaluation of a call to this intrinsic, the program must
-be valid and correct both if it returns `true` and if it returns `false`. This
-allows transformation passes to replace evaluations of this intrinsic with
-either value whenever one is beneficial.
+The intrinsic `@llvm.experimental.widenable.condition()`
+returns either `true` or `false`. For each evaluation of a call
+to this intrinsic, the program must be valid and correct both if
+it returns `true` and if it returns `false`. This allows
+transformation passes to replace evaluations of this intrinsic
+with either value whenever one is beneficial.
 
-When used in a branch condition, it allows us to choose between two alternative
-correct solutions for the same problem, like in example below:
+When used in a branch condition, it allows us to choose between
+two alternative correct solutions for the same problem, like
+in example below:
 
 ``` text
 %cond = call i1 @llvm.experimental.widenable.condition()
@@ -27601,15 +27608,18 @@ manifest compile-time constant value, then the intrinsic will be
 converted to a constant true value. Otherwise, it will be converted to
 a constant false value.
 
-In particular, note that if the argument is a constant expression which refers
-to a global (the address of which *is* a constant, but not manifest during the
-compile), then the intrinsic evaluates to false.
+In particular, note that if the argument is a constant expression
+which refers to a global (the address of which *is* a constant, but
+not manifest during the compile), then the intrinsic evaluates to
+false.
 
-The result also intentionally depends on the result of optimization passes \--
-e.g., the result can change depending on whether a function gets inlined or
-not. A function's parameters are obviously not constant. However, a call like
-`llvm.is.constant.i32(i32 %param)` *can* return true after the function is
-inlined, if the value passed to the function parameter was a constant.
+The result also intentionally depends on the result of optimization
+passes \-- e.g., the result can change depending on whether a
+function gets inlined or not. A function's parameters are
+obviously not constant. However, a call like
+`llvm.is.constant.i32(i32 %param)` *can* return true after the
+function is inlined, if the value passed to the function parameter was
+a constant.
 
 (int_ptrmask)=
 #### '`llvm.ptrmask`' Intrinsic
@@ -27709,8 +27719,8 @@ a variable's scope helps prevent that variable from being optimized out.
 
 The `llvm.fake.use` intrinsic takes one argument, which may be any
 function-local SSA value. Note that the signature is variadic so that the
-intrinsic can take any type of argument, but passing more than one argument
-will result in an error.
+intrinsic can take any type of argument, but passing more than one argument will
+result in an error.
 
 ##### Semantics:
 
@@ -27733,7 +27743,8 @@ emitting any code or data to the binary for that purpose.
 
 ##### Arguments:
 
-The `llvm.reloc.none` intrinsic takes the symbol as a metadata string argument.
+The `llvm.reloc.none` intrinsic takes the symbol as a metadata string
+argument.
 
 ##### Semantics:
 
@@ -27801,11 +27812,10 @@ allowed to overlap. The memory copy is performed as a sequence of load/store ope
 where each access is guaranteed to be a multiple of `element_size` bytes wide and
 aligned at an `element_size` boundary.
 
-The order of the copy is unspecified. The same value may be read from the
-source buffer many times, but only one write is issued to the destination
-buffer per element. It is well defined to have concurrent reads and writes to
-both source and destination provided those reads and writes are unordered
-atomic when specified.
+The order of the copy is unspecified. The same value may be read from the source
+buffer many times, but only one write is issued to the destination buffer per
+element. It is well defined to have concurrent reads and writes to both source and
+destination provided those reads and writes are unordered atomic when specified.
 
 This intrinsic does not provide any additional ordering guarantees over those
 provided by a set of unordered loads from the source location and stores to the
@@ -27872,11 +27882,11 @@ are allowed to overlap. The memory copy is performed as a sequence of load/store
 operations where each access is guaranteed to be a multiple of `element_size`
 bytes wide and aligned at an `element_size` boundary.
 
-The order of the copy is unspecified. The same value may be read from the
-source buffer many times, but only one write is issued to the destination
-buffer per element. It is well defined to have concurrent reads and writes to
-both source and destination provided those reads and writes are unordered
-atomic when specified.
+The order of the copy is unspecified. The same value may be read from the source
+buffer many times, but only one write is issued to the destination buffer per
+element. It is well defined to have concurrent reads and writes to both source
+and destination provided those reads and writes are unordered atomic when
+specified.
 
 This intrinsic does not provide any additional ordering guarantees over those
 provided by a set of unordered loads from the source location and stores to the
@@ -27922,11 +27932,10 @@ that are a positive integer multiple of the `element_size` in size.
 
 ##### Arguments:
 
-The first three arguments are the same as they are in the {ref}`@llvm.memset
-<int_memset>` intrinsic, with the added constraint that `len` is required to be
-a positive integer multiple of the `element_size`. If `len` is not a positive
-integer multiple of `element_size`, then the behavior of the intrinsic is
-undefined.
+The first three arguments are the same as they are in the {ref}`@llvm.memset <int_memset>`
+intrinsic, with the added constraint that `len` is required to be a positive integer
+multiple of the `element_size`. If `len` is not a positive integer multiple of
+`element_size`, then the behavior of the intrinsic is undefined.
 
 `element_size` must be a compile-time constant positive power of two no greater than
 target-specific atomic access size limit.
@@ -27937,11 +27946,10 @@ the destination pointer is aligned to that boundary.
 
 ##### Semantics:
 
-The '`llvm.memset.element.unordered.atomic.*`' intrinsic sets the `len` bytes
-of memory starting at the destination location to the given `value`. The memory
-is set with a sequence of store operations where each access is guaranteed to
-be a multiple of `element_size` bytes wide and aligned at an `element_size`
-boundary.
+The '`llvm.memset.element.unordered.atomic.*`' intrinsic sets the `len` bytes of
+memory starting at the destination location to the given `value`. The memory is
+set with a sequence of store operations where each access is guaranteed to be a
+multiple of `element_size` bytes wide and aligned at an `element_size` boundary.
 
 The order of the assignment is unspecified. Only one write is issued to the
 destination buffer per element. It is well defined to have concurrent reads and
@@ -28185,15 +28193,15 @@ are converted to structs in IR.
 
 ##### Overview:
 
-The '`llvm.preserve.array.access.index`' intrinsic returns the getelementptr
-address based on array base `base`, array dimension `dim` and the last access
-index `index` into the array. The return type `ret_type` is a pointer type to
-the array element. The array `dim` and `index` are preserved which is more
-robust than getelementptr instruction which may be subject to compiler
-transformation. The `llvm.preserve.access.index` type of metadata is attached
-to this call instruction to provide array or pointer debuginfo type. The
-metadata is a `DICompositeType` or `DIDerivedType` representing the debuginfo
-version of `type`.
+The '`llvm.preserve.array.access.index`' intrinsic returns the getelementptr address
+based on array base `base`, array dimension `dim` and the last access index `index`
+into the array. The return type `ret_type` is a pointer type to the array element.
+The array `dim` and `index` are preserved which is more robust than
+getelementptr instruction which may be subject to compiler transformation.
+The `llvm.preserve.access.index` type of metadata is attached to this call instruction
+to provide array or pointer debuginfo type.
+The metadata is a `DICompositeType` or `DIDerivedType` representing the
+debuginfo version of `type`.
 
 ##### Arguments:
 
@@ -28303,12 +28311,12 @@ loaded. Note that it is currently unsupported to have the third argument
 be 1 on targets other than AArch64, and it is also currently unsupported
 to have the third argument be 0 at all.
 
-If the pointer is used other than for loading or storing (e.g. its address
-escapes), that will disable all blending operations using the deactivation
-symbol specified in the intrinsic's operand bundle. The deactivation symbol
-operand bundle is copied onto any sign and auth intrinsics that this intrinsic
-is lowered into. The intent is that the deactivation symbol represents a field
-identifier.
+If the pointer is used other than for loading or storing (e.g. its
+address escapes), that will disable all blending operations using
+the deactivation symbol specified in the intrinsic's operand bundle.
+The deactivation symbol operand bundle is copied onto any sign and auth
+intrinsics that this intrinsic is lowered into. The intent is that the
+deactivation symbol represents a field identifier.
 
 This intrinsic is used to implement structure protection.
 
@@ -28329,9 +28337,9 @@ given predicate `pred` is true, otherwise it does nothing.
 
 ##### Semantics:
 
-This intrinsic is semantically equivalent to a conditional branch conditioned
-on `pred` to a basic block consisting only of an unconditional branch to
-itself.
+This intrinsic is semantically equivalent to a conditional branch
+conditioned on `pred` to a basic block consisting only of an
+unconditional branch to itself.
 
 Unlike such a branch, certain backends guarantee that this intrinsic
 will use specific instructions. This allows an interrupt handler or
@@ -28361,9 +28369,11 @@ There are currently no guarantees about instructions used by other backends.
 
 ##### Overview:
 
-The '`llvm.looptrap`' intrinsic is equivalent to `llvm.cond.loop(true)`, but is
-also considered to be `noreturn`, which enables certain optimizations by
-allowing the optimizer to assume that a branch leading to a call to this
-intrinsic was not taken. A late optimization pass will convert this intrinsic
-to either `llvm.cond.loop(true)` or `llvm.cond.loop(pred)`, where `pred` is a
-predicate for a conditional branch leading to the intrinsic call, if possible.
+The '`llvm.looptrap`' intrinsic is equivalent to
+`llvm.cond.loop(true)`, but is also considered to be `noreturn`,
+which enables certain optimizations by allowing the optimizer to
+assume that a branch leading to a call to this intrinsic was not
+taken. A late optimization pass will convert this intrinsic to either
+`llvm.cond.loop(true)` or `llvm.cond.loop(pred)`, where `pred`
+is a predicate for a conditional branch leading to the intrinsic call,
+if possible.
