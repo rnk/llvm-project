@@ -392,28 +392,33 @@ TypeStreamMerger::remapIndices(const CVType &OriginalType,
          "The storage buffer size is not a multiple of 4 bytes which will "
          "cause misalignment in the output TPI stream!");
 
-  SmallVector<TiReference, 4> Refs;
-  discoverTypeIndices(OriginalType.RecordData, Refs);
-  if (Refs.empty() && Align == 0)
+  bool Copied = false;
+  bool Success = true;
+  uint8_t *DestContent = nullptr;
+  auto copyRecord = [&] {
+    if (Copied)
+      return;
+    ::memcpy(Storage.data(), OriginalType.RecordData.data(),
+             OriginalType.RecordData.size());
+    DestContent = Storage.data() + sizeof(RecordPrefix);
+    Copied = true;
+  };
+
+  discoverTypeIndices(
+      OriginalType.RecordData, [&](TiRefKind RefKind, uint32_t RefOffset) {
+        if (!Success)
+          return;
+        copyRecord();
+        TypeIndex &TI = *reinterpret_cast<TypeIndex *>(DestContent + RefOffset);
+        Success = (RefKind == TiRefKind::IndexRef) ? remapItemIndex(TI)
+                                                   : remapTypeIndex(TI);
+      });
+  if (LLVM_UNLIKELY(!Success))
+    return {};
+
+  if (!Copied && Align == 0)
     return OriginalType.RecordData;
-
-  ::memcpy(Storage.data(), OriginalType.RecordData.data(),
-           OriginalType.RecordData.size());
-
-  uint8_t *DestContent = Storage.data() + sizeof(RecordPrefix);
-
-  for (auto &Ref : Refs) {
-    TypeIndex *DestTIs =
-        reinterpret_cast<TypeIndex *>(DestContent + Ref.Offset);
-
-    for (size_t I = 0; I < Ref.Count; ++I) {
-      TypeIndex &TI = DestTIs[I];
-      bool Success = (Ref.Kind == TiRefKind::IndexRef) ? remapItemIndex(TI)
-                                                       : remapTypeIndex(TI);
-      if (LLVM_UNLIKELY(!Success))
-        return {};
-    }
-  }
+  copyRecord();
 
   if (Align > 0) {
     RecordPrefix *StorageHeader =

@@ -67,8 +67,8 @@ public:
   bool remapTypeIndex(TypeIndex &ti, llvm::codeview::TiRefKind refKind) const;
 
 protected:
-  void remapRecord(MutableArrayRef<uint8_t> rec,
-                   ArrayRef<llvm::codeview::TiReference> typeRefs);
+  template <typename DiscoverRefs>
+  void remapRecord(MutableArrayRef<uint8_t> rec, DiscoverRefs discoverRefs);
 
   void mergeTypeRecord(TypeIndex curIndex, llvm::codeview::CVType ty);
 

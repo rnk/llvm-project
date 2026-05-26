@@ -40,9 +40,8 @@ public:
 private:
   void addTypeRefsFromSymbol(const codeview::CVSymbol &Sym);
 
-  // Mark types on this list as referenced.
-  void addReferencedTypes(ArrayRef<uint8_t> RecData,
-                          ArrayRef<codeview::TiReference> Refs);
+  void addDiscoveredTypeRef(ArrayRef<uint8_t> RecData,
+                            codeview::TiRefKind RefKind, uint32_t Offset);
 
   // Consume all types on the worklist.
   void markReferencedTypes();

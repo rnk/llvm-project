@@ -339,15 +339,17 @@ void PDBLinker::translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
   // symbol that refers to the type stream index space.  So we remap again from
   // ID index space to type index space.
   if (kind == SymbolKind::S_GPROC32_ID || kind == SymbolKind::S_LPROC32_ID) {
-    SmallVector<TiReference, 1> refs;
+    uint32_t typeIndexOffset = ~0U;
     auto content = recordData.drop_front(sizeof(RecordPrefix));
     CVSymbol sym(recordData);
-    discoverTypeIndicesInSymbol(sym, refs);
-    assert(refs.size() == 1);
-    assert(refs.front().Count == 1);
-
+    discoverTypeIndicesInSymbol(sym, [&](TiRefKind refKind, uint32_t offset) {
+      assert(refKind == TiRefKind::IndexRef);
+      typeIndexOffset = offset;
+    });
+    assert(typeIndexOffset != ~0U);
     TypeIndex *ti =
-        reinterpret_cast<TypeIndex *>(content.data() + refs[0].Offset);
+        reinterpret_cast<TypeIndex *>(content.data() + typeIndexOffset);
+
     // `ti` is the index of a FuncIdRecord or MemberFuncIdRecord which lives in
     // the IPI stream, whose `FunctionType` member refers to the TPI stream.
     // Note that LF_FUNC_ID and LF_MFUNC_ID have the same record layout, and
@@ -607,9 +609,10 @@ void PDBLinker::analyzeSymbolSubsection(
             ++ctx.pdbStats->globalSymbols;
         }
 
-        // Update the module stream offset and record any string table index
-        // references. There are very few of these and they will be rewritten
-        // later during PDB writing.
+        // Do *not* write the module symbol! This is an up-front analysis pass
+        // to calculate the module stream size. Update module stream offsets and
+        // record any string table index references. There are very few of these
+        // and they will be rewritten later during PDB writing.
         if (symbolGoesInModuleStream(sym, scopeLevel)) {
           recordStringTableReferences(sym, moduleSymOffset, stringTableFixups);
           moduleSymOffset += alignedSize;

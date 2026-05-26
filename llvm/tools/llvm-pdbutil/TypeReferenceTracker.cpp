@@ -101,28 +101,26 @@ void TypeReferenceTracker::addOneTypeRef(TiRefKind RefKind, TypeIndex RefTI) {
 }
 
 void TypeReferenceTracker::addTypeRefsFromSymbol(const CVSymbol &Sym) {
-  SmallVector<TiReference, 4> DepList;
   // FIXME: Check for failure.
-  discoverTypeIndicesInSymbol(Sym, DepList);
-  addReferencedTypes(Sym.content(), DepList);
+  discoverTypeIndicesInSymbol(Sym, [&](TiRefKind RefKind, uint32_t Offset) {
+    addDiscoveredTypeRef(Sym.content(), RefKind, Offset);
+  });
   markReferencedTypes();
 }
 
-void TypeReferenceTracker::addReferencedTypes(ArrayRef<uint8_t> RecData,
-                                              ArrayRef<TiReference> DepList) {
-  for (const auto &Ref : DepList) {
-    // FIXME: Report OOB slice instead of truncating.
-    ArrayRef<uint8_t> ByteSlice =
-        RecData.drop_front(Ref.Offset).take_front(4 * Ref.Count);
-    ArrayRef<TypeIndex> TIs(
-        reinterpret_cast<const TypeIndex *>(ByteSlice.data()),
-        ByteSlice.size() / 4);
+void TypeReferenceTracker::addDiscoveredTypeRef(ArrayRef<uint8_t> RecData,
+                                                TiRefKind RefKind,
+                                                uint32_t Offset) {
+  // FIXME: Report OOB slices instead of truncating.
+  if (RecData.size() < Offset + sizeof(TypeIndex))
+    return;
 
-    // If this is a PDB and this is an item reference, track it in the IPI
-    // bitvector. Otherwise, it's a type ref, or there is only one stream.
-    for (TypeIndex RefTI : TIs)
-      addOneTypeRef(Ref.Kind, RefTI);
-  }
+  TypeIndex RefTI =
+      *reinterpret_cast<const TypeIndex *>(RecData.data() + Offset);
+
+  // If this is a PDB and this is an item reference, track it in the IPI
+  // bitvector. Otherwise, it's a type ref, or there is only one stream.
+  addOneTypeRef(RefKind, RefTI);
 }
 
 void TypeReferenceTracker::markReferencedTypes() {
@@ -136,10 +134,10 @@ void TypeReferenceTracker::markReferencedTypes() {
     if (!Rec)
       continue; // FIXME: Report a reference to a non-existant type.
 
-    SmallVector<TiReference, 4> DepList;
     // FIXME: Check for failure.
-    discoverTypeIndices(*Rec, DepList);
-    addReferencedTypes(Rec->content(), DepList);
+    discoverTypeIndices(*Rec, [&](TiRefKind RefKind, uint32_t Offset) {
+      addDiscoveredTypeRef(Rec->content(), RefKind, Offset);
+    });
 
     // If this is a tag kind and this is a PDB input, mark the complete type as
     // referenced.

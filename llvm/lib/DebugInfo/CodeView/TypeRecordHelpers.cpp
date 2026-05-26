@@ -8,7 +8,6 @@
 
 #include "llvm/DebugInfo/CodeView/TypeRecordHelpers.h"
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/DebugInfo/CodeView/TypeDeserializer.h"
 #include "llvm/DebugInfo/CodeView/TypeIndexDiscovery.h"
 
@@ -46,9 +45,17 @@ bool llvm::codeview::isUdtForwardRef(CVType CVT) {
 
 TypeIndex llvm::codeview::getModifiedType(const CVType &CVT) {
   assert(CVT.kind() == LF_MODIFIER);
-  SmallVector<TypeIndex, 1> Refs;
-  discoverTypeIndices(CVT, Refs);
-  return Refs.front();
+  TypeIndex ModifiedType;
+  bool Found = false;
+  discoverTypeIndices(CVT, [&](TiRefKind RefKind, uint32_t Offset) {
+    assert(RefKind == TiRefKind::TypeRef);
+    assert(!Found);
+    ModifiedType =
+        *reinterpret_cast<const TypeIndex *>(CVT.content().data() + Offset);
+    Found = true;
+  });
+  assert(Found);
+  return ModifiedType;
 }
 
 uint64_t llvm::codeview::getSizeInBytesForTypeIndex(TypeIndex TI) {

@@ -33,47 +33,48 @@ GloballyHashedType
 GloballyHashedType::hashType(ArrayRef<uint8_t> RecordData,
                              ArrayRef<GloballyHashedType> PreviousTypes,
                              ArrayRef<GloballyHashedType> PreviousIds) {
-  SmallVector<TiReference, 4> Refs;
-  discoverTypeIndices(RecordData, Refs);
   TruncatedBLAKE3<8> S;
   S.init();
   uint32_t Off = 0;
   S.update(RecordData.take_front(sizeof(RecordPrefix)));
-  RecordData = RecordData.drop_front(sizeof(RecordPrefix));
-  for (const auto &Ref : Refs) {
-    // Hash any data that comes before this TiRef.
-    uint32_t PreLen = Ref.Offset - Off;
-    ArrayRef<uint8_t> PreData = RecordData.slice(Off, PreLen);
-    S.update(PreData);
-    auto Prev = (Ref.Kind == TiRefKind::IndexRef) ? PreviousIds : PreviousTypes;
+  ArrayRef<uint8_t> Content = RecordData.drop_front(sizeof(RecordPrefix));
+  bool Success = true;
+  discoverTypeIndices(RecordData, [&](TiRefKind RefKind, uint32_t RefOffset) {
+    if (!Success)
+      return;
 
-    auto RefData = RecordData.slice(Ref.Offset, Ref.Count * sizeof(TypeIndex));
+    // Hash any data that comes before this TiRef.
+    uint32_t PreLen = RefOffset - Off;
+    ArrayRef<uint8_t> PreData = Content.slice(Off, PreLen);
+    S.update(PreData);
+    auto Prev = (RefKind == TiRefKind::IndexRef) ? PreviousIds : PreviousTypes;
+
     // For each type index referenced, add in the previously computed hash
     // value of that type.
-    ArrayRef<TypeIndex> Indices(
-        reinterpret_cast<const TypeIndex *>(RefData.data()), Ref.Count);
-    for (TypeIndex TI : Indices) {
-      ArrayRef<uint8_t> BytesToHash;
-      if (TI.isSimple() || TI.isNoneType()) {
-        const uint8_t *IndexBytes = reinterpret_cast<const uint8_t *>(&TI);
-        BytesToHash = ArrayRef(IndexBytes, sizeof(TypeIndex));
-      } else {
-        if (TI.toArrayIndex() >= Prev.size() ||
-            Prev[TI.toArrayIndex()].empty()) {
-          // There are references to yet-unhashed records. Suspend hashing for
-          // this record until all the other records are processed.
-          return {};
-        }
-        BytesToHash = Prev[TI.toArrayIndex()].Hash;
+    TypeIndex TI =
+        *reinterpret_cast<const TypeIndex *>(Content.data() + RefOffset);
+    ArrayRef<uint8_t> BytesToHash;
+    if (TI.isSimple() || TI.isNoneType()) {
+      const uint8_t *IndexBytes = reinterpret_cast<const uint8_t *>(&TI);
+      BytesToHash = ArrayRef(IndexBytes, sizeof(TypeIndex));
+    } else {
+      if (TI.toArrayIndex() >= Prev.size() || Prev[TI.toArrayIndex()].empty()) {
+        // There are references to yet-unhashed records. Suspend hashing for
+        // this record until all the other records are processed.
+        Success = false;
+        return;
       }
-      S.update(BytesToHash);
+      BytesToHash = Prev[TI.toArrayIndex()].Hash;
     }
+    S.update(BytesToHash);
 
-    Off = Ref.Offset + Ref.Count * sizeof(TypeIndex);
-  }
+    Off = RefOffset + sizeof(TypeIndex);
+  });
+  if (!Success)
+    return {};
 
   // Don't forget to add in any trailing bytes.
-  auto TrailingBytes = RecordData.drop_front(Off);
+  auto TrailingBytes = Content.drop_front(Off);
   S.update(TrailingBytes);
 
   return {S.final()};

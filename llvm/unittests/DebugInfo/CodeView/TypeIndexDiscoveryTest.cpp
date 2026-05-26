@@ -19,6 +19,13 @@
 using namespace llvm;
 using namespace llvm::codeview;
 
+namespace {
+struct DiscoveredTypeIndexRef {
+  TiRefKind Kind;
+  uint32_t Offset;
+};
+} // namespace
+
 class TypeIndexIteratorTest : public testing::Test {
 public:
   TypeIndexIteratorTest() = default;
@@ -79,12 +86,7 @@ protected:
 
 private:
   uint32_t countRefs(uint32_t RecordIndex) const {
-    auto &R = Refs[RecordIndex];
-    uint32_t Count = 0;
-    for (auto &Ref : R) {
-      Count += Ref.Count;
-    }
-    return Count;
+    return Refs[RecordIndex].size();
   }
 
   bool checkOneTypeReference(uint32_t RecordIndex, ArrayRef<uint8_t> RecordData,
@@ -92,11 +94,9 @@ private:
     RecordData = RecordData.drop_front(sizeof(RecordPrefix));
     auto &RefList = Refs[RecordIndex];
     for (auto &Ref : RefList) {
-      uint32_t Offset = Ref.Offset;
-      ArrayRef<uint8_t> Loc = RecordData.drop_front(Offset);
-      ArrayRef<TypeIndex> Indices(
-          reinterpret_cast<const TypeIndex *>(Loc.data()), Ref.Count);
-      if (llvm::is_contained(Indices, TI))
+      TypeIndex RefTI =
+          *reinterpret_cast<const TypeIndex *>(RecordData.data() + Ref.Offset);
+      if (RefTI == TI)
         return true;
     }
     return false;
@@ -123,14 +123,19 @@ private:
     Refs.resize(TTB->records().size());
     for (uint32_t I = 0; I < TTB->records().size(); ++I) {
       ArrayRef<uint8_t> Data = TTB->records()[I];
-      discoverTypeIndices(Data, Refs[I]);
+      discoverTypeIndices(Data, [&](TiRefKind RefKind, uint32_t Offset) {
+        Refs[I].push_back({RefKind, Offset});
+      });
     }
   }
 
   void discoverTypeIndicesInSymbols() {
     Refs.resize(Symbols.size());
     for (uint32_t I = 0; I < Symbols.size(); ++I)
-      discoverTypeIndicesInSymbol(Symbols[I], Refs[I]);
+      discoverTypeIndicesInSymbol(Symbols[I],
+                                  [&](TiRefKind RefKind, uint32_t Offset) {
+                                    Refs[I].push_back({RefKind, Offset});
+                                  });
   }
 
   // Helper function to write out a field list record with the given list
@@ -162,7 +167,7 @@ private:
     writeSymbolRecordsImpl(std::forward<Rest>(Records)...);
   }
 
-  std::vector<SmallVector<TiReference, 4>> Refs;
+  std::vector<SmallVector<DiscoveredTypeIndexRef, 4>> Refs;
   std::unique_ptr<ContinuationRecordBuilder> CRB;
   std::vector<CVSymbol> Symbols;
   BumpPtrAllocator Storage;

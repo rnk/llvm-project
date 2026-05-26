@@ -1192,7 +1192,11 @@ static void buildDepSet(LazyRandomTypeCollection &Types,
 
     CVType Type = Types.getType(TI);
     DepSet[TI] = Type;
-    codeview::discoverTypeIndices(Type, DepList);
+    DepList.clear();
+    codeview::discoverTypeIndices(Type, [&](TiRefKind, uint32_t Offset) {
+      DepList.push_back(
+          *reinterpret_cast<const TypeIndex *>(Type.content().data() + Offset));
+    });
     buildDepSet(Types, DepList, DepSet);
   }
 }

@@ -224,49 +224,45 @@ bool TpiSource::remapTypeIndex(TypeIndex &ti, TiRefKind refKind) const {
   return true;
 }
 
+template <typename DiscoverRefs>
 void TpiSource::remapRecord(MutableArrayRef<uint8_t> rec,
-                            ArrayRef<TiReference> typeRefs) {
+                            DiscoverRefs discoverRefs) {
   MutableArrayRef<uint8_t> contents = rec.drop_front(sizeof(RecordPrefix));
-  for (const TiReference &ref : typeRefs) {
-    unsigned byteSize = ref.Count * sizeof(TypeIndex);
-    if (contents.size() < ref.Offset + byteSize)
+  discoverRefs([&](TiRefKind refKind, uint32_t offset) {
+    if (contents.size() < offset + sizeof(TypeIndex))
       Fatal(ctx) << "symbol record too short";
 
-    MutableArrayRef<TypeIndex> indices(
-        reinterpret_cast<TypeIndex *>(contents.data() + ref.Offset), ref.Count);
-    for (TypeIndex &ti : indices) {
-      if (!remapTypeIndex(ti, ref.Kind)) {
-        if (ctx.config.verbose) {
-          uint16_t kind =
-              reinterpret_cast<const RecordPrefix *>(rec.data())->RecordKind;
-          StringRef fname = file ? file->getName() : "<unknown PDB>";
-          Log(ctx) << "failed to remap type index in record of kind 0x"
-                   << utohexstr(kind) << " in " << fname << " with bad "
-                   << (ref.Kind == TiRefKind::IndexRef ? "item" : "type")
-                   << " index 0x" << utohexstr(ti.getIndex());
-        }
-        ti = TypeIndex(SimpleTypeKind::NotTranslated);
-        continue;
-      }
+    TypeIndex &ti = *reinterpret_cast<TypeIndex *>(contents.data() + offset);
+    if (LLVM_LIKELY(remapTypeIndex(ti, refKind)))
+      return;
+
+    if (ctx.config.verbose) {
+      uint16_t kind =
+          reinterpret_cast<const RecordPrefix *>(rec.data())->RecordKind;
+      StringRef fname = file ? file->getName() : "<unknown PDB>";
+      Log(ctx) << "failed to remap type index in record of kind 0x"
+               << utohexstr(kind) << " in " << fname << " with bad "
+               << (refKind == TiRefKind::IndexRef ? "item" : "type")
+               << " index 0x" << utohexstr(ti.getIndex());
     }
-  }
+    ti = TypeIndex(SimpleTypeKind::NotTranslated);
+  });
 }
 
 void TpiSource::remapTypesInTypeRecord(MutableArrayRef<uint8_t> rec) {
   // TODO: Handle errors similar to symbols.
-  SmallVector<TiReference, 32> typeRefs;
-  discoverTypeIndices(CVType(rec), typeRefs);
-  remapRecord(rec, typeRefs);
+  remapRecord(rec,
+              [&](auto refFn) { discoverTypeIndices(CVType(rec), refFn); });
 }
 
 bool TpiSource::remapTypesInSymbolRecord(MutableArrayRef<uint8_t> rec) {
   // Discover type index references in the record. Skip it if we don't
   // know where they are.
-  SmallVector<TiReference, 32> typeRefs;
-  if (!discoverTypeIndicesInSymbol(rec, typeRefs))
-    return false;
-  remapRecord(rec, typeRefs);
-  return true;
+  bool knownRecord = false;
+  remapRecord(rec, [&](auto refFn) {
+    knownRecord = discoverTypeIndicesInSymbol(rec, refFn);
+  });
+  return knownRecord;
 }
 
 // A COFF .debug$H section is currently a clang extension.  This function checks
