@@ -51,26 +51,12 @@ struct GHashCUDAResult {
   FlatIndex numItems = 0;
 };
 
-struct GHashFillChunk {
-  const GloballyHashedType *ghashes = nullptr;
-  const uintptr_t *itemBits = nullptr;
-  FlatIndex entryOffset = 0;
-  uint32_t ghashBegin = 0;
-  uint32_t count = 0;
-  uint32_t tpiSrcIdx = 0;
-};
-
 constexpr uint32_t firstNonSimpleIndex = 0x1000;
 constexpr FlatIndex maxPdbTypeIndexCount =
     FlatIndex(INT32_MAX) - firstNonSimpleIndex;
 constexpr uint32_t bitWordBits = sizeof(uintptr_t) * CHAR_BIT;
-constexpr uint32_t fillChunkTypeCount = 1024;
 static_assert(sizeof(GloballyHashedType) == sizeof(uint64_t),
               "GloballyHashedType must be one uint64_t ghash");
-
-bool isUInt64Aligned(const void *ptr) {
-  return (reinterpret_cast<uintptr_t>(ptr) & (alignof(uint64_t) - 1)) == 0;
-}
 
 __host__ __device__ uint64_t encodeSrc(bool isItem, uint32_t tpiSrcIdx,
                                        uint32_t ghashIdx) {
@@ -87,16 +73,33 @@ __host__ __device__ uint32_t getGHashIdx(uint64_t src) {
   return static_cast<uint32_t>(src);
 }
 
-__device__ uint64_t getGHashDevice(const GloballyHashedType *ghashes,
-                                   uint32_t idx) {
-  return reinterpret_cast<const uint64_t *>(ghashes)[static_cast<size_t>(idx)];
-}
-
-__device__ bool isItemIndex(const uintptr_t *itemBits, uint32_t idx) {
-  if (!itemBits)
+bool isItemIndex(ArrayRef<uintptr_t> itemBits, uint32_t idx) {
+  if (itemBits.empty())
     return false;
   uintptr_t word = itemBits[idx / bitWordBits];
   return (word >> (idx % bitWordBits)) & 1;
+}
+
+void fillStagedGHashInputsForRange(ArrayRef<GloballyHashedType> ghashes,
+                                   const llvm::BitVector &itemIndexes,
+                                   uint32_t tpiSrcIdx, uint32_t ghashBegin,
+                                   uint32_t ghashEnd, FlatIndex entryOffset,
+                                   uint64_t *hashes, uint64_t *srcs) {
+  if (ghashBegin == ghashEnd)
+    return;
+
+  uint32_t count = ghashEnd - ghashBegin;
+  std::memcpy(hashes + entryOffset, ghashes.data() + ghashBegin,
+              size_t(count) * sizeof(uint64_t));
+
+  bool allItems = itemIndexes.all();
+  bool noItems = itemIndexes.none();
+  ArrayRef<uintptr_t> itemBits = itemIndexes.getData();
+  for (uint32_t i = 0; i < count; ++i) {
+    uint32_t ghashIdx = ghashBegin + i;
+    bool isItem = allItems || (!noItems && isItemIndex(itemBits, ghashIdx));
+    srcs[entryOffset + i] = encodeSrc(isItem, tpiSrcIdx, ghashIdx);
+  }
 }
 
 struct ByGHashThenSrc {
@@ -109,26 +112,6 @@ struct ByGHashThenSrc {
     return thrust::get<1>(a) < thrust::get<1>(b);
   }
 };
-
-__global__ void fillInputGHashes(const GHashFillChunk *chunks,
-                                 uint32_t chunkCount, uint64_t *hashes,
-                                 uint64_t *srcs) {
-  uint32_t chunkIdx = blockIdx.x;
-  if (chunkIdx >= chunkCount)
-    return;
-
-  // Each block owns one pre-split contiguous range from one source. Host setup
-  // splits around LF_ENDPRECOMP records, so this kernel does no source lookup
-  // and no per-entry omission test.
-  const GHashFillChunk &chunk = chunks[chunkIdx];
-  for (uint32_t i = threadIdx.x; i < chunk.count; i += blockDim.x) {
-    uint32_t ghashIdx = chunk.ghashBegin + i;
-    FlatIndex entryIdx = chunk.entryOffset + i;
-    hashes[entryIdx] = getGHashDevice(chunk.ghashes, ghashIdx);
-    srcs[entryIdx] = encodeSrc(isItemIndex(chunk.itemBits, ghashIdx),
-                               chunk.tpiSrcIdx, ghashIdx);
-  }
-}
 
 __global__ void finalizeGHashGroupsAndScatter(const uint64_t *hashes,
                                               const uint64_t *srcs,
@@ -198,84 +181,6 @@ private:
   std::array<char, 256> error = {};
 };
 
-// RAII wrapper for host memory registered with CUDA. Registration pins the host
-// pages and maps them into the device address space so kernels can read input
-// ranges such as file-backed ghash arrays without an intermediate CPU-side
-// copy. The wrapper unregisters the exact range before the owning TpiSource can
-// free or unmap it.
-struct CudaHostRange {
-  void *host = nullptr;
-  void *device = nullptr;
-  bool registered = false;
-
-  CudaHostRange() = default;
-  CudaHostRange(const CudaHostRange &) = delete;
-  CudaHostRange &operator=(const CudaHostRange &) = delete;
-
-  CudaHostRange(CudaHostRange &&other) noexcept { *this = std::move(other); }
-
-  CudaHostRange &operator=(CudaHostRange &&other) noexcept {
-    if (this == &other)
-      return *this;
-    unregister();
-    host = other.host;
-    device = other.device;
-    registered = other.registered;
-    other.host = nullptr;
-    other.device = nullptr;
-    other.registered = false;
-    return *this;
-  }
-
-  ~CudaHostRange() { unregister(); }
-
-  void unregister() {
-    if (!registered)
-      return;
-    cudaHostUnregister(host);
-    host = nullptr;
-    device = nullptr;
-    registered = false;
-  }
-
-  template <typename T>
-  const T *registerMapped(const T *ptr, size_t count, bool readOnly,
-                          CudaErrorChecker &cuErr) {
-    return static_cast<const T *>(
-        registerMappedImpl(ptr, count * sizeof(T), readOnly, cuErr));
-  }
-
-  template <typename T>
-  const T *registerMapped(ArrayRef<T> range, bool readOnly,
-                          CudaErrorChecker &cuErr) {
-    return registerMapped(range.data(), range.size(), readOnly, cuErr);
-  }
-
-private:
-  void *registerMappedImpl(const void *ptr, size_t byteCount, bool readOnly,
-                           CudaErrorChecker &cuErr) {
-    if (byteCount == 0)
-      return nullptr;
-
-    host = const_cast<void *>(ptr);
-    unsigned flags = cudaHostRegisterMapped;
-#ifdef cudaHostRegisterReadOnly
-    if (readOnly)
-      flags |= cudaHostRegisterReadOnly;
-#endif
-    if (!cuErr.check(cudaHostRegister(host, byteCount, flags))) {
-      host = nullptr;
-      return nullptr;
-    }
-    registered = true;
-    if (!cuErr.check(cudaHostGetDevicePointer(&device, host, 0))) {
-      unregister();
-      return nullptr;
-    }
-    return device;
-  }
-};
-
 uint32_t getBlockCount(COFFLinkerContext &ctx, FlatIndex count,
                        uint32_t threads) {
   FlatIndex blockCount = (count + threads - 1) / threads;
@@ -284,9 +189,8 @@ uint32_t getBlockCount(COFFLinkerContext &ctx, FlatIndex count,
   return static_cast<uint32_t>(blockCount);
 }
 
-void mergeGHashesWithCUDA(COFFLinkerContext &ctx,
-                          const GHashFillChunk *fillChunks,
-                          uint32_t fillChunkCount, FlatIndex entryCount,
+void mergeGHashesWithCUDA(COFFLinkerContext &ctx, ArrayRef<uint64_t> hashes,
+                          ArrayRef<uint64_t> srcs,
                           const FlatIndex *mapOffsets, FlatIndex mapOffsetCount,
                           FlatIndex mapCount, uint32_t notTranslated,
                           ArrayRef<TpiSource *> tpiSources,
@@ -298,6 +202,8 @@ void mergeGHashesWithCUDA(COFFLinkerContext &ctx,
                 "TypeIndex must be safe to copy from CUDA output bytes");
 
   *result = GHashCUDAResult();
+  assert(hashes.size() == srcs.size());
+  FlatIndex entryCount = hashes.size();
   if (entryCount == 0)
     return;
 
@@ -308,25 +214,16 @@ void mergeGHashesWithCUDA(COFFLinkerContext &ctx,
   thrust::fill(thrust::device, deviceMap.begin(), deviceMap.end(),
                notTranslated);
 
-  thrust::device_vector<GHashFillChunk> deviceFillChunks(
-      fillChunks, fillChunks + fillChunkCount);
-  thrust::device_vector<uint64_t> deviceHashes(entryCount);
-  thrust::device_vector<uint64_t> deviceSrcs(entryCount);
+  thrust::device_vector<uint64_t> deviceHashes(hashes.begin(), hashes.end());
+  thrust::device_vector<uint64_t> deviceSrcs(srcs.begin(), srcs.end());
   thrust::device_vector<FlatIndex> deviceMapOffsets(
       mapOffsets, mapOffsets + mapOffsetCount);
 
-  // Copy registered source ghash arrays into one flat device array in parallel.
-  // This keeps the large input stream off the CPU heap: the descriptors point
-  // at pinned host pages or file-backed mappings. Host setup has pre-split
-  // chunks around omitted LF_ENDPRECOMP records, so the GPU fill is straight
-  // contiguous copy/encode work.
+  // The input hash/source-position arrays are staged as two flat host arrays.
+  // Thrust copies them to device vectors before the first sort. Host setup has
+  // already omitted LF_ENDPRECOMP records, so the GPU path starts with dense
+  // arrays and avoids per-source host-memory registration overhead.
   uint32_t threads = 256;
-  fillInputGHashes<<<fillChunkCount, threads>>>(
-      thrust::raw_pointer_cast(deviceFillChunks.data()), fillChunkCount,
-      thrust::raw_pointer_cast(deviceHashes.data()),
-      thrust::raw_pointer_cast(deviceSrcs.data()));
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch input ghash fill kernel");
 
   // Sort the parallel ghash/source-position arrays together. The source value
   // carries the original TPI source row, original type-index column, and
@@ -461,9 +358,12 @@ bool TypeMerger::mergeTypesWithCUDA() {
   FlatIndex totalMapSize = 0;
   FlatIndex entryCount = 0;
   llvm::SmallVector<FlatIndex, 0> mapOffsets;
+  llvm::SmallVector<FlatIndex, 0> entryOffsets;
   mapOffsets.reserve(ctx.tpiSourceList.size() + 1);
+  entryOffsets.reserve(ctx.tpiSourceList.size());
   mapOffsets.push_back(0);
   for (TpiSource *source : ctx.tpiSourceList) {
+    entryOffsets.push_back(entryCount);
     if (source->ghashes.size() > maxPdbTypeIndexCount)
       Fatal(ctx) << "too many ghashes in source";
     if (source->ghashes.size() >
@@ -476,8 +376,6 @@ bool TypeMerger::mergeTypesWithCUDA() {
   }
 
   int device = 0;
-  int hostRegisterSupported = 0;
-  int readOnlyRegisterSupported = 0;
   CudaErrorChecker cuErr(ctx);
   auto fallbackToCPU = [&](const char *reason) {
     Warn(ctx) << "-lldcudaghash setup failed, falling back to CPU ghash "
@@ -487,97 +385,41 @@ bool TypeMerger::mergeTypesWithCUDA() {
   };
   if (!cuErr.check(cudaGetDevice(&device)))
     return fallbackToCPU(cuErr.message());
-  if (!cuErr.check(cudaDeviceGetAttribute(
-          &hostRegisterSupported, cudaDevAttrHostRegisterSupported, device)))
-    return fallbackToCPU(cuErr.message());
-  if (!hostRegisterSupported)
-    return fallbackToCPU("device does not support cudaHostRegister");
-#ifdef cudaHostRegisterReadOnly
-  if (!cuErr.check(cudaDeviceGetAttribute(
-          &readOnlyRegisterSupported, cudaDevAttrHostRegisterReadOnlySupported,
-          device)))
-    return fallbackToCPU(cuErr.message());
-#endif
 
-  std::vector<CudaHostRange> registeredRanges;
-  registeredRanges.reserve(ctx.tpiSourceList.size() * 2);
-  std::vector<GHashFillChunk> fillChunks;
-  fillChunks.reserve(ctx.tpiSourceList.size() * 2);
-  auto addFillChunks = [&](const GloballyHashedType *deviceGHashes,
-                           const uintptr_t *deviceItemBits, uint32_t tpiSrcIdx,
-                           uint32_t ghashBegin, uint32_t ghashEnd,
-                           FlatIndex entryOffset) -> bool {
-    while (ghashBegin < ghashEnd) {
-      if (!isUInt64Aligned(deviceGHashes + ghashBegin))
-        return false;
-      uint32_t count = ghashEnd - ghashBegin;
-      if (count > fillChunkTypeCount)
-        count = fillChunkTypeCount;
-      GHashFillChunk chunk;
-      chunk.ghashes = deviceGHashes;
-      chunk.itemBits = deviceItemBits;
-      chunk.entryOffset = entryOffset;
-      chunk.ghashBegin = ghashBegin;
-      chunk.count = count;
-      chunk.tpiSrcIdx = tpiSrcIdx;
-      fillChunks.push_back(chunk);
-      ghashBegin += count;
-      entryOffset += count;
-    }
-    return true;
-  };
-
-  FlatIndex nextEntryOffset = 0;
-  for (TpiSource *source : ctx.tpiSourceList) {
+  std::vector<uint64_t> hashes(entryCount);
+  std::vector<uint64_t> srcs(entryCount);
+  llvm::parallelFor(0, ctx.tpiSourceList.size(), [&](size_t i) {
+    TpiSource *source = ctx.tpiSourceList[i];
     source->indexMapStorage.resize(source->ghashes.size());
-
-    CudaHostRange ghashRange;
-    const GloballyHashedType *deviceGHashes = ghashRange.registerMapped(
-        source->ghashes.data(), source->ghashes.size(),
-        readOnlyRegisterSupported, cuErr);
-    if (!deviceGHashes && !source->ghashes.empty())
-      return fallbackToCPU(cuErr.message());
-    registeredRanges.push_back(std::move(ghashRange));
-
-    auto itemBits = source->isItemIndex.getData();
-    CudaHostRange itemBitsRange;
-    const uintptr_t *deviceItemBits = itemBitsRange.registerMapped(
-        itemBits.data(), itemBits.size(), readOnlyRegisterSupported, cuErr);
-    if (!deviceItemBits && !itemBits.empty())
-      return fallbackToCPU(cuErr.message());
-    registeredRanges.push_back(std::move(itemBitsRange));
 
     uint32_t sourceSize = static_cast<uint32_t>(source->ghashes.size());
     uint32_t tpiSrcIdx = source->tpiSrcIdx;
-    FlatIndex sourceEntryOffset = nextEntryOffset;
+    FlatIndex sourceEntryOffset = entryOffsets[i];
     if (source->endPrecompIdx < sourceSize) {
-      if (!addFillChunks(deviceGHashes, deviceItemBits, tpiSrcIdx, 0,
-                         source->endPrecompIdx, sourceEntryOffset))
-        return fallbackToCPU("ghash array is not 8-byte aligned");
-      if (!addFillChunks(deviceGHashes, deviceItemBits, tpiSrcIdx,
-                         source->endPrecompIdx + 1, sourceSize,
-                         sourceEntryOffset + source->endPrecompIdx))
-        return fallbackToCPU("ghash array is not 8-byte aligned");
-      nextEntryOffset += sourceSize - 1;
+      fillStagedGHashInputsForRange(
+          source->ghashes, source->isItemIndex, tpiSrcIdx, 0,
+          source->endPrecompIdx, sourceEntryOffset, hashes.data(),
+          srcs.data());
+      fillStagedGHashInputsForRange(
+          source->ghashes, source->isItemIndex, tpiSrcIdx,
+          source->endPrecompIdx + 1, sourceSize,
+          sourceEntryOffset + source->endPrecompIdx, hashes.data(),
+          srcs.data());
     } else {
-      if (!addFillChunks(deviceGHashes, deviceItemBits, tpiSrcIdx, 0,
-                         sourceSize, sourceEntryOffset))
-        return fallbackToCPU("ghash array is not 8-byte aligned");
-      nextEntryOffset += sourceSize;
+      fillStagedGHashInputsForRange(source->ghashes, source->isItemIndex,
+                                    tpiSrcIdx, 0, sourceSize,
+                                    sourceEntryOffset, hashes.data(),
+                                    srcs.data());
     }
-  }
-  assert(nextEntryOffset == entryCount);
-  if (fillChunks.size() > std::numeric_limits<uint32_t>::max())
-    Fatal(ctx) << "-lldcudaghash failed: too many CUDA fill chunks";
+  });
 
   GHashCUDAResult result;
   std::vector<uint64_t> uniqueSrcs;
-  mergeGHashesWithCUDA(
-      ctx, fillChunks.data(), static_cast<uint32_t>(fillChunks.size()),
-      entryCount, mapOffsets.data(), mapOffsets.size(), totalMapSize,
-      notTranslated, ctx.tpiSourceList, &uniqueSrcs, &result, cuErr);
-  fillChunks.clear();
-  registeredRanges.clear();
+  mergeGHashesWithCUDA(ctx, hashes, srcs, mapOffsets.data(), mapOffsets.size(),
+                       totalMapSize, notTranslated, ctx.tpiSourceList,
+                       &uniqueSrcs, &result, cuErr);
+  hashes.clear();
+  srcs.clear();
 
   // The GPU returns unique representatives sorted in final merge order. Retain
   // their source type indices so mergeUniqueTypeRecords emits the same records
