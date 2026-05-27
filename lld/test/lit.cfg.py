@@ -185,3 +185,6 @@ if config.ld_lld_default_mingw:
 
 if config.enable_threads:
     config.available_features.add("thread_support")
+
+if config.lld_enable_coff_ghash_cuda:
+    config.available_features.add("lld-coff-ghash-cuda")

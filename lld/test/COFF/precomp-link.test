@@ -2,6 +2,8 @@ RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj %S/Inputs/precomp.
 RUN: llvm-pdbutil dump -types %t.pdb | FileCheck %s
 RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /debug:ghash /pdb:%t.pdb /out:%t.exe /opt:ref /opt:icf /summary | FileCheck %s -check-prefix SUMMARY
 RUN: llvm-pdbutil dump -types %t.pdb | FileCheck %s
+RUN: %if lld-coff-ghash-cuda %{ lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /debug:ghash -lldcudaghash /pdb:%t.cuda.pdb /out:%t.cuda.exe /opt:ref /opt:icf /summary | FileCheck %s -check-prefix SUMMARY %}
+RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -types %t.cuda.pdb | FileCheck %s %}
 
 RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /out:%t.exe /opt:ref /opt:icf /summary | FileCheck %s -check-prefix SUMMARY-NODEBUG
 RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /out:%t.exe /opt:ref /opt:icf /summary | FileCheck %s -check-prefix SUMMARY-NODEBUG
@@ -11,6 +13,7 @@ RUN: llvm-pdbutil dump -types %t.pdb | FileCheck %s
 
 RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-invalid.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /debug:noghash /pdb:%t.pdb /out:%t.exe /opt:ref /opt:icf 2>&1
 RUN: lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-invalid.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /debug:ghash /pdb:%t.pdb /out:%t.exe /opt:ref /opt:icf 2>&1
+RUN: %if lld-coff-ghash-cuda %{ lld-link %S/Inputs/precomp-a.obj %S/Inputs/precomp-invalid.obj %S/Inputs/precomp.obj /nodefaultlib /entry:main /debug:ghash -lldcudaghash /pdb:%t.cuda.pdb /out:%t.cuda.exe /opt:ref /opt:icf 2>&1 %}
 
 FIXME: The following RUN line should fail, regardless of whether debug info is
 enabled or not. Normally this would result in an error due to missing _PchSym_
@@ -36,8 +39,10 @@ RUN: yaml2obj precomp-no-objname.yaml -o %t.precomp-no-objname.obj
 RUN: yaml2obj precomp-zero-sig.yaml -o %t.precomp-zero-sig.obj
 RUN: env LLD_IN_TEST=1 lld-link %t.precomp-no-objname.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:noghash /pdb:%t.pdb /out:%t.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty
 RUN: env LLD_IN_TEST=1 lld-link %t.precomp-no-objname.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:ghash /pdb:%t.pdb /out:%t.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty
+RUN: %if lld-coff-ghash-cuda %{ env LLD_IN_TEST=1 lld-link %t.precomp-no-objname.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:ghash -lldcudaghash /pdb:%t.cuda.pdb /out:%t.cuda.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty %}
 RUN: env LLD_IN_TEST=1 lld-link %t.precomp-zero-sig.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:noghash /pdb:%t.pdb /out:%t.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty
 RUN: env LLD_IN_TEST=1 lld-link %t.precomp-zero-sig.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:ghash /pdb:%t.pdb /out:%t.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty
+RUN: %if lld-coff-ghash-cuda %{ env LLD_IN_TEST=1 lld-link %t.precomp-zero-sig.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:ghash -lldcudaghash /pdb:%t.cuda.pdb /out:%t.cuda.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty %}
 
 WARNING-NOT: warning
 
@@ -48,6 +53,7 @@ RUN: sed '16,19s/Signature: *545589255/Signature: 123456789/' < %t.precomp.yaml 
 RUN: yaml2obj precomp-wrong-sig.yaml -o %t.dir/precomp.obj
 RUN: env LLD_IN_TEST=1 lld-link %t.dir/precomp.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:noghash /pdb:%t.pdb /out:%t.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty
 RUN: env LLD_IN_TEST=1 lld-link %t.dir/precomp.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:ghash /pdb:%t.pdb /out:%t.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty
+RUN: %if lld-coff-ghash-cuda %{ env LLD_IN_TEST=1 lld-link %t.dir/precomp.obj %S/Inputs/precomp-a.obj %S/Inputs/precomp-b.obj /nodefaultlib /entry:main /debug:ghash -lldcudaghash /pdb:%t.cuda.pdb /out:%t.cuda.exe 2>&1 | FileCheck %s -check-prefix WARNING --allow-empty %}
 
 Check that two PCH objs with duplicate signatures are an error.
 

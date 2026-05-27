@@ -4,6 +4,7 @@
 # RUN: yaml2obj %s -o %t.obj
 # RUN: lld-link %t.obj -out:%t.exe -debug -pdb:%t.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s
 # RUN: lld-link %t.obj -out:%t.exe -debug:ghash -pdb:%t.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s
+# RUN: %if lld-coff-ghash-cuda %{ lld-link %t.obj -out:%t.cuda.exe -debug:ghash -lldcudaghash -pdb:%t.cuda.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s %}
 # RUN: cd %S
 
 # CHECK: warning: Cannot use debug info for '{{.*}}.obj'
@@ -13,6 +14,7 @@
 # RUN: cd %S/Inputs
 # RUN: yaml2obj %S/Inputs/pdb-type-server-valid-signature.yaml -o %t2.obj
 # RUN: lld-link %t2.obj -out:%t2.exe -debug -pdb:%t2.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s -check-prefix=VALID-SIGNATURE -allow-empty
+# RUN: %if lld-coff-ghash-cuda %{ lld-link %t2.obj -out:%t2.cuda.exe -debug:ghash -lldcudaghash -pdb:%t2.cuda.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s -check-prefix=VALID-SIGNATURE -allow-empty %}
 # RUN: cd %S
 
 # VALID-SIGNATURE-NOT: warning: Cannot use debug info for '{{.*}}.obj'

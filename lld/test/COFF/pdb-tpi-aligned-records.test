@@ -5,6 +5,8 @@
 # RUN: llvm-pdbutil dump --types --type-data %t.pdb | FileCheck %s
 # RUN: lld-link /out:%t.exe /debug:ghash /entry:main %t.obj %t2.obj /nodefaultlib
 # RUN: llvm-pdbutil dump --types --type-data %t.pdb | FileCheck %s
+# RUN: %if lld-coff-ghash-cuda %{ lld-link /out:%t.cuda.exe /debug:ghash -lldcudaghash /entry:main %t.obj %t2.obj /nodefaultlib %}
+# RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump --types --type-data %t.cuda.pdb | FileCheck %s %}
 
 # CHECK: 0000: 12000810 03000000 00000000 00000000 0000F2F1
 

@@ -4,6 +4,8 @@
 # RUN: llvm-pdbutil dump -types -globals -symbols -modi=0 %t.pdb | FileCheck %s
 # RUN: lld-link /DEBUG:FULL /debug:ghash /nodefaultlib /entry:main %t.obj /PDB:%t.pdb /OUT:%t.exe
 # RUN: llvm-pdbutil dump -types -globals -symbols -modi=0 %t.pdb | FileCheck %s
+# RUN: %if lld-coff-ghash-cuda %{ lld-link /DEBUG:FULL /debug:ghash -lldcudaghash /nodefaultlib /entry:main %t.obj /PDB:%t.cuda.pdb /OUT:%t.cuda.exe %}
+# RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -types -globals -symbols -modi=0 %t.cuda.pdb | FileCheck %s %}
 
 # CHECK:                               Types (TPI Stream)
 # CHECK-NEXT: ============================================================

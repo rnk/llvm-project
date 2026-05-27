@@ -6,6 +6,8 @@
 # RUN: llvm-pdbutil dump -symbols %t.pdb | FileCheck %s
 # RUN: lld-link %t.obj -out:%t.exe -debug -debug:ghash -pdb:%t.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s --check-prefix=WARNING
 # RUN: llvm-pdbutil dump -symbols %t.pdb | FileCheck %s
+# RUN: %if lld-coff-ghash-cuda %{ lld-link %t.obj -out:%t.cuda.exe -debug -debug:ghash -lldcudaghash -pdb:%t.cuda.pdb -nodefaultlib -entry:main 2>&1 | FileCheck %s --check-prefix=WARNING %}
+# RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -symbols %t.cuda.pdb | FileCheck %s %}
 
 # WARNING: warning: procedure symbol record for `main` in {{.*}}.tmp.obj refers to PDB item index 0x{{.*}} which is not a valid function ID record
 

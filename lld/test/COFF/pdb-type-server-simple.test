@@ -26,6 +26,8 @@ RUN: llvm-pdbutil dump -symbols -types -ids -globals %t/t.pdb | FileCheck %s
 Re-run with /DEBUG:GHASH
 RUN: lld-link a.obj b.obj -entry:main -debug:ghash -out:t.exe -pdb:t.pdb -nodefaultlib -summary -verbose
 RUN: llvm-pdbutil dump -symbols -types -ids -globals %t/t.pdb | FileCheck %s
+RUN: %if lld-coff-ghash-cuda %{ lld-link a.obj b.obj -entry:main -debug:ghash -lldcudaghash -out:t.cuda.exe -pdb:t.cuda.pdb -nodefaultlib -summary -verbose %}
+RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -symbols -types -ids -globals %t/t.cuda.pdb | FileCheck %s %}
 
 Re-run with pdb from outputpath
 RUN: mkdir -p libs

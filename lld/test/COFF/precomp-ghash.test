@@ -6,6 +6,8 @@ RUN: lld-link %p/Inputs/precomp-ghash-precomp.obj \
 RUN:    %p/Inputs/precomp-ghash-obj1.obj\
 RUN:    %p/Inputs/precomp-ghash-obj2.obj /debug:ghash /out:%t.exe /pdb:%t.pdb /nodefaultlib /force
 RUN: llvm-pdbutil dump -types -ids %t.pdb | FileCheck %s
+RUN: %if lld-coff-ghash-cuda %{ lld-link %p/Inputs/precomp-ghash-precomp.obj %p/Inputs/precomp-ghash-obj1.obj %p/Inputs/precomp-ghash-obj2.obj /debug:ghash -lldcudaghash /out:%t.cuda.exe /pdb:%t.cuda.pdb /nodefaultlib /force %}
+RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -types -ids %t.cuda.pdb | FileCheck %s %}
 
 ; These object files were generated via the following inputs and commands:
 ; ----------------------------------------------

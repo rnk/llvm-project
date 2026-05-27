@@ -8,6 +8,8 @@
 # RUN: lld-link /debug /debug:ghash /pdb:%t.pdb /dll /out:%t.dll /entry:main /nodefaultlib \
 # RUN:   %t1.obj %t2.obj
 # RUN: llvm-pdbutil dump -symbols %t.pdb | FileCheck %s
+# RUN: %if lld-coff-ghash-cuda %{ lld-link /debug /debug:ghash -lldcudaghash /pdb:%t.cuda.pdb /dll /out:%t.cuda.dll /entry:main /nodefaultlib %t1.obj %t2.obj %}
+# RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -symbols %t.cuda.pdb | FileCheck %s %}
 
 CHECK:                                Symbols
 CHECK-NEXT: ============================================================

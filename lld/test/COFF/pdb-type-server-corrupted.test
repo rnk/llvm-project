@@ -6,6 +6,7 @@ RUN: lld-link a.obj b.obj -entry:main -debug:noghash -out:t.exe -pdb:t.pdb -node
 
 Re-run with /DEBUG:GHASH
 RUN: lld-link a.obj b.obj -entry:main -debug:ghash -out:t.exe -pdb:t.pdb -nodefaultlib 2>&1 | FileCheck %s
+RUN: %if lld-coff-ghash-cuda %{ lld-link a.obj b.obj -entry:main -debug:ghash -lldcudaghash -out:t.cuda.exe -pdb:t.cuda.pdb -nodefaultlib 2>&1 | FileCheck %s %}
 
 # CHECK: warning: Cannot use debug info for {{.*}}a.obj
 # CHECK-NEXT: failed to load reference '{{.*}}bad-block-size.pdb': The PDB file is corrupt. MSF superblock is missing

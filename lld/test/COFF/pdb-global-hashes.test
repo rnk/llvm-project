@@ -3,10 +3,14 @@ RUN: yaml2obj %p/Inputs/pdb-hashes-2.yaml -o %t.2.obj
 RUN: yaml2obj %p/Inputs/pdb-hashes-2-missing.yaml -o %t.2.missing.obj
 RUN: lld-link /debug %t.1.obj %t.2.obj /entry:main /nodefaultlib /PDB:%t.nohash.pdb
 RUN: lld-link /debug:ghash -verbose %t.1.obj %t.2.obj /entry:main /nodefaultlib /PDB:%t.hash.pdb
+RUN: %if lld-coff-ghash-cuda %{ lld-link /debug:ghash -lldcudaghash -verbose %t.1.obj %t.2.obj /entry:main /nodefaultlib /PDB:%t.cuda.hash.pdb %}
 RUN: lld-link /debug:ghash %t.1.obj %t.2.missing.obj /entry:main /nodefaultlib /PDB:%t.mixed.pdb
+RUN: %if lld-coff-ghash-cuda %{ lld-link /debug:ghash -lldcudaghash %t.1.obj %t.2.missing.obj /entry:main /nodefaultlib /PDB:%t.cuda.mixed.pdb %}
 RUN: llvm-pdbutil dump -types -ids -dont-resolve-forward-refs %t.nohash.pdb | FileCheck %s
 RUN: llvm-pdbutil dump -types -ids -dont-resolve-forward-refs %t.hash.pdb | FileCheck %s
+RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -types -ids -dont-resolve-forward-refs %t.cuda.hash.pdb | FileCheck %s %}
 RUN: llvm-pdbutil dump -types -ids -dont-resolve-forward-refs %t.mixed.pdb | FileCheck %s
+RUN: %if lld-coff-ghash-cuda %{ llvm-pdbutil dump -types -ids -dont-resolve-forward-refs %t.cuda.mixed.pdb | FileCheck %s %}
 
 ; These object files were generated via the following inputs and commands:
 ; ----------------------------------------------
