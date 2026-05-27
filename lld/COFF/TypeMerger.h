@@ -72,7 +72,7 @@ public:
   void sortDependencies();
 
 private:
-  void mergeTypesWithCUDA();
+  bool mergeTypesWithCUDA();
 
   void clearGHashes();
 

@@ -1075,10 +1075,8 @@ void TypeMerger::mergeTypesWithGHash() {
 
   llvm::TimeTraceScope timeScope("Merge types (GHASH)");
   ScopedTimer t2(ctx.mergeGHashTimer);
-  if (ctx.config.lldCudaGHash) {
-    mergeTypesWithCUDA();
+  if (ctx.config.lldCudaGHash && mergeTypesWithCUDA())
     return;
-  }
 
   GHashState ghashState;
 

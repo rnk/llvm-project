@@ -84,6 +84,7 @@ if(LLD_ENABLE_COFF_GHASH_CUDA)
   set_target_properties(lldCOFF PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
   if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
     target_compile_options(lldCOFF PRIVATE
+      $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>
       $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fno-exceptions>
       $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-funwind-tables>
       $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fno-rtti>)

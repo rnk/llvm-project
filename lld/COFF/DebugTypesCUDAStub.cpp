@@ -12,6 +12,7 @@
 using namespace lld;
 using namespace lld::coff;
 
-void TypeMerger::mergeTypesWithCUDA() {
+bool TypeMerger::mergeTypesWithCUDA() {
   Fatal(ctx) << "-lldcudaghash requires LLD_ENABLE_COFF_GHASH_CUDA=ON";
+  return false;
 }
