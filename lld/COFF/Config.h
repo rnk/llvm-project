@@ -136,6 +136,7 @@ struct Configuration {
   bool debug = false;
   bool includeDwarfChunks = false;
   bool debugGHashes = false;
+  bool lldCudaGHash = false;
   bool writeSymtab = false;
   bool driver = false;
   bool driverUponly = false;

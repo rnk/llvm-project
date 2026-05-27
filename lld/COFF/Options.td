@@ -262,6 +262,7 @@ def include_optional : Joined<["/", "-", "/?", "-?"], "includeoptional:">,
     HelpText<"Add symbol as undefined, but allow it to remain undefined">;
 def kill_at : F<"kill-at">;
 defm lld_allow_duplicate_weak : B_priv<"lld-allow-duplicate-weak">;
+def lldcudaghash : F<"lldcudaghash">;
 def lldemit : P<"lldemit", "Specify output type">;
 def lldmingw : F<"lldmingw">;
 def noseh : F<"noseh">;

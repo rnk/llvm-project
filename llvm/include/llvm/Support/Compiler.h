@@ -246,7 +246,7 @@
 #define LLVM_ATTRIBUTE_RETAIN
 #endif
 
-#if defined(__clang__)
+#if defined(__clang__) && !defined(__CUDACC__)
 #define LLVM_DEPRECATED(MSG, FIX) __attribute__((deprecated(MSG, FIX)))
 #else
 #define LLVM_DEPRECATED(MSG, FIX) [[deprecated(MSG)]]

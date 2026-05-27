@@ -1075,6 +1075,11 @@ void TypeMerger::mergeTypesWithGHash() {
 
   llvm::TimeTraceScope timeScope("Merge types (GHASH)");
   ScopedTimer t2(ctx.mergeGHashTimer);
+  if (ctx.config.lldCudaGHash) {
+    mergeTypesWithCUDA();
+    return;
+  }
+
   GHashState ghashState;
 
   // Estimate the size of hash table needed to deduplicate ghashes. This *must*

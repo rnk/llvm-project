@@ -1647,6 +1647,7 @@ void LinkerDriver::linkerMain(ArrayRef<const char *> argsArr) {
 
   config->showSummary = args.hasArg(OPT_summary);
   config->printSearchPaths = args.hasArg(OPT_print_search_paths);
+  config->lldCudaGHash = args.hasArg(OPT_lldcudaghash);
 
   // Handle --version, which is an lld extension. This option is a bit odd
   // because it doesn't start with "/", but we deliberately chose "--" to

@@ -72,6 +72,8 @@ public:
   void sortDependencies();
 
 private:
+  void mergeTypesWithCUDA();
+
   void clearGHashes();
 
   COFFLinkerContext &ctx;
