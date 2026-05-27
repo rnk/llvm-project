@@ -68,7 +68,7 @@ public:
   Error mergeDebugT(TypeMerger *m) override;
 
   void loadGHashes() override;
-  void remapTpiWithGHashes(GHashState *g) override;
+  void remapTpiWithGHashes() override;
 
   bool isDependency() const override { return true; }
 
@@ -95,7 +95,7 @@ public:
   // handles both TPI and IPI.
   Error mergeDebugT(TypeMerger *m) override { return Error::success(); }
   void loadGHashes() override {}
-  void remapTpiWithGHashes(GHashState *g) override {}
+  void remapTpiWithGHashes() override {}
   bool isDependency() const override { return true; }
 };
 
@@ -112,7 +112,7 @@ public:
 
   // No need to load ghashes from /Zi objects.
   void loadGHashes() override {}
-  void remapTpiWithGHashes(GHashState *g) override;
+  void remapTpiWithGHashes() override;
 
   // Information about the PDB type server dependency, that needs to be loaded
   // in before merging this OBJ.
@@ -155,7 +155,7 @@ public:
   Error mergeDebugT(TypeMerger *m) override;
 
   void loadGHashes() override;
-  void remapTpiWithGHashes(GHashState *g) override;
+  void remapTpiWithGHashes() override;
 
 private:
   Error mergeInPrecompHeaderObj();
@@ -728,9 +728,8 @@ void TpiSource::mergeUniqueTypeRecords(ArrayRef<uint8_t> typeRecords,
          "missing desired record");
 }
 
-void TpiSource::remapTpiWithGHashes(GHashState *g) {
+void TpiSource::remapTpiWithGHashes() {
   assert(ctx.config.debugGHashes && "ghashes must be enabled");
-  fillMapFromGHashes(g);
   tpiMap = indexMapStorage;
   ipiMap = indexMapStorage;
   mergeUniqueTypeRecords(file->debugTypes);
@@ -789,20 +788,17 @@ static ArrayRef<uint8_t> typeArrayToBytes(const CVTypeArray &types) {
 }
 
 // Merge types from a type server PDB.
-void TypeServerSource::remapTpiWithGHashes(GHashState *g) {
+void TypeServerSource::remapTpiWithGHashes() {
   assert(ctx.config.debugGHashes && "ghashes must be enabled");
 
   // IPI merging depends on TPI, so do TPI first, then do IPI.  No need to
   // propagate errors, those should've been handled during ghash loading.
   pdb::PDBFile &pdbFile = pdbInputFile->session->getPDBFile();
   pdb::TpiStream &tpi = check(pdbFile.getPDBTpiStream());
-  fillMapFromGHashes(g);
   tpiMap = indexMapStorage;
   mergeUniqueTypeRecords(typeArrayToBytes(tpi.typeArray()));
   if (pdbFile.hasPDBIpiStream()) {
     pdb::TpiStream &ipi = check(pdbFile.getPDBIpiStream());
-    ipiSrc->indexMapStorage.resize(ipiSrc->ghashes.size());
-    ipiSrc->fillMapFromGHashes(g);
     ipiMap = ipiSrc->indexMapStorage;
     ipiSrc->tpiMap = tpiMap;
     ipiSrc->ipiMap = ipiMap;
@@ -820,7 +816,7 @@ void TypeServerSource::remapTpiWithGHashes(GHashState *g) {
   }
 }
 
-void UseTypeServerSource::remapTpiWithGHashes(GHashState *g) {
+void UseTypeServerSource::remapTpiWithGHashes() {
   // No remapping to do with /Zi objects. Simply use the index map from the type
   // server. Errors should have been reported earlier. Symbols from this object
   // will be ignored.
@@ -885,8 +881,7 @@ void UsePrecompSource::loadGHashes() {
   assignGHashesFromVector(std::move(hashVec));
 }
 
-void UsePrecompSource::remapTpiWithGHashes(GHashState *g) {
-  fillMapFromGHashes(g);
+void UsePrecompSource::remapTpiWithGHashes() {
   // This object was compiled with /Yu, so process the corresponding
   // precompiled headers object (/Yc) first. Some type indices in the current
   // object are referencing data in the precompiled headers object, so we need
@@ -1172,11 +1167,26 @@ void TypeMerger::mergeTypesWithGHash() {
         GHashCell(cell.isItem(), cell.getTpiSrcIdx(), pdbTypeIndex);
   }
 
+  // Resolve the per-source maps from temporary ghash table cell indices to
+  // final destination PDB indices before remapping any type records.
+  parallelForEach(ctx.tpiSourceList, [&](TpiSource *source) {
+    assert(source->indexMapStorage.size() == source->ghashes.size());
+    for (size_t i = 0, e = source->ghashes.size(); i < e; ++i) {
+      TypeIndex fakeCellIndex = source->indexMapStorage[i];
+      if (fakeCellIndex.isSimple())
+        continue;
+      uint32_t ghashCellIdx = fakeCellIndex.toArrayIndex();
+      GHashCell cell = ghashState.table.table[ghashCellIdx];
+      source->indexMapStorage[i] =
+          TypeIndex::fromArrayIndex(cell.getGHashIdx());
+    }
+  });
+
   // In parallel, remap all types.
   for (TpiSource *source : dependencySources)
-    source->remapTpiWithGHashes(&ghashState);
+    source->remapTpiWithGHashes();
   parallelForEach(objectSources, [&](TpiSource *source) {
-    source->remapTpiWithGHashes(&ghashState);
+    source->remapTpiWithGHashes();
   });
 
   // Build a global map of from function ID to function type.
@@ -1204,14 +1214,6 @@ void TypeMerger::sortDependencies() {
   objectSources = ArrayRef(ctx.tpiSourceList.data() + numDeps, numObjs);
 }
 
-/// Given the index into the ghash table for a particular type, return the type
-/// index for that type in the output PDB.
-static TypeIndex loadPdbTypeIndexFromCell(GHashState *g,
-                                          uint32_t ghashCellIdx) {
-  GHashCell cell = g->table.table[ghashCellIdx];
-  return TypeIndex::fromArrayIndex(cell.getGHashIdx());
-}
-
 /// Free heap allocated ghashes.
 void TypeMerger::clearGHashes() {
   for (TpiSource *src : ctx.tpiSourceList) {
@@ -1220,18 +1222,5 @@ void TypeMerger::clearGHashes() {
     src->ghashes = {};
     src->isItemIndex.clear();
     src->uniqueTypes.clear();
-  }
-}
-
-// Fill in a TPI or IPI index map using ghashes. For each source type, use its
-// ghash to lookup its final type index in the PDB, and store that in the map.
-void TpiSource::fillMapFromGHashes(GHashState *g) {
-  for (size_t i = 0, e = ghashes.size(); i < e; ++i) {
-    TypeIndex fakeCellIndex = indexMapStorage[i];
-    if (fakeCellIndex.isSimple())
-      indexMapStorage[i] = fakeCellIndex;
-    else
-      indexMapStorage[i] =
-          loadPdbTypeIndexFromCell(g, fakeCellIndex.toArrayIndex());
   }
 }

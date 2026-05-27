@@ -33,7 +33,6 @@ using llvm::codeview::TypeIndex;
 class ObjFile;
 class PDBInputFile;
 class TypeMerger;
-struct GHashState;
 class COFFLinkerContext;
 
 class TpiSource {
@@ -61,7 +60,7 @@ public:
   virtual void loadGHashes();
 
   /// Use global hashes to merge type information.
-  virtual void remapTpiWithGHashes(GHashState *g);
+  virtual void remapTpiWithGHashes();
 
   // Remap a type index in place.
   bool remapTypeIndex(TypeIndex &ti, llvm::codeview::TiRefKind refKind) const;
@@ -78,10 +77,6 @@ protected:
   void mergeUniqueTypeRecords(
       ArrayRef<uint8_t> debugTypes,
       TypeIndex beginIndex = TypeIndex(TypeIndex::FirstNonSimpleIndex));
-
-  // Use the ghash table to construct a map from source type index to
-  // destination PDB type index. Usable for either TPI or IPI.
-  void fillMapFromGHashes(GHashState *m);
 
   // Copies ghashes from a vector into an array. These are long lived, so it's
   // worth the time to copy these into an appropriately sized vector to reduce

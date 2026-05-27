@@ -23,8 +23,6 @@ namespace lld::coff {
 using llvm::codeview::GloballyHashedType;
 using llvm::codeview::TypeIndex;
 
-struct GHashState;
-
 class TypeMerger {
 public:
   TypeMerger(COFFLinkerContext &ctx, llvm::BumpPtrAllocator &alloc);
