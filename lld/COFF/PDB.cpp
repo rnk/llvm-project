@@ -929,6 +929,11 @@ void PDBLinker::copyRelocateAndAlignSymbolRecordTo(
   assert(recordBytes.size() == plan.alignedSize);
   ArrayRef<uint8_t> inputBytes =
       sectionContents.slice(plan.inputOffset, plan.inputSize);
+  if (plan.relocStartIndex == plan.relocEndIndex) {
+    memcpy(recordBytes.data(), inputBytes.data(), inputBytes.size());
+    fixRecordAlignment(recordBytes, plan.inputSize);
+    return;
+  }
   debugChunk->writeAndRelocateSubsectionAt(
       sectionContents, inputBytes, {plan.relocStartIndex, plan.relocEndIndex},
       recordBytes.data());
@@ -942,6 +947,11 @@ void PDBLinker::copyRelocateAndAlignSymbolRecordTo(
   assert(recordBytes.size() == desc.alignedSize);
   ArrayRef<uint8_t> inputBytes =
       sectionContents.slice(desc.inputOffset, desc.inputSize);
+  if (desc.relocStartIndex == desc.relocEndIndex) {
+    memcpy(recordBytes.data(), inputBytes.data(), inputBytes.size());
+    fixRecordAlignment(recordBytes, desc.inputSize);
+    return;
+  }
   debugChunk->writeAndRelocateSubsectionAt(
       sectionContents, inputBytes, {desc.relocStartIndex, desc.relocEndIndex},
       recordBytes.data());
