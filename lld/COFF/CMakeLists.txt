@@ -5,6 +5,8 @@ add_public_tablegen_target(COFFOptionsTableGen)
 set(LLVM_OPTIONAL_SOURCES
   DebugTypesCUDA.cu
   DebugTypesCUDAStub.cpp
+  PDBSymbolRemapCUDA.cu
+  PDBSymbolRemapCUDAStub.cpp
   )
 
 option(LLD_ENABLE_COFF_GHASH_CUDA
@@ -20,10 +22,16 @@ if(LLD_ENABLE_COFF_GHASH_CUDA)
       "LLD_ENABLE_COFF_GHASH_CUDA requires a working CUDA compiler")
   endif()
   find_package(CUDAToolkit REQUIRED)
-  set(lld_coff_cuda_sources DebugTypesCUDA.cu)
+  set(lld_coff_cuda_sources
+    DebugTypesCUDA.cu
+    PDBSymbolRemapCUDA.cu
+    )
   set(lld_coff_cuda_libs CUDA::cudart_static)
 else()
-  set(lld_coff_cuda_sources DebugTypesCUDAStub.cpp)
+  set(lld_coff_cuda_sources
+    DebugTypesCUDAStub.cpp
+    PDBSymbolRemapCUDAStub.cpp
+    )
 endif()
 
 add_lld_library(lldCOFF

@@ -12,6 +12,7 @@
 #include "Config.h"
 #include "DebugTypes.h"
 #include "Driver.h"
+#include "PDBSymbolRemap.h"
 #include "SymbolTable.h"
 #include "Symbols.h"
 #include "TypeMerger.h"
@@ -77,26 +78,6 @@ struct SymbolRecordPlan {
   bool goesInModule;
   bool opensScope;
   bool closesScope;
-};
-
-enum PlannedSymbolRecordFlags : uint16_t {
-  PSRF_GoesInModule = 1 << 0,
-  PSRF_OpensScope = 1 << 1,
-  PSRF_ClosesScope = 1 << 2,
-};
-
-// Numeric-only symbol work item for the future CUDA/bulk executor boundary.
-// Scope and string-table fixups intentionally stay as sparse CPU-side patches
-// for now.
-struct PlannedSymbolRecordDescriptor {
-  uint32_t inputOffset;
-  uint32_t inputSize;
-  uint32_t outputOffset;
-  uint32_t alignedSize;
-  uint32_t relocStartIndex;
-  uint32_t relocEndIndex;
-  uint16_t kind;
-  uint16_t flags;
 };
 
 static PlannedSymbolRecordDescriptor
