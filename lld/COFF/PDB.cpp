@@ -196,6 +196,15 @@ public:
                          const SymbolRecordPlan &plan,
                          ArrayRef<PlannedSymbolTypeRef> typeRefs,
                          std::vector<uint8_t> &storage);
+  void copyRelocateAndAlignPlannedSymbolRecordsCPU(
+      SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
+      ArrayRef<SymbolRecordPlan> plans,
+      ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+      std::vector<uint8_t> &storage);
+  void remapAndTranslatePlannedSymbolRecordsCPU(
+      SectionChunk *debugChunk, ArrayRef<SymbolRecordPlan> plans,
+      ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+      ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
   void executePlannedSymbolRecordsCPU(
       SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
       uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
@@ -810,15 +819,12 @@ void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
   writeSymbolRecordTo(debugChunk, sectionContents, plan, typeRefs, recordBytes);
 }
 
-void PDBLinker::executePlannedSymbolRecordsCPU(
+void PDBLinker::copyRelocateAndAlignPlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-    uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
+    ArrayRef<SymbolRecordPlan> plans,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
-    ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
+    std::vector<uint8_t> &storage) {
   assert(plans.size() == descriptors.size());
-  ObjFile *file = debugChunk->file;
-  SmallVector<ScopeFixup, 4> scopeFixups =
-      computeScopeFixups(ctx, descriptors, moduleSymStart, file);
 
   parallelFor(0, plans.size(), [&](size_t i) {
     const SymbolRecordPlan &plan = plans[i];
@@ -831,11 +837,44 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
                                                 desc.alignedSize);
     copyRelocateAndAlignSymbolRecordTo(debugChunk, sectionContents, plan,
                                        recordBytes);
+  });
+}
+
+void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
+    SectionChunk *debugChunk, ArrayRef<SymbolRecordPlan> plans,
+    ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+    ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
+  assert(plans.size() == descriptors.size());
+
+  parallelFor(0, plans.size(), [&](size_t i) {
+    const SymbolRecordPlan &plan = plans[i];
+    const PlannedSymbolRecordDescriptor &desc = descriptors[i];
+    if (!(desc.flags & PSRF_GoesInModule))
+      return;
+
+    MutableArrayRef<uint8_t> recordBytes =
+        MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
+                                                desc.alignedSize);
     remapAndTranslateSymbolRecordCPU(
         debugChunk, plan,
         typeRefs.slice(desc.typeRefStartIndex, desc.typeRefCount), recordBytes);
   });
+}
 
+void PDBLinker::executePlannedSymbolRecordsCPU(
+    SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
+    uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
+    ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+    ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
+  assert(plans.size() == descriptors.size());
+  ObjFile *file = debugChunk->file;
+  SmallVector<ScopeFixup, 4> scopeFixups =
+      computeScopeFixups(ctx, descriptors, moduleSymStart, file);
+
+  copyRelocateAndAlignPlannedSymbolRecordsCPU(debugChunk, sectionContents,
+                                              plans, descriptors, storage);
+  remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, plans, descriptors,
+                                           typeRefs, storage);
   applyScopeFixups(scopeFixups, storage);
 }
 
