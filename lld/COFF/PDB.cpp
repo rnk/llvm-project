@@ -45,6 +45,7 @@
 #include "llvm/Support/CRC.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/ScopedPrinter.h"
 #include "llvm/Support/TimeProfiler.h"
@@ -691,17 +692,19 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
   SmallVector<ScopeFixup, 4> scopeFixups =
       computeScopeFixups(ctx, plans, moduleSymStart, file);
 
-  for (const SymbolRecordPlan &plan : plans) {
-    uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
+  parallelFor(0, plans.size(), [&](size_t i) {
+    const SymbolRecordPlan &plan = plans[i];
+    // Copy, relocate, and rewrite each module symbol into its planned
+    // disjoint output range.
+    if (!plan.goesInModule)
+      return;
 
-    // Copy, relocate, and rewrite each module symbol.
-    if (plan.goesInModule) {
-      MutableArrayRef<uint8_t> recordBytes =
-          MutableArrayRef<uint8_t>(storage).slice(currentOffset,
-                                                  plan.alignedSize);
-      writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
-    }
-  }
+    uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
+    MutableArrayRef<uint8_t> recordBytes =
+        MutableArrayRef<uint8_t>(storage).slice(currentOffset,
+                                                plan.alignedSize);
+    writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
+  });
 
   applyScopeFixups(scopeFixups, storage);
 }
