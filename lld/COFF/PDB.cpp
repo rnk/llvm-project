@@ -140,6 +140,11 @@ public:
                          ArrayRef<uint8_t> sectionContents,
                          const SymbolRecordPlan &plan,
                          std::vector<uint8_t> &storage);
+  void executePlannedSymbolRecordsCPU(SectionChunk *debugChunk,
+                                      ArrayRef<uint8_t> sectionContents,
+                                      uint32_t moduleSymStart,
+                                      ArrayRef<SymbolRecordPlan> plans,
+                                      std::vector<uint8_t> &storage);
 
   /// Add the section map and section contributions to the PDB.
   void addSections(ArrayRef<uint8_t> sectionTable);
@@ -633,6 +638,34 @@ void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
   writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
 }
 
+void PDBLinker::executePlannedSymbolRecordsCPU(
+    SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
+    uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
+    std::vector<uint8_t> &storage) {
+  SmallVector<uint32_t, 4> scopes;
+  ObjFile *file = debugChunk->file;
+
+  for (const SymbolRecordPlan &plan : plans) {
+    uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
+
+    // Keep sparse scope fixups explicit and serial. Scope open/close state is
+    // tracked before writing the current record.
+    if (plan.opensScope)
+      scopeStackOpen(scopes, currentOffset);
+    else if (plan.closesScope)
+      scopeStackClose(ctx, scopes, storage, moduleSymStart, currentOffset,
+                      file);
+
+    // Copy, relocate, and rewrite each module symbol.
+    if (plan.goesInModule) {
+      MutableArrayRef<uint8_t> recordBytes =
+          MutableArrayRef<uint8_t>(storage).slice(currentOffset,
+                                                  plan.alignedSize);
+      writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
+    }
+  }
+}
+
 void PDBLinker::analyzeSymbolSubsection(
     SectionChunk *debugChunk, uint32_t &moduleSymOffset,
     uint32_t &nextRelocIndex, std::vector<StringTableFixup> &stringTableFixups,
@@ -693,7 +726,6 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
                                              BinaryStreamWriter &writer) {
   ExitOnError exitOnErr;
   std::vector<uint8_t> storage;
-  SmallVector<uint32_t, 4> scopes;
 
   // Visit all live .debug$S sections a second time, and write them to the PDB.
   for (SectionChunk *debugChunk : file->getDebugChunks()) {
@@ -715,7 +747,6 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
 
       uint32_t moduleSymStart = writer.getOffset();
       uint32_t moduleSymOffset = moduleSymStart;
-      scopes.clear();
       storage.clear();
       std::vector<SymbolRecordPlan> plans;
       auto ec = planSymbolSubsection(debugChunk, sectionContents,
@@ -730,25 +761,8 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
       }
 
       storage.resize(moduleSymOffset - moduleSymStart);
-
-      for (const SymbolRecordPlan &plan : plans) {
-        uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
-
-        // Track the current scope. Only update records in the postmerge pass.
-        if (plan.opensScope)
-          scopeStackOpen(scopes, currentOffset);
-        else if (plan.closesScope)
-          scopeStackClose(ctx, scopes, storage, moduleSymStart, currentOffset,
-                          file);
-
-        // Copy, relocate, and rewrite each module symbol.
-        if (plan.goesInModule) {
-          MutableArrayRef<uint8_t> recordBytes =
-              MutableArrayRef<uint8_t>(storage).slice(currentOffset,
-                                                      plan.alignedSize);
-          writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
-        }
-      }
+      executePlannedSymbolRecordsCPU(debugChunk, sectionContents,
+                                     moduleSymStart, plans, storage);
 
       // Writing bytes has a very high overhead, so write the entire subsection
       // at once.
