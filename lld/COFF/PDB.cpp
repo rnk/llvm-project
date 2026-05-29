@@ -404,6 +404,12 @@ struct ScopeRecord {
   ulittle32_t ptrParent;
   ulittle32_t ptrEnd;
 };
+
+struct ScopeFixup {
+  uint32_t recordOffset;
+  uint32_t ptrParent;
+  uint32_t ptrEnd;
+};
 } // namespace
 
 /// Given a pointer to a symbol record that opens a scope, return a pointer to
@@ -420,10 +426,11 @@ static void scopeStackOpen(SmallVectorImpl<uint32_t> &stack,
   stack.push_back(currentOffset);
 }
 
-// To close a scope, update the record that opened the scope.
+// To close a scope, record how the opener must be updated after symbol records
+// have been written.
 static void scopeStackClose(COFFLinkerContext &ctx,
                             SmallVectorImpl<uint32_t> &stack,
-                            std::vector<uint8_t> &storage,
+                            SmallVectorImpl<ScopeFixup> &fixups,
                             uint32_t storageBaseOffset,
                             uint32_t currentOffset, ObjFile *file) {
   if (stack.empty()) {
@@ -436,9 +443,34 @@ static void scopeStackClose(COFFLinkerContext &ctx,
   uint32_t offOpen = stack.pop_back_val();
   uint32_t offEnd = storageBaseOffset + currentOffset;
   uint32_t offParent = stack.empty() ? 0 : (stack.back() + storageBaseOffset);
-  ScopeRecord *scopeRec = getSymbolScopeFields(&(storage)[offOpen]);
-  scopeRec->ptrParent = offParent;
-  scopeRec->ptrEnd = offEnd;
+  fixups.push_back({offOpen, offParent, offEnd});
+}
+
+static SmallVector<ScopeFixup, 4>
+computeScopeFixups(COFFLinkerContext &ctx, ArrayRef<SymbolRecordPlan> plans,
+                   uint32_t moduleSymStart, ObjFile *file) {
+  SmallVector<uint32_t, 4> scopes;
+  SmallVector<ScopeFixup, 4> fixups;
+
+  for (const SymbolRecordPlan &plan : plans) {
+    uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
+
+    if (plan.opensScope)
+      scopeStackOpen(scopes, currentOffset);
+    else if (plan.closesScope)
+      scopeStackClose(ctx, scopes, fixups, moduleSymStart, currentOffset, file);
+  }
+
+  return fixups;
+}
+
+static void applyScopeFixups(ArrayRef<ScopeFixup> fixups,
+                             std::vector<uint8_t> &storage) {
+  for (const ScopeFixup &fixup : fixups) {
+    ScopeRecord *scopeRec = getSymbolScopeFields(&storage[fixup.recordOffset]);
+    scopeRec->ptrParent = fixup.ptrParent;
+    scopeRec->ptrEnd = fixup.ptrEnd;
+  }
 }
 
 static bool symbolGoesInModuleStream(const CVSymbol &sym,
@@ -642,19 +674,12 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
     uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
     std::vector<uint8_t> &storage) {
-  SmallVector<uint32_t, 4> scopes;
   ObjFile *file = debugChunk->file;
+  SmallVector<ScopeFixup, 4> scopeFixups =
+      computeScopeFixups(ctx, plans, moduleSymStart, file);
 
   for (const SymbolRecordPlan &plan : plans) {
     uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
-
-    // Keep sparse scope fixups explicit and serial. Scope open/close state is
-    // tracked before writing the current record.
-    if (plan.opensScope)
-      scopeStackOpen(scopes, currentOffset);
-    else if (plan.closesScope)
-      scopeStackClose(ctx, scopes, storage, moduleSymStart, currentOffset,
-                      file);
 
     // Copy, relocate, and rewrite each module symbol.
     if (plan.goesInModule) {
@@ -664,6 +689,8 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
       writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
     }
   }
+
+  applyScopeFixups(scopeFixups, storage);
 }
 
 void PDBLinker::analyzeSymbolSubsection(
