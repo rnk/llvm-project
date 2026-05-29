@@ -17,7 +17,6 @@
 #include <cstdint>
 #include <limits>
 #include <string>
-#include <vector>
 
 using namespace lld;
 using namespace lld::coff;
@@ -169,13 +168,25 @@ struct SymbolRemapDeviceScratch {
   DeviceBuffer<DeviceSymbolRemapErrorSummary> errors;
 };
 
-std::vector<uint32_t>
-makeRawTypeIndexMap(ArrayRef<llvm::codeview::TypeIndex> map) {
-  std::vector<uint32_t> rawMap;
-  rawMap.reserve(map.size());
-  for (llvm::codeview::TypeIndex ti : map)
-    rawMap.push_back(ti.getIndex());
-  return rawMap;
+void copyTypeIndexMapToDeviceAsync(
+    DeviceBuffer<uint32_t> &buffer,
+    ArrayRef<llvm::codeview::TypeIndex> map,
+    CudaSymbolRemapErrorChecker &cuErr,
+    cudaStream_t stream,
+    const char *allocContext,
+    const char *copyContext) {
+  static_assert(sizeof(llvm::codeview::TypeIndex) == sizeof(uint32_t),
+                "TypeIndex must be stored as a single 32-bit value");
+
+  buffer.ensureCapacity(map.size(), cuErr, allocContext);
+  if (map.empty())
+    return;
+  // cudaMemcpyAsync copies bytes from the TypeIndex object storage; no host
+  // uint32_t lvalue is formed, so source alignment is not a correctness issue.
+  cuErr.fatalIfFailed(
+      cudaMemcpyAsync(buffer.data(), map.data(), map.size() * sizeof(uint32_t),
+                      cudaMemcpyHostToDevice, stream),
+      copyContext);
 }
 
 const char *getSymbolRemapErrorName(DeviceSymbolRemapErrorKind kind) {
@@ -412,8 +423,6 @@ void lld::coff::executePDBSymbolRemapCUDA(
                                       "IPI source symbol remap size");
 
   CudaSymbolRemapErrorChecker cuErr;
-  std::vector<uint32_t> rawTpiMap = makeRawTypeIndexMap(sourceMap.tpiMap);
-  std::vector<uint32_t> rawIpiMap = makeRawTypeIndexMap(sourceMap.ipiMap);
 
   thread_local SymbolRemapDeviceScratch scratch;
   cudaStream_t stream = scratch.stream.get(cuErr);
@@ -427,13 +436,13 @@ void lld::coff::executePDBSymbolRemapCUDA(
       stream,
       "CUDA PDB symbol remap failed to allocate type-ref scratch buffer",
       "CUDA PDB symbol remap failed to copy type refs");
-  scratch.tpiMap.copyFromAsync(
-      rawTpiMap, cuErr,
+  copyTypeIndexMapToDeviceAsync(
+      scratch.tpiMap, sourceMap.tpiMap, cuErr,
       stream,
       "CUDA PDB symbol remap failed to allocate TPI map scratch buffer",
       "CUDA PDB symbol remap failed to copy TPI map");
-  scratch.ipiMap.copyFromAsync(
-      rawIpiMap, cuErr,
+  copyTypeIndexMapToDeviceAsync(
+      scratch.ipiMap, sourceMap.ipiMap, cuErr,
       stream,
       "CUDA PDB symbol remap failed to allocate IPI map scratch buffer",
       "CUDA PDB symbol remap failed to copy IPI map");
