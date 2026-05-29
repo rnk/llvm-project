@@ -508,6 +508,37 @@ void SectionChunk::writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
   }
 }
 
+void SectionChunk::writeAndRelocateSubsectionAt(ArrayRef<uint8_t> sec,
+                                                ArrayRef<uint8_t> subsec,
+                                                uint32_t relocStartIndex,
+                                                uint8_t *buf) const {
+  writeAndRelocateSubsection(sec, subsec, relocStartIndex, buf);
+}
+
+uint32_t
+SectionChunk::advanceRelocIndexPastSubsection(ArrayRef<uint8_t> sec,
+                                              ArrayRef<uint8_t> subsec,
+                                              uint32_t &nextRelocIndex) const {
+  assert(!subsec.empty() && !sec.empty());
+  assert(sec.begin() <= subsec.begin() && subsec.end() <= sec.end() &&
+         "subsection is not part of this section");
+  size_t vaBegin = std::distance(sec.begin(), subsec.begin());
+  size_t vaEnd = std::distance(sec.begin(), subsec.end());
+  for (; nextRelocIndex < relocsSize; ++nextRelocIndex) {
+    const coff_relocation &rel = relocsData[nextRelocIndex];
+    if (rel.VirtualAddress >= vaBegin)
+      break;
+  }
+
+  uint32_t relocStartIndex = nextRelocIndex;
+  for (; nextRelocIndex < relocsSize; ++nextRelocIndex) {
+    const coff_relocation &rel = relocsData[nextRelocIndex];
+    if (rel.VirtualAddress + 1 >= vaEnd)
+      break;
+  }
+  return relocStartIndex;
+}
+
 void SectionChunk::addAssociative(SectionChunk *child) {
   // Insert the child section into the list of associated children. Keep the
   // list ordered by section name so that ICF does not depend on section order.

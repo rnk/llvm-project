@@ -62,6 +62,12 @@ using llvm::pdb::StringTableFixup;
 namespace {
 class DebugSHandler;
 
+struct SymbolRecordPlan {
+  CVSymbol sym;
+  uint32_t alignedSize;
+  uint32_t relocStartIndex;
+};
+
 class PDBLinker {
   friend DebugSHandler;
 
@@ -122,8 +128,8 @@ public:
   // Rewrite type indices in the record. Replace unrecognized symbol records
   // with S_SKIP records.
   void writeSymbolRecord(SectionChunk *debugChunk,
-                         ArrayRef<uint8_t> sectionContents, CVSymbol sym,
-                         size_t alignedSize, uint32_t &nextRelocIndex,
+                         ArrayRef<uint8_t> sectionContents,
+                         const SymbolRecordPlan &plan,
                          std::vector<uint8_t> &storage);
 
   /// Add the section map and section contributions to the PDB.
@@ -531,28 +537,38 @@ static void replaceWithSkipRecord(MutableArrayRef<uint8_t> recordBytes) {
   prefix->RecordLen = recordBytes.size() - 2;
 }
 
+static SymbolRecordPlan planSymbolRecord(SectionChunk *debugChunk,
+                                         ArrayRef<uint8_t> sectionContents,
+                                         CVSymbol sym, uint32_t alignedSize,
+                                         uint32_t &nextRelocIndex) {
+  uint32_t relocStartIndex = debugChunk->advanceRelocIndexPastSubsection(
+      sectionContents, sym.data(), nextRelocIndex);
+  return {sym, alignedSize, relocStartIndex};
+}
+
 // Copy the symbol record, relocate it, and fix the alignment if necessary.
 // Rewrite type indices in the record. Replace unrecognized symbol records with
 // S_SKIP records.
 void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
                                   ArrayRef<uint8_t> sectionContents,
-                                  CVSymbol sym, size_t alignedSize,
-                                  uint32_t &nextRelocIndex,
+                                  const SymbolRecordPlan &plan,
                                   std::vector<uint8_t> &storage) {
   // Allocate space for the new record at the end of the storage.
-  storage.resize(storage.size() + alignedSize);
-  auto recordBytes = MutableArrayRef<uint8_t>(storage).take_back(alignedSize);
+  storage.resize(storage.size() + plan.alignedSize);
+  auto recordBytes =
+      MutableArrayRef<uint8_t>(storage).take_back(plan.alignedSize);
 
   // Copy the symbol record and relocate it.
-  debugChunk->writeAndRelocateSubsection(sectionContents, sym.data(),
-                                         nextRelocIndex, recordBytes.data());
-  fixRecordAlignment(recordBytes, sym.length());
+  debugChunk->writeAndRelocateSubsectionAt(sectionContents, plan.sym.data(),
+                                           plan.relocStartIndex,
+                                           recordBytes.data());
+  fixRecordAlignment(recordBytes, plan.sym.length());
 
   // Re-map all the type index references.
   TpiSource *source = debugChunk->file->debugTypesObj;
   if (!source->remapTypesInSymbolRecord(recordBytes)) {
     Log(ctx) << "ignoring unknown symbol record with kind 0x"
-             << utohexstr(sym.kind());
+             << utohexstr(plan.sym.kind());
     replaceWithSkipRecord(recordBytes);
   }
 
@@ -592,9 +608,10 @@ void PDBLinker::analyzeSymbolSubsection(
         // Copy global records. Some global records (mainly procedures)
         // reference the current offset into the module stream.
         if (symbolGoesInGlobalsStream(sym, scopeLevel)) {
+          SymbolRecordPlan plan = planSymbolRecord(
+              debugChunk, sectionContents, sym, alignedSize, nextRelocIndex);
           storage.clear();
-          writeSymbolRecord(debugChunk, sectionContents, sym, alignedSize,
-                            nextRelocIndex, storage);
+          writeSymbolRecord(debugChunk, sectionContents, plan, storage);
           addGlobalSymbol(builder.getGsiBuilder(),
                           file->moduleDBI->getModuleIndex(), moduleSymOffset,
                           storage);
@@ -671,8 +688,10 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
             if (symbolGoesInModuleStream(sym, scopes.size())) {
               uint32_t alignedSize =
                   alignTo(sym.length(), alignOf(CodeViewContainer::Pdb));
-              writeSymbolRecord(debugChunk, sectionContents, sym, alignedSize,
-                                nextRelocIndex, storage);
+              SymbolRecordPlan plan =
+                  planSymbolRecord(debugChunk, sectionContents, sym,
+                                   alignedSize, nextRelocIndex);
+              writeSymbolRecord(debugChunk, sectionContents, plan, storage);
             }
             return Error::success();
           });

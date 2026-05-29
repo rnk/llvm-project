@@ -265,6 +265,13 @@ public:
   void writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
                                   ArrayRef<uint8_t> subsec,
                                   uint32_t &nextRelocIndex, uint8_t *buf) const;
+  void writeAndRelocateSubsectionAt(ArrayRef<uint8_t> sec,
+                                    ArrayRef<uint8_t> subsec,
+                                    uint32_t relocStartIndex,
+                                    uint8_t *buf) const;
+  uint32_t advanceRelocIndexPastSubsection(ArrayRef<uint8_t> sec,
+                                           ArrayRef<uint8_t> subsec,
+                                           uint32_t &nextRelocIndex) const;
 
   uint32_t getOutputCharacteristics() const {
     return header->Characteristics & (permMask | typeMask);
