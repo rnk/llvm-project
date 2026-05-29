@@ -58,6 +58,29 @@ public:
   }
 };
 
+class CudaStream {
+public:
+  CudaStream() = default;
+  CudaStream(const CudaStream &) = delete;
+  CudaStream &operator=(const CudaStream &) = delete;
+
+  ~CudaStream() {
+    if (stream)
+      cudaStreamDestroy(stream);
+  }
+
+  cudaStream_t get(CudaSymbolRemapErrorChecker &cuErr) {
+    if (!stream)
+      cuErr.fatalIfFailed(
+          cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
+          "CUDA PDB symbol remap failed to create stream");
+    return stream;
+  }
+
+private:
+  cudaStream_t stream = nullptr;
+};
+
 uint32_t checkedUInt32(size_t value, const char *what) {
   if (value > std::numeric_limits<uint32_t>::max())
     fatal(std::string("CUDA PDB symbol remap failed: ") + what +
@@ -119,12 +142,25 @@ public:
         copyContext);
   }
 
+  void copyFromAsync(ArrayRef<T> values, CudaSymbolRemapErrorChecker &cuErr,
+                     cudaStream_t stream, const char *allocContext,
+                     const char *copyContext) {
+    ensureCapacity(values.size(), cuErr, allocContext);
+    if (values.empty())
+      return;
+    cuErr.fatalIfFailed(
+        cudaMemcpyAsync(ptr, values.data(), values.size() * sizeof(T),
+                        cudaMemcpyHostToDevice, stream),
+        copyContext);
+  }
+
 private:
   T *ptr = nullptr;
   size_t capacity = 0;
 };
 
 struct SymbolRemapDeviceScratch {
+  CudaStream stream;
   DeviceBuffer<PlannedSymbolRecordDescriptor> descriptors;
   DeviceBuffer<PlannedSymbolTypeRef> typeRefs;
   DeviceBuffer<uint32_t> tpiMap;
@@ -380,37 +416,44 @@ void lld::coff::executePDBSymbolRemapCUDA(
   std::vector<uint32_t> rawIpiMap = makeRawTypeIndexMap(sourceMap.ipiMap);
 
   thread_local SymbolRemapDeviceScratch scratch;
-  scratch.descriptors.copyFrom(
+  cudaStream_t stream = scratch.stream.get(cuErr);
+  scratch.descriptors.copyFromAsync(
       descriptors, cuErr,
+      stream,
       "CUDA PDB symbol remap failed to allocate descriptor scratch buffer",
       "CUDA PDB symbol remap failed to copy descriptors");
-  scratch.typeRefs.copyFrom(
+  scratch.typeRefs.copyFromAsync(
       typeRefs, cuErr,
+      stream,
       "CUDA PDB symbol remap failed to allocate type-ref scratch buffer",
       "CUDA PDB symbol remap failed to copy type refs");
-  scratch.tpiMap.copyFrom(
+  scratch.tpiMap.copyFromAsync(
       rawTpiMap, cuErr,
+      stream,
       "CUDA PDB symbol remap failed to allocate TPI map scratch buffer",
       "CUDA PDB symbol remap failed to copy TPI map");
-  scratch.ipiMap.copyFrom(
+  scratch.ipiMap.copyFromAsync(
       rawIpiMap, cuErr,
+      stream,
       "CUDA PDB symbol remap failed to allocate IPI map scratch buffer",
       "CUDA PDB symbol remap failed to copy IPI map");
-  scratch.moduleSymbolStorage.copyFrom(
+  scratch.moduleSymbolStorage.copyFromAsync(
       ArrayRef<uint8_t>(moduleSymbolStorage.data(), moduleSymbolStorage.size()),
       cuErr,
+      stream,
       "CUDA PDB symbol remap failed to allocate module symbol scratch buffer",
       "CUDA PDB symbol remap failed to copy module symbols to device");
   scratch.errors.ensureCapacity(
       1, cuErr,
       "CUDA PDB symbol remap failed to allocate error summary scratch buffer");
   cuErr.fatalIfFailed(
-      cudaMemset(scratch.errors.data(), 0, sizeof(DeviceSymbolRemapErrorSummary)),
+      cudaMemsetAsync(scratch.errors.data(), 0,
+                      sizeof(DeviceSymbolRemapErrorSummary), stream),
       "CUDA PDB symbol remap failed to clear error summary");
 
   constexpr uint32_t threads = 256;
   uint32_t blocks = getBlockCount(descriptorCount, threads);
-  remapAndTranslateSymbolRecordsKernel<<<blocks, threads>>>(
+  remapAndTranslateSymbolRecordsKernel<<<blocks, threads, 0, stream>>>(
       scratch.descriptors.data(descriptorCount), descriptorCount,
       scratch.typeRefs.data(typeRefs.size()), scratch.tpiMap.data(tpiMapSize),
       tpiMapSize, scratch.ipiMap.data(ipiMapSize), ipiMapSize,
@@ -420,9 +463,17 @@ void lld::coff::executePDBSymbolRemapCUDA(
                       "CUDA PDB symbol remap failed to launch kernel");
 
   DeviceSymbolRemapErrorSummary errors;
-  cuErr.fatalIfFailed(cudaMemcpy(&errors, scratch.errors.data(),
-                                 sizeof(errors), cudaMemcpyDeviceToHost),
+  cuErr.fatalIfFailed(cudaMemcpyAsync(&errors, scratch.errors.data(),
+                                      sizeof(errors), cudaMemcpyDeviceToHost,
+                                      stream),
                       "CUDA PDB symbol remap failed to copy error summary");
+  cuErr.fatalIfFailed(cudaMemcpyAsync(moduleSymbolStorage.data(),
+                                      scratch.moduleSymbolStorage.data(),
+                                      moduleSymbolStorage.size(),
+                                      cudaMemcpyDeviceToHost, stream),
+                      "CUDA PDB symbol remap failed to copy module symbols");
+  cuErr.fatalIfFailed(cudaStreamSynchronize(stream),
+                      "CUDA PDB symbol remap failed to synchronize stream");
 
   uint32_t errorCount = std::min(errors.count, maxSymbolRemapErrors);
   for (uint32_t i = 0; i != errorCount; ++i) {
@@ -434,10 +485,4 @@ void lld::coff::executePDBSymbolRemapCUDA(
           llvm::utohexstr(errors.recordKind[i]) + " detail 0x" +
           llvm::utohexstr(errors.detail[i]));
   }
-
-  cuErr.fatalIfFailed(cudaMemcpy(moduleSymbolStorage.data(),
-                                 scratch.moduleSymbolStorage.data(),
-                                 moduleSymbolStorage.size(),
-                                 cudaMemcpyDeviceToHost),
-                      "CUDA PDB symbol remap failed to copy module symbols");
 }
