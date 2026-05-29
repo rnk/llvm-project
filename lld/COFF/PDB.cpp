@@ -120,6 +120,17 @@ makePlannedSymbolRecordDescriptor(const SymbolRecordPlan &plan,
           flags};
 }
 
+static std::vector<PlannedSymbolRecordDescriptor>
+makePlannedSymbolRecordDescriptors(ArrayRef<SymbolRecordPlan> plans,
+                                   uint32_t moduleSymStart) {
+  std::vector<PlannedSymbolRecordDescriptor> descriptors;
+  descriptors.reserve(plans.size());
+  for (const SymbolRecordPlan &plan : plans)
+    descriptors.push_back(
+        makePlannedSymbolRecordDescriptor(plan, moduleSymStart));
+  return descriptors;
+}
+
 class PDBLinker {
   friend DebugSHandler;
 
@@ -191,6 +202,8 @@ public:
                                       ArrayRef<uint8_t> sectionContents,
                                       uint32_t moduleSymStart,
                                       ArrayRef<SymbolRecordPlan> plans,
+                                      ArrayRef<PlannedSymbolRecordDescriptor>
+                                          descriptors,
                                       std::vector<uint8_t> &storage);
 
   /// Add the section map and section contributions to the PDB.
@@ -492,15 +505,13 @@ static void scopeStackClose(COFFLinkerContext &ctx,
 }
 
 static SmallVector<ScopeFixup, 4>
-computeScopeFixups(COFFLinkerContext &ctx, ArrayRef<SymbolRecordPlan> plans,
+computeScopeFixups(COFFLinkerContext &ctx,
+                   ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
                    uint32_t moduleSymStart, ObjFile *file) {
   SmallVector<uint32_t, 4> scopes;
   SmallVector<ScopeFixup, 4> fixups;
 
-  for (const SymbolRecordPlan &plan : plans) {
-    PlannedSymbolRecordDescriptor desc =
-        makePlannedSymbolRecordDescriptor(plan, moduleSymStart);
-
+  for (const PlannedSymbolRecordDescriptor &desc : descriptors) {
     if (desc.flags & PSRF_OpensScope)
       scopeStackOpen(scopes, desc.outputOffset);
     else if (desc.flags & PSRF_ClosesScope)
@@ -748,15 +759,16 @@ void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
 void PDBLinker::executePlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
     uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
+    ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     std::vector<uint8_t> &storage) {
+  assert(plans.size() == descriptors.size());
   ObjFile *file = debugChunk->file;
   SmallVector<ScopeFixup, 4> scopeFixups =
-      computeScopeFixups(ctx, plans, moduleSymStart, file);
+      computeScopeFixups(ctx, descriptors, moduleSymStart, file);
 
   parallelFor(0, plans.size(), [&](size_t i) {
     const SymbolRecordPlan &plan = plans[i];
-    PlannedSymbolRecordDescriptor desc =
-        makePlannedSymbolRecordDescriptor(plan, moduleSymStart);
+    const PlannedSymbolRecordDescriptor &desc = descriptors[i];
     // Copy, relocate, and rewrite each module symbol into its planned
     // disjoint output range.
     if (!(desc.flags & PSRF_GoesInModule))
@@ -866,9 +878,12 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
         continue;
       }
 
+      std::vector<PlannedSymbolRecordDescriptor> descriptors =
+          makePlannedSymbolRecordDescriptors(plans, moduleSymStart);
       storage.resize(moduleSymOffset - moduleSymStart);
       executePlannedSymbolRecordsCPU(debugChunk, sectionContents,
-                                     moduleSymStart, plans, storage);
+                                     moduleSymStart, plans, descriptors,
+                                     storage);
 
       // Writing bytes has a very high overhead, so write the entire subsection
       // at once.
