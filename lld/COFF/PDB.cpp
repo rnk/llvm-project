@@ -65,6 +65,9 @@ class DebugSHandler;
 
 struct SymbolRecordPlan {
   CVSymbol sym;
+  uint32_t inputOffset;
+  uint32_t inputSize;
+  uint16_t kind;
   uint32_t alignedSize;
   uint32_t relocStartIndex;
   uint32_t relocEndIndex;
@@ -592,8 +595,18 @@ static SymbolRecordPlan planSymbolRecord(SectionChunk *debugChunk,
                                          uint32_t &nextRelocIndex,
                                          uint32_t symbolScopeDepth,
                                          bool planStringTableFixups) {
+  ArrayRef<uint8_t> inputBytes = sym.data();
+  assert(sectionContents.begin() <= inputBytes.begin() &&
+         inputBytes.end() <= sectionContents.end() &&
+         "symbol record is not part of this section");
+  uint32_t inputOffset =
+      static_cast<uint32_t>(inputBytes.begin() - sectionContents.begin());
+  uint32_t inputSize = sym.length();
+  assert(static_cast<size_t>(inputOffset) + inputSize <=
+         sectionContents.size());
+
   SectionChunk::RelocationRange relocRange =
-      debugChunk->advanceRelocRangePastSubsection(sectionContents, sym.data(),
+      debugChunk->advanceRelocRangePastSubsection(sectionContents, inputBytes,
                                                   nextRelocIndex);
   bool goesInGlobals = symbolGoesInGlobalsStream(sym, symbolScopeDepth);
   bool goesInModule = symbolGoesInModuleStream(sym, symbolScopeDepth);
@@ -602,6 +615,9 @@ static SymbolRecordPlan planSymbolRecord(SectionChunk *debugChunk,
     stringTableFixup = planStringTableReference(sym, moduleSymOffset);
 
   return {sym,
+          inputOffset,
+          inputSize,
+          static_cast<uint16_t>(sym.kind()),
           alignedSize,
           relocRange.startIndex,
           relocRange.endIndex,
@@ -654,17 +670,19 @@ void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
                                     MutableArrayRef<uint8_t> recordBytes) {
   assert(recordBytes.size() == plan.alignedSize);
   // Copy the symbol record and relocate it.
-  debugChunk->writeAndRelocateSubsectionAt(sectionContents, plan.sym.data(),
+  ArrayRef<uint8_t> inputBytes =
+      sectionContents.slice(plan.inputOffset, plan.inputSize);
+  debugChunk->writeAndRelocateSubsectionAt(sectionContents, inputBytes,
                                            {plan.relocStartIndex,
                                             plan.relocEndIndex},
                                            recordBytes.data());
-  fixRecordAlignment(recordBytes, plan.sym.length());
+  fixRecordAlignment(recordBytes, plan.inputSize);
 
   // Re-map all the type index references.
   TpiSource *source = debugChunk->file->debugTypesObj;
   if (!source->remapTypesInSymbolRecord(recordBytes)) {
     Log(ctx) << "ignoring unknown symbol record with kind 0x"
-             << utohexstr(plan.sym.kind());
+             << utohexstr(plan.kind);
     replaceWithSkipRecord(recordBytes);
   }
 
