@@ -132,6 +132,10 @@ public:
   // Copy the symbol record, relocate it, and fix the alignment if necessary.
   // Rewrite type indices in the record. Replace unrecognized symbol records
   // with S_SKIP records.
+  void writeSymbolRecordTo(SectionChunk *debugChunk,
+                           ArrayRef<uint8_t> sectionContents,
+                           const SymbolRecordPlan &plan,
+                           MutableArrayRef<uint8_t> recordBytes);
   void writeSymbolRecord(SectionChunk *debugChunk,
                          ArrayRef<uint8_t> sectionContents,
                          const SymbolRecordPlan &plan,
@@ -407,15 +411,16 @@ static ScopeRecord *getSymbolScopeFields(void *sym) {
 // To open a scope, push the offset of the current symbol record onto the
 // stack.
 static void scopeStackOpen(SmallVectorImpl<uint32_t> &stack,
-                           std::vector<uint8_t> &storage) {
-  stack.push_back(storage.size());
+                           uint32_t currentOffset) {
+  stack.push_back(currentOffset);
 }
 
 // To close a scope, update the record that opened the scope.
 static void scopeStackClose(COFFLinkerContext &ctx,
                             SmallVectorImpl<uint32_t> &stack,
                             std::vector<uint8_t> &storage,
-                            uint32_t storageBaseOffset, ObjFile *file) {
+                            uint32_t storageBaseOffset,
+                            uint32_t currentOffset, ObjFile *file) {
   if (stack.empty()) {
     Warn(ctx) << "symbol scopes are not balanced in " << file->getName();
     return;
@@ -424,7 +429,7 @@ static void scopeStackClose(COFFLinkerContext &ctx,
   // Update ptrEnd of the record that opened the scope to point to the
   // current record, if we are writing into the module symbol stream.
   uint32_t offOpen = stack.pop_back_val();
-  uint32_t offEnd = storageBaseOffset + storage.size();
+  uint32_t offEnd = storageBaseOffset + currentOffset;
   uint32_t offParent = stack.empty() ? 0 : (stack.back() + storageBaseOffset);
   ScopeRecord *scopeRec = getSymbolScopeFields(&(storage)[offOpen]);
   scopeRec->ptrParent = offParent;
@@ -593,15 +598,11 @@ static Error planSymbolSubsection(SectionChunk *debugChunk,
 // Copy the symbol record, relocate it, and fix the alignment if necessary.
 // Rewrite type indices in the record. Replace unrecognized symbol records with
 // S_SKIP records.
-void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
-                                  ArrayRef<uint8_t> sectionContents,
-                                  const SymbolRecordPlan &plan,
-                                  std::vector<uint8_t> &storage) {
-  // Allocate space for the new record at the end of the storage.
-  storage.resize(storage.size() + plan.alignedSize);
-  auto recordBytes =
-      MutableArrayRef<uint8_t>(storage).take_back(plan.alignedSize);
-
+void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
+                                    ArrayRef<uint8_t> sectionContents,
+                                    const SymbolRecordPlan &plan,
+                                    MutableArrayRef<uint8_t> recordBytes) {
+  assert(recordBytes.size() == plan.alignedSize);
   // Copy the symbol record and relocate it.
   debugChunk->writeAndRelocateSubsectionAt(sectionContents, plan.sym.data(),
                                            plan.relocStartIndex,
@@ -619,6 +620,17 @@ void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
   // An object file may have S_xxx_ID symbols, but these get converted to
   // "real" symbols in a PDB.
   translateIdSymbols(recordBytes, source);
+}
+
+void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
+                                  ArrayRef<uint8_t> sectionContents,
+                                  const SymbolRecordPlan &plan,
+                                  std::vector<uint8_t> &storage) {
+  // Allocate space for the new record at the end of the storage.
+  storage.resize(storage.size() + plan.alignedSize);
+  MutableArrayRef<uint8_t> recordBytes =
+      MutableArrayRef<uint8_t>(storage).take_back(plan.alignedSize);
+  writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
 }
 
 void PDBLinker::analyzeSymbolSubsection(
@@ -709,24 +721,33 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
       auto ec = planSymbolSubsection(debugChunk, sectionContents,
                                      ss.getRecordData(), moduleSymOffset,
                                      nextRelocIndex, plans);
-
-      for (const SymbolRecordPlan &plan : plans) {
-        // Track the current scope. Only update records in the postmerge pass.
-        if (plan.opensScope)
-          scopeStackOpen(scopes, storage);
-        else if (plan.closesScope)
-          scopeStackClose(ctx, scopes, storage, moduleSymStart, file);
-
-        // Copy, relocate, and rewrite each module symbol.
-        if (plan.goesInModule)
-          writeSymbolRecord(debugChunk, sectionContents, plan, storage);
-      }
-
       // If we encounter corrupt records in the second pass, ignore them. We
       // already warned about them in the first analysis pass.
       if (ec) {
         consumeError(std::move(ec));
         storage.clear();
+        continue;
+      }
+
+      storage.resize(moduleSymOffset - moduleSymStart);
+
+      for (const SymbolRecordPlan &plan : plans) {
+        uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
+
+        // Track the current scope. Only update records in the postmerge pass.
+        if (plan.opensScope)
+          scopeStackOpen(scopes, currentOffset);
+        else if (plan.closesScope)
+          scopeStackClose(ctx, scopes, storage, moduleSymStart, currentOffset,
+                          file);
+
+        // Copy, relocate, and rewrite each module symbol.
+        if (plan.goesInModule) {
+          MutableArrayRef<uint8_t> recordBytes =
+              MutableArrayRef<uint8_t>(storage).slice(currentOffset,
+                                                      plan.alignedSize);
+          writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
+        }
       }
 
       // Writing bytes has a very high overhead, so write the entire subsection
