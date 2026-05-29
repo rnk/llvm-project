@@ -281,14 +281,8 @@ static void addGHashTypeInfo(COFFLinkerContext &ctx,
   // Start the TPI or IPI stream header.
   builder.getTpiBuilder().setVersionHeader(pdb::PdbTpiV80);
   builder.getIpiBuilder().setVersionHeader(pdb::PdbTpiV80);
-  for (TpiSource *source : ctx.tpiSourceList) {
-    builder.getTpiBuilder().addTypeRecords(source->mergedTpi.recs,
-                                           source->mergedTpi.recSizes,
-                                           source->mergedTpi.recHashes);
-    builder.getIpiBuilder().addTypeRecords(source->mergedIpi.recs,
-                                           source->mergedIpi.recSizes,
-                                           source->mergedIpi.recHashes);
-  }
+  for (TpiSource *source : ctx.tpiSourceList)
+    source->addGHashTypeRecords(builder);
 }
 
 static void

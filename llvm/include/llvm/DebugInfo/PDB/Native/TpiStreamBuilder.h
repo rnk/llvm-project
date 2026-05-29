@@ -17,10 +17,12 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Error.h"
 
+#include <memory>
 #include <vector>
 
 namespace llvm {
 class BinaryByteStream;
+class BinaryStreamWriter;
 template <typename T> struct BinaryItemTraits;
 
 template <> struct BinaryItemTraits<llvm::codeview::CVType> {
@@ -33,9 +35,18 @@ template <> struct BinaryItemTraits<llvm::codeview::CVType> {
 namespace msf {
 class MSFBuilder;
 struct MSFLayout;
-}
+} // namespace msf
 namespace pdb {
 struct TpiStreamHeader;
+
+class TpiRecordProvider {
+public:
+  virtual ~TpiRecordProvider() = default;
+
+  virtual ArrayRef<uint16_t> getRecordSizes() const = 0;
+  virtual ArrayRef<uint32_t> getRecordHashes() const = 0;
+  virtual Error writeRecords(BinaryStreamWriter &Writer) const = 0;
+};
 
 class TpiStreamBuilder {
 public:
@@ -50,6 +61,8 @@ public:
   LLVM_ABI void addTypeRecords(ArrayRef<uint8_t> Types,
                                ArrayRef<uint16_t> Sizes,
                                ArrayRef<uint32_t> Hashes);
+  LLVM_ABI void
+  addTypeRecordsDeferred(std::shared_ptr<TpiRecordProvider> Provider);
 
   LLVM_ABI Error finalizeMsfLayout();
 
@@ -74,7 +87,11 @@ private:
   size_t TypeRecordBytes = 0;
 
   PdbRaw_TpiVer VerHeader = PdbRaw_TpiVer::PdbTpiV80;
-  std::vector<ArrayRef<uint8_t>> TypeRecBuffers;
+  struct TypeRecordChunk {
+    ArrayRef<uint8_t> Records;
+    std::shared_ptr<TpiRecordProvider> Provider;
+  };
+  std::vector<TypeRecordChunk> TypeRecordChunks;
   std::vector<uint32_t> TypeHashes;
   std::vector<codeview::TypeIndexOffset> TypeIndexOffsets;
   uint32_t HashStreamIndex = kInvalidStreamIndex;
@@ -84,6 +101,6 @@ private:
   uint32_t Idx;
 };
 } // namespace pdb
-}
+} // namespace llvm
 
 #endif

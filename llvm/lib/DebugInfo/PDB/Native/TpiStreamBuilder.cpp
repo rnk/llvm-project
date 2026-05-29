@@ -62,7 +62,7 @@ void TpiStreamBuilder::addTypeRecord(ArrayRef<uint8_t> Record, uint32_t Hash) {
   uint16_t OneSize = (uint16_t)Record.size();
   updateTypeIndexOffsets(ArrayRef(&OneSize, 1));
 
-  TypeRecBuffers.push_back(Record);
+  TypeRecordChunks.push_back({Record, nullptr});
   TypeHashes.push_back(Hash);
 }
 
@@ -83,7 +83,24 @@ void TpiStreamBuilder::addTypeRecords(ArrayRef<uint8_t> Types,
          "sizes of type records should sum to the size of the types");
   updateTypeIndexOffsets(Sizes);
 
-  TypeRecBuffers.push_back(Types);
+  TypeRecordChunks.push_back({Types, nullptr});
+  llvm::append_range(TypeHashes, Hashes);
+}
+
+void TpiStreamBuilder::addTypeRecordsDeferred(
+    std::shared_ptr<TpiRecordProvider> Provider) {
+  assert(Provider && "deferred type record provider must be non-null");
+  ArrayRef<uint16_t> Sizes = Provider->getRecordSizes();
+  ArrayRef<uint32_t> Hashes = Provider->getRecordHashes();
+  if (Sizes.empty()) {
+    assert(Hashes.empty());
+    return;
+  }
+
+  assert(Sizes.size() == Hashes.size() && "sizes and hashes should be in sync");
+  updateTypeIndexOffsets(Sizes);
+
+  TypeRecordChunks.push_back({ArrayRef<uint8_t>(), std::move(Provider)});
   llvm::append_range(TypeHashes, Hashes);
 }
 
@@ -179,7 +196,14 @@ Error TpiStreamBuilder::commit(const msf::MSFLayout &Layout,
   if (auto EC = Writer.writeObject(*Header))
     return EC;
 
-  for (auto Rec : TypeRecBuffers) {
+  for (const TypeRecordChunk &Chunk : TypeRecordChunks) {
+    if (Chunk.Provider) {
+      if (auto EC = Chunk.Provider->writeRecords(Writer))
+        return EC;
+      continue;
+    }
+
+    ArrayRef<uint8_t> Rec = Chunk.Records;
     assert(!Rec.empty() && "Attempting to write an empty type record shifts "
                            "all offsets in the TPI stream!");
     assert(((Rec.size() & 3) == 0) &&

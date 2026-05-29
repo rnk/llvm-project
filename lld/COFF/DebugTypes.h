@@ -16,14 +16,17 @@
 #include "llvm/DebugInfo/CodeView/TypeRecord.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include <memory>
 
 namespace llvm::codeview {
 struct GloballyHashedType;
 }
 namespace llvm::pdb {
 class NativeSession;
+class PDBFileBuilder;
+class TpiRecordProvider;
 class TpiStream;
-}
+} // namespace llvm::pdb
 
 namespace lld::coff {
 
@@ -59,8 +62,27 @@ public:
   /// from LLVM's .debug$H section.
   virtual void loadGHashes();
 
+  /// Build the item-index bit vector if it was skipped for CUDA setup but the
+  /// CPU ghash path is needed after all.
+  void ensureIsItemIndex();
+
+  /// Fill CUDA metadata from a flat CodeView type record stream.
+  void fillTypeIndexMetadata(ArrayRef<uint8_t> typeRecords);
+
   /// Use global hashes to merge type information.
   virtual void remapTpiWithGHashes();
+
+  /// Prepare source index maps for type-record remapping after ghash
+  /// deduplication. Returns false if a dependency lookup failed.
+  virtual bool prepareGHashRemap();
+
+  /// Add this source's merged ghash records to the PDB builders. CUDA-backed
+  /// sources may defer copying record bytes back to the host until stream
+  /// commit.
+  void addGHashTypeRecords(llvm::pdb::PDBFileBuilder &builder) const;
+
+  /// TypeIndex of ghash index zero in this source's record stream.
+  virtual TypeIndex getGHashRecordStartIndex() const;
 
   // Remap a type index in place.
   bool remapTypeIndex(TypeIndex &ti, llvm::codeview::TiRefKind refKind) const;
@@ -85,6 +107,9 @@ protected:
 
   // Walk over file->debugTypes and fill in the isItemIndex bit vector.
   void fillIsItemIndexFromDebugT();
+
+  // Walk over file->debugTypes and fill in the per-type-record byte offsets.
+  void fillTypeIndexOffsetsFromDebugT();
 
   COFFLinkerContext &ctx;
 
@@ -140,6 +165,16 @@ public:
   /// Indicates if a type record is an item index or a type index.
   llvm::BitVector isItemIndex;
 
+  /// Source type index to byte offset in the source type record stream.
+  llvm::SmallVector<uint32_t, 0> typeIndexOffsets;
+
+  /// Source type index to CodeView leaf kind.
+  llvm::SmallVector<uint16_t, 0> typeLeafKinds;
+
+  /// Flat type record bytes corresponding to ghashes. Usually file->debugTypes;
+  /// type-server PDB streams are flattened into this view when CUDA is enabled.
+  ArrayRef<uint8_t> ghashTypeRecords;
+
   /// A list of all "unique" type indices which must be merged into the final
   /// PDB. GHash type deduplication produces this list, and it should be
   /// considerably smaller than the input.
@@ -149,6 +184,7 @@ public:
     std::vector<uint8_t> recs;
     std::vector<uint16_t> recSizes;
     std::vector<uint32_t> recHashes;
+    std::shared_ptr<llvm::pdb::TpiRecordProvider> deferredRecords;
   };
 
   MergedInfo mergedTpi;

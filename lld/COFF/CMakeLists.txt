@@ -82,6 +82,13 @@ add_lld_library(lldCOFF
 
 if(LLD_ENABLE_COFF_GHASH_CUDA)
   set_target_properties(lldCOFF PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
+  target_compile_definitions(lldCOFF PRIVATE LLD_ENABLE_COFF_GHASH_CUDA=1)
+  foreach(cuda_include_dir ${CUDAToolkit_INCLUDE_DIRS})
+    if(EXISTS "${cuda_include_dir}/cccl/thrust/execution_policy.h")
+      target_include_directories(lldCOFF SYSTEM PRIVATE
+        "${cuda_include_dir}/cccl")
+    endif()
+  endforeach()
   if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
     target_compile_options(lldCOFF PRIVATE
       $<$<COMPILE_LANGUAGE:CUDA>:--extended-lambda>

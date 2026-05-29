@@ -23,12 +23,19 @@
 #include "llvm/DebugInfo/PDB/Native/InfoStream.h"
 #include "llvm/DebugInfo/PDB/Native/NativeSession.h"
 #include "llvm/DebugInfo/PDB/Native/PDBFile.h"
+#include "llvm/DebugInfo/PDB/Native/PDBFileBuilder.h"
 #include "llvm/DebugInfo/PDB/Native/TpiHashing.h"
 #include "llvm/DebugInfo/PDB/Native/TpiStream.h"
+#include "llvm/DebugInfo/PDB/Native/TpiStreamBuilder.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TimeProfiler.h"
+#if defined(LLD_ENABLE_COFF_GHASH_CUDA) && LLD_ENABLE_COFF_GHASH_CUDA
+#include <thrust/execution_policy.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/scan.h>
+#endif
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -37,6 +44,14 @@ using namespace lld::coff;
 
 namespace {
 class TypeServerIpiSource;
+
+bool useCudaTypeIndexOffsets(const COFFLinkerContext &ctx) {
+#if defined(LLD_ENABLE_COFF_GHASH_CUDA) && LLD_ENABLE_COFF_GHASH_CUDA
+  return ctx.config.lldCudaGHash;
+#else
+  return false;
+#endif
+}
 
 // The TypeServerSource class represents a PDB type server, a file referenced by
 // OBJ files compiled with MSVC /Zi. A single PDB can be shared by several OBJ
@@ -69,6 +84,7 @@ public:
 
   void loadGHashes() override;
   void remapTpiWithGHashes() override;
+  bool prepareGHashRemap() override;
 
   bool isDependency() const override { return true; }
 
@@ -96,6 +112,7 @@ public:
   Error mergeDebugT(TypeMerger *m) override { return Error::success(); }
   void loadGHashes() override {}
   void remapTpiWithGHashes() override {}
+  bool prepareGHashRemap() override { return true; }
   bool isDependency() const override { return true; }
 };
 
@@ -113,6 +130,7 @@ public:
   // No need to load ghashes from /Zi objects.
   void loadGHashes() override {}
   void remapTpiWithGHashes() override;
+  bool prepareGHashRemap() override;
 
   // Information about the PDB type server dependency, that needs to be loaded
   // in before merging this OBJ.
@@ -156,6 +174,8 @@ public:
 
   void loadGHashes() override;
   void remapTpiWithGHashes() override;
+  bool prepareGHashRemap() override;
+  TypeIndex getGHashRecordStartIndex() const override;
 
 private:
   Error mergeInPrecompHeaderObj();
@@ -222,6 +242,30 @@ bool TpiSource::remapTypeIndex(TypeIndex &ti, TiRefKind refKind) const {
     return false;
   ti = tpiOrIpiMap[ti.toArrayIndex()];
   return true;
+}
+
+bool TpiSource::prepareGHashRemap() {
+  tpiMap = indexMapStorage;
+  ipiMap = indexMapStorage;
+  return true;
+}
+
+TypeIndex TpiSource::getGHashRecordStartIndex() const {
+  return TypeIndex(TypeIndex::FirstNonSimpleIndex);
+}
+
+void TpiSource::addGHashTypeRecords(pdb::PDBFileBuilder &builder) const {
+  auto addRecords = [](pdb::TpiStreamBuilder &stream,
+                       const MergedInfo &records) {
+    if (records.deferredRecords) {
+      stream.addTypeRecordsDeferred(records.deferredRecords);
+      return;
+    }
+    stream.addTypeRecords(records.recs, records.recSizes, records.recHashes);
+  };
+
+  addRecords(builder.getTpiBuilder(), mergedTpi);
+  addRecords(builder.getIpiBuilder(), mergedIpi);
 }
 
 template <typename DiscoverRefs>
@@ -299,6 +343,8 @@ getHashesFromDebugH(ArrayRef<uint8_t> debugH) {
   uint32_t count = debugH.size() / sizeof(GloballyHashedType);
   return {reinterpret_cast<const GloballyHashedType *>(debugH.data()), count};
 }
+
+static ArrayRef<uint8_t> typeArrayToBytes(const CVTypeArray &types);
 
 // Merge .debug$T for a generic object file.
 Error TpiSource::mergeDebugT(TypeMerger *m) {
@@ -527,6 +573,9 @@ Error UsePrecompSource::mergeInPrecompHeaderObj() {
     return e.takeError();
 
   PrecompSource *precompSrc = *e;
+  if (precompSrc->tpiMap.empty() && !precompSrc->prepareGHashRemap())
+    return make_error<StringError>("failed to prepare PCH type map",
+                                   inconvertibleErrorCode());
   if (precompSrc->tpiMap.empty())
     return Error::success();
 
@@ -593,7 +642,10 @@ void TpiSource::loadGHashes() {
     assignGHashesFromVector(GloballyHashedType::hashTypes(types));
   }
 
-  fillIsItemIndexFromDebugT();
+  if (useCudaTypeIndexOffsets(ctx))
+    fillTypeIndexOffsetsFromDebugT();
+  else
+    fillIsItemIndexFromDebugT();
 }
 
 // Copies ghashes from a vector into an array. These are long lived, so it's
@@ -632,6 +684,48 @@ void TpiSource::fillIsItemIndexFromDebugT() {
       isItemIndex.set(index);
     ++index;
   });
+}
+
+void TpiSource::ensureIsItemIndex() {
+  if (!isItemIndex.empty() || ghashes.empty())
+    return;
+  fillIsItemIndexFromDebugT();
+}
+
+void TpiSource::fillTypeIndexOffsetsFromDebugT() {
+  assert(file && "only object-backed TPI sources have .debug$T bytes");
+  fillTypeIndexMetadata(file->debugTypes);
+}
+
+void TpiSource::fillTypeIndexMetadata(ArrayRef<uint8_t> typeRecords) {
+#if defined(LLD_ENABLE_COFF_GHASH_CUDA) && LLD_ENABLE_COFF_GHASH_CUDA
+  ghashTypeRecords = typeRecords;
+  SmallVector<uint32_t, 0> recordByteLengths;
+  recordByteLengths.reserve(ghashes.size());
+  typeLeafKinds.clear();
+  typeLeafKinds.reserve(ghashes.size());
+  forEachTypeChecked(typeRecords, [&](const CVType &ty) {
+    recordByteLengths.push_back(ty.length());
+    typeLeafKinds.push_back(static_cast<uint16_t>(ty.kind()));
+  });
+  assert(recordByteLengths.size() == ghashes.size() &&
+         "type offset map must cover every ghash");
+  assert(typeLeafKinds.size() == ghashes.size() &&
+         "type leaf map must cover every ghash");
+
+  typeIndexOffsets.resize(recordByteLengths.size());
+  // CVType::length() includes the RecordPrefix, so the exclusive scan produces
+  // offsets that point at each record prefix in file->debugTypes.
+  auto recordStrides = thrust::make_transform_iterator(
+      recordByteLengths.begin(),
+      [](uint32_t byteLength) -> uint32_t { return byteLength; });
+  thrust::exclusive_scan(thrust::host, recordStrides,
+                         recordStrides + recordByteLengths.size(),
+                         typeIndexOffsets.begin(), uint32_t(0));
+  isItemIndex.clear();
+#else
+  llvm_unreachable("CUDA type offset maps require CUDA support");
+#endif
 }
 
 void TpiSource::mergeTypeRecord(TypeIndex curIndex, CVType ty) {
@@ -730,8 +824,8 @@ void TpiSource::mergeUniqueTypeRecords(ArrayRef<uint8_t> typeRecords,
 
 void TpiSource::remapTpiWithGHashes() {
   assert(ctx.config.debugGHashes && "ghashes must be enabled");
-  tpiMap = indexMapStorage;
-  ipiMap = indexMapStorage;
+  if (!prepareGHashRemap())
+    return;
   mergeUniqueTypeRecords(file->debugTypes);
   // TODO: Free all unneeded ghash resources now that we have a full index map.
 
@@ -759,6 +853,8 @@ void TypeServerSource::loadGHashes() {
                << toString(std::move(e));
   assignGHashesFromVector(
       GloballyHashedType::hashTypes(expectedTpi->typeArray()));
+  if (useCudaTypeIndexOffsets(ctx))
+    fillTypeIndexMetadata(typeArrayToBytes(expectedTpi->typeArray()));
   isItemIndex.resize(ghashes.size());
 
   // Hash IPI stream, which depends on TPI ghashes.
@@ -769,6 +865,8 @@ void TypeServerSource::loadGHashes() {
     Fatal(ctx) << "error retrieving IPI stream: " << toString(std::move(e));
   ipiSrc->assignGHashesFromVector(
       GloballyHashedType::hashIds(expectedIpi->typeArray(), ghashes));
+  if (useCudaTypeIndexOffsets(ctx))
+    ipiSrc->fillTypeIndexMetadata(typeArrayToBytes(expectedIpi->typeArray()));
 
   // The IPI stream isItemIndex bitvector should be all ones.
   ipiSrc->isItemIndex.resize(ipiSrc->ghashes.size());
@@ -790,18 +888,16 @@ static ArrayRef<uint8_t> typeArrayToBytes(const CVTypeArray &types) {
 // Merge types from a type server PDB.
 void TypeServerSource::remapTpiWithGHashes() {
   assert(ctx.config.debugGHashes && "ghashes must be enabled");
+  if (!prepareGHashRemap())
+    return;
 
   // IPI merging depends on TPI, so do TPI first, then do IPI.  No need to
   // propagate errors, those should've been handled during ghash loading.
   pdb::PDBFile &pdbFile = pdbInputFile->session->getPDBFile();
   pdb::TpiStream &tpi = check(pdbFile.getPDBTpiStream());
-  tpiMap = indexMapStorage;
   mergeUniqueTypeRecords(typeArrayToBytes(tpi.typeArray()));
   if (pdbFile.hasPDBIpiStream()) {
     pdb::TpiStream &ipi = check(pdbFile.getPDBIpiStream());
-    ipiMap = ipiSrc->indexMapStorage;
-    ipiSrc->tpiMap = tpiMap;
-    ipiSrc->ipiMap = ipiMap;
     ipiSrc->mergeUniqueTypeRecords(typeArrayToBytes(ipi.typeArray()));
 
     if (ctx.config.showSummary) {
@@ -814,6 +910,16 @@ void TypeServerSource::remapTpiWithGHashes() {
     nbTypeRecords += ghashes.size();
     nbTypeRecordsBytes += tpi.typeArray().getUnderlyingStream().getLength();
   }
+}
+
+bool TypeServerSource::prepareGHashRemap() {
+  tpiMap = indexMapStorage;
+  if (ipiSrc) {
+    ipiMap = ipiSrc->indexMapStorage;
+    ipiSrc->tpiMap = tpiMap;
+    ipiSrc->ipiMap = ipiMap;
+  }
+  return true;
 }
 
 void UseTypeServerSource::remapTpiWithGHashes() {
@@ -829,6 +935,22 @@ void UseTypeServerSource::remapTpiWithGHashes() {
   TypeServerSource *tsSrc = *maybeTsSrc;
   tpiMap = tsSrc->tpiMap;
   ipiMap = tsSrc->ipiMap;
+}
+
+bool UseTypeServerSource::prepareGHashRemap() {
+  Expected<TypeServerSource *> maybeTsSrc = getTypeServerSource();
+  if (!maybeTsSrc) {
+    typeMergingError =
+        joinErrors(std::move(typeMergingError), maybeTsSrc.takeError());
+    return false;
+  }
+
+  TypeServerSource *tsSrc = *maybeTsSrc;
+  if (tsSrc->tpiMap.empty() && !tsSrc->prepareGHashRemap())
+    return false;
+  tpiMap = tsSrc->tpiMap;
+  ipiMap = tsSrc->ipiMap;
+  return true;
 }
 
 void PrecompSource::loadGHashes() {
@@ -852,10 +974,13 @@ void PrecompSource::loadGHashes() {
     }
 
     hashVec.push_back(GloballyHashedType::hashType(ty, hashVec, hashVec));
-    isItemIndex.push_back(isIdRecord(ty.kind()));
+    if (!useCudaTypeIndexOffsets(ctx))
+      isItemIndex.push_back(isIdRecord(ty.kind()));
     ++ghashIdx;
   });
   assignGHashesFromVector(std::move(hashVec));
+  if (useCudaTypeIndexOffsets(ctx))
+    fillTypeIndexOffsetsFromDebugT();
 }
 
 void UsePrecompSource::loadGHashes() {
@@ -874,11 +999,14 @@ void UsePrecompSource::loadGHashes() {
       pchSrc->ghashes.take_front(precompDependency.getTypesCount());
   forEachTypeChecked(file->debugTypes, [&](const CVType &ty) {
     hashVec.push_back(GloballyHashedType::hashType(ty, hashVec, hashVec));
-    isItemIndex.push_back(isIdRecord(ty.kind()));
+    if (!useCudaTypeIndexOffsets(ctx))
+      isItemIndex.push_back(isIdRecord(ty.kind()));
   });
   hashVec.erase(hashVec.begin(),
                 hashVec.begin() + precompDependency.getTypesCount());
   assignGHashesFromVector(std::move(hashVec));
+  if (useCudaTypeIndexOffsets(ctx))
+    fillTypeIndexOffsetsFromDebugT();
 }
 
 void UsePrecompSource::remapTpiWithGHashes() {
@@ -886,13 +1014,8 @@ void UsePrecompSource::remapTpiWithGHashes() {
   // precompiled headers object (/Yc) first. Some type indices in the current
   // object are referencing data in the precompiled headers object, so we need
   // both to be loaded.
-  if (Error e = mergeInPrecompHeaderObj()) {
-    typeMergingError = joinErrors(std::move(typeMergingError), std::move(e));
+  if (!prepareGHashRemap())
     return;
-  }
-
-  tpiMap = indexMapStorage;
-  ipiMap = indexMapStorage;
   mergeUniqueTypeRecords(file->debugTypes,
                          TypeIndex(precompDependency.getStartTypeIndex() +
                                    precompDependency.getTypesCount()));
@@ -900,6 +1023,24 @@ void UsePrecompSource::remapTpiWithGHashes() {
     nbTypeRecords = ghashes.size();
     nbTypeRecordsBytes = file->debugTypes.size();
   }
+}
+
+bool UsePrecompSource::prepareGHashRemap() {
+  if (indexMapStorage.size() == ghashes.size()) {
+    if (Error e = mergeInPrecompHeaderObj()) {
+      typeMergingError = joinErrors(std::move(typeMergingError), std::move(e));
+      return false;
+    }
+  }
+
+  tpiMap = indexMapStorage;
+  ipiMap = indexMapStorage;
+  return true;
+}
+
+TypeIndex UsePrecompSource::getGHashRecordStartIndex() const {
+  return TypeIndex(precompDependency.getStartTypeIndex() +
+                   precompDependency.getTypesCount());
 }
 
 namespace {
@@ -1077,6 +1218,8 @@ void TypeMerger::mergeTypesWithGHash() {
   ScopedTimer t2(ctx.mergeGHashTimer);
   if (ctx.config.lldCudaGHash && mergeTypesWithCUDA())
     return;
+  parallelForEach(ctx.tpiSourceList,
+                  [](TpiSource *source) { source->ensureIsItemIndex(); });
 
   GHashState ghashState;
 
@@ -1188,9 +1331,8 @@ void TypeMerger::mergeTypesWithGHash() {
   // In parallel, remap all types.
   for (TpiSource *source : dependencySources)
     source->remapTpiWithGHashes();
-  parallelForEach(objectSources, [&](TpiSource *source) {
-    source->remapTpiWithGHashes();
-  });
+  parallelForEach(objectSources,
+                  [&](TpiSource *source) { source->remapTpiWithGHashes(); });
 
   // Build a global map of from function ID to function type.
   for (TpiSource *source : ctx.tpiSourceList) {
@@ -1224,6 +1366,9 @@ void TypeMerger::clearGHashes() {
       delete[] src->ghashes.data();
     src->ghashes = {};
     src->isItemIndex.clear();
+    src->typeIndexOffsets.clear();
+    src->typeLeafKinds.clear();
+    src->ghashTypeRecords = {};
     src->uniqueTypes.clear();
   }
 }
