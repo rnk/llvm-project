@@ -139,7 +139,7 @@ struct PlannedSymbolChunkBatch {
   size_t descriptorEnd;
 };
 
-constexpr size_t minCUDASymbolRemapDescriptors = 4096;
+constexpr size_t minCUDASymbolRemapDescriptors = 1024;
 constexpr size_t minCUDASymbolRemapStorageBytes = 256 * 1024;
 
 static bool shouldUsePDBSymbolRemapCUDA(
@@ -154,7 +154,7 @@ static bool shouldUsePDBSymbolRemapCUDA(
       ++moduleDescriptorCount;
 
   // Each CUDA invocation uploads the source maps and current symbol storage for
-  // one subsection, so small batches are slower than the CPU remap path.
+  // one object, so small batches are slower than the CPU remap path.
   return moduleDescriptorCount >= minCUDASymbolRemapDescriptors;
 }
 
