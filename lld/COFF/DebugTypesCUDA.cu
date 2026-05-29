@@ -21,9 +21,9 @@
 #include <climits>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
 #include <cuda_runtime.h>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <thrust/binary_search.h>
@@ -49,11 +49,6 @@ namespace {
 // flattened map space can exceed 2B entries when many sources are merged, so
 // offsets into that combined space use a separate 64-bit type.
 using FlatIndex = uint64_t;
-
-struct UniqueGHash {
-  uint64_t src = 0;
-  FlatIndex group = 0;
-};
 
 struct GHashCUDAResult {
   FlatIndex uniqueCount = 0;
@@ -82,8 +77,6 @@ __host__ __device__ uint32_t getGHashIdx(uint64_t src) {
   return static_cast<uint32_t>(src);
 }
 
-__host__ __device__ bool isItemSrc(uint64_t src) { return (src >> 63U) != 0; }
-
 enum class SourceItemMode : uint8_t { LeafKinds, AllTypes, AllItems };
 
 SourceItemMode getSourceItemMode(const TpiSource &source) {
@@ -98,8 +91,6 @@ struct SourceDescriptor {
   uint32_t tpiSrcIdx = 0;
   uint32_t ghashCount = 0;
   uint32_t endPrecompIdx = ~0U;
-  uint32_t leafKindOffset = 0;
-  SourceItemMode itemMode = SourceItemMode::LeafKinds;
 };
 
 __host__ __device__ bool isIdLeafKind(uint16_t kind) {
@@ -113,8 +104,7 @@ __host__ __device__ bool isIdLeafKind(uint16_t kind) {
 }
 
 __global__ void buildSourceCells(const SourceDescriptor *sources,
-                                 const FlatIndex *entryOffsets,
-                                 const uint16_t *leafKinds, uint64_t *srcs,
+                                 const FlatIndex *entryOffsets, uint64_t *srcs,
                                  uint32_t sourceCount) {
   uint32_t sourceIdx = blockIdx.x;
   if (sourceIdx >= sourceCount)
@@ -127,13 +117,8 @@ __global__ void buildSourceCells(const SourceDescriptor *sources,
        entryIdx += blockDim.x) {
     uint32_t ghashIdx =
         entryIdx + uint32_t(skipEndPrecomp && entryIdx >= source.endPrecompIdx);
-    bool isItem = false;
-    if (source.itemMode == SourceItemMode::AllItems)
-      isItem = true;
-    else if (source.itemMode == SourceItemMode::LeafKinds)
-      isItem = isIdLeafKind(leafKinds[source.leafKindOffset + ghashIdx]);
     srcs[entryOffsets[sourceIdx] + entryIdx] =
-        encodeSrc(isItem, source.tpiSrcIdx, ghashIdx);
+        encodeSrc(false, source.tpiSrcIdx, ghashIdx);
   }
 }
 
@@ -158,38 +143,6 @@ struct BySrcThenGroup {
     return thrust::get<1>(a) < thrust::get<1>(b);
   }
 };
-
-__global__ void finalizeGHashGroupsAndScatter(const uint64_t *hashes,
-                                              const uint64_t *srcs,
-                                              FlatIndex *groups,
-                                              UniqueGHash *uniqueEntries,
-                                              FlatIndex count) {
-  FlatIndex i = FlatIndex(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (i >= count)
-    return;
-  bool isUnique = i == 0 || hashes[i] != hashes[i - 1];
-  FlatIndex group = groups[i] - 1;
-  groups[i] = group;
-  if (!isUnique)
-    return;
-  UniqueGHash entry;
-  entry.src = srcs[i];
-  entry.group = group;
-  uniqueEntries[group] = entry;
-}
-
-__global__ void assignDestinationIndicesAndExtractSrcs(
-    const UniqueGHash *uniqueEntries, FlatIndex uniqueCount, FlatIndex numTypes,
-    uint32_t *groupToTypeIndex, uint64_t *uniqueSrcs) {
-  FlatIndex i = FlatIndex(blockIdx.x) * blockDim.x + threadIdx.x;
-  if (i >= uniqueCount)
-    return;
-  UniqueGHash entry = uniqueEntries[i];
-  FlatIndex arrayIndex = i < numTypes ? i : i - numTypes;
-  uint32_t pdbIndex = firstNonSimpleIndex + static_cast<uint32_t>(arrayIndex);
-  groupToTypeIndex[entry.group] = pdbIndex;
-  uniqueSrcs[i] = entry.src;
-}
 
 __global__ void
 assignDestinationIndicesFromGroups(const FlatIndex *orderedGroups,
@@ -279,13 +232,6 @@ struct RemapSourceDescriptor {
   DeviceRemapMapDescriptor tpiMap;
   DeviceRemapMapDescriptor ipiMap;
   uint32_t sourceTypeIndexBegin = 0;
-};
-
-struct SelectedRecordDescriptor {
-  uint32_t byteOffset = 0;
-  uint32_t size = 0;
-  uint32_t ghashIndex = 0;
-  uint32_t sourceIndex = 0;
 };
 
 __host__ __device__ uint16_t read16le(const uint8_t *p) {
@@ -983,47 +929,6 @@ __device__ uint32_t hashTypeRecordDevice(uint8_t *record, uint32_t recordSize,
   }
 }
 
-__global__ void remapAndHashTypeRecords(
-    uint8_t *records, const SelectedRecordDescriptor *recordDescs,
-    uint32_t recordCount, const RemapSourceDescriptor *sourceDescs,
-    const uint32_t *flatMap, const uint32_t *extraMaps, uint32_t *hashes,
-    FuncIdToTypeEntry *funcIdToType, RemapErrorSummary *errorsBySource) {
-  uint32_t i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i >= recordCount)
-    return;
-
-  SelectedRecordDescriptor recordDesc = recordDescs[i];
-  uint32_t sourceIdx = recordDesc.sourceIndex;
-  RemapSourceDescriptor sourceDesc = sourceDescs[sourceIdx];
-  RemapErrorSummary *errors = errorsBySource + sourceIdx;
-  uint32_t recordIndex = recordDesc.ghashIndex;
-
-  uint8_t *record = records + recordDesc.byteOffset;
-  uint32_t recordSize = recordDesc.size;
-  bool ok = remapTypeRecord(record, recordSize, sourceDesc, flatMap, extraMaps,
-                            errors, recordIndex);
-  if (!ok)
-    return;
-
-  hashes[i] = hashTypeRecordDevice(record, recordSize, errors, recordIndex);
-
-  if (!funcIdToType || recordSize < 12)
-    return;
-  uint16_t kind = read16le(record + 2);
-  if (kind != llvm::codeview::LF_FUNC_ID && kind != llvm::codeview::LF_MFUNC_ID)
-    return;
-
-  uint32_t sourceIndex =
-      sourceDesc.sourceTypeIndexBegin + recordDesc.ghashIndex;
-  uint32_t funcId = sourceIndex;
-  if (!remapTypeIndexValue(funcId, DeviceRefKind::IndexRef, sourceDesc, flatMap,
-                           extraMaps)) {
-    recordRemapError(errors, recordIndex, kind, sourceIndex);
-    return;
-  }
-  funcIdToType[i] = {funcId, read32le(record + 8)};
-}
-
 __global__ void copyRemapAndHashPackedTypeRecords(
     const uint8_t *inputRecords, const uint32_t *inputOffsets,
     const uint64_t *orderedSrcs, const FlatIndex *orderedGroups,
@@ -1199,30 +1104,16 @@ void appendSourceGHashCopies(const TpiSource &source, FlatIndex entryOffset,
 
 struct GHashCUDAState {
   GHashCUDAResult result;
-  thrust::device_vector<uint32_t> deviceMap;
-  thrust::device_vector<uint64_t> deviceUniqueSrcs;
-};
-
-struct GHashFilterCUDAState {
-  GHashCUDAResult result;
   thrust::device_vector<FlatIndex> deviceGroups;
   thrust::device_vector<uint64_t> deviceUniqueSrcs;
   thrust::device_vector<uint32_t> deviceMap;
 };
 
-bool useFilterPackExperiment() {
-  return std::getenv("LLD_CUDA_GHASH_FILTER_PACK") != nullptr;
-}
-
-bool useStreamProviderExperiment() {
-  return std::getenv("LLD_CUDA_GHASH_STREAM_PROVIDER") != nullptr;
-}
-
-__global__ void finalizeGHashGroupsAndScatterSrcs(const uint64_t *hashes,
-                                                  const uint64_t *srcs,
-                                                  FlatIndex *groups,
-                                                  uint64_t *uniqueSrcs,
-                                                  FlatIndex count) {
+__global__ void scatterUniqueSrcsByGHashGroup(const uint64_t *hashes,
+                                              const uint64_t *srcs,
+                                              FlatIndex *groups,
+                                              uint64_t *uniqueSrcs,
+                                              FlatIndex count) {
   FlatIndex i = FlatIndex(blockIdx.x) * blockDim.x + threadIdx.x;
   if (i >= count)
     return;
@@ -1233,168 +1124,15 @@ __global__ void finalizeGHashGroupsAndScatterSrcs(const uint64_t *hashes,
     uniqueSrcs[group] = srcs[i];
 }
 
-void mergeGHashesWithCUDA(COFFLinkerContext &ctx,
-                          thrust::device_vector<uint64_t> &deviceHashes,
-                          thrust::device_vector<uint64_t> &deviceSrcs,
-                          const FlatIndex *mapOffsets, FlatIndex mapOffsetCount,
-                          FlatIndex mapCount, uint32_t notTranslated,
-                          ArrayRef<TpiSource *> tpiSources,
-                          GHashCUDAState *state, CudaErrorChecker &cuErr) {
-  static_assert(sizeof(TypeIndex) == sizeof(uint32_t),
-                "TypeIndex must stay layout-compatible with a PDB index");
-  static_assert(std::is_trivially_copyable<TypeIndex>::value,
-                "TypeIndex must be safe to copy from CUDA output bytes");
-
-  state->result = GHashCUDAResult();
-  state->deviceMap.clear();
-  state->deviceUniqueSrcs.clear();
-  assert(deviceHashes.size() == deviceSrcs.size());
-  FlatIndex entryCount = deviceHashes.size();
-  if (entryCount == 0)
-    return;
-
-  // The ragged source/type-index grid is represented as one flat destination
-  // map. Initialize the whole flat space on the GPU so omitted records keep the
-  // NotTranslated sentinel without requiring a host-side staging vector.
-  state->deviceMap.resize(mapCount);
-  thrust::fill(thrust::device, state->deviceMap.begin(), state->deviceMap.end(),
-               notTranslated);
-
-  thrust::device_vector<FlatIndex> deviceMapOffsets(
-      mapOffsets, mapOffsets + mapOffsetCount);
-
-  // Host setup has already omitted LF_ENDPRECOMP records, so the GPU path
-  // starts with dense hash/source-position arrays and can sort immediately.
-  uint32_t threads = 256;
-
-  // Sort the parallel ghash/source-position arrays together. The source value
-  // carries the original TPI source row, original type-index column, and
-  // TPI-vs-IPI partition bit, so the sort keeps enough information to recover
-  // both the retained record and its flatMap slot.
-  auto entriesBegin = thrust::make_zip_iterator(
-      thrust::make_tuple(deviceHashes.begin(), deviceSrcs.begin()));
-  auto entriesEnd = thrust::make_zip_iterator(
-      thrust::make_tuple(deviceHashes.end(), deviceSrcs.end()));
-  thrust::sort(thrust::device, entriesBegin, entriesEnd, ByGHashThenSrc());
-
-  // Scan run starts directly from the sorted hashes. This avoids materializing
-  // a separate flags array. The inclusive scan writes group + 1, so duplicate
-  // cells already share their representative's value.
-  thrust::device_vector<FlatIndex> groups(entryCount);
-  uint32_t blocks = getBlockCount(ctx, entryCount, threads);
-  const uint64_t *deviceHashData =
-      thrust::raw_pointer_cast(deviceHashes.data());
-  auto indices = thrust::make_counting_iterator<FlatIndex>(0);
-  auto isUniqueGHash = [deviceHashData] __host__ __device__(FlatIndex i)
-      -> FlatIndex {
-        return i == 0 || deviceHashData[i] != deviceHashData[i - 1];
-      };
-  auto runStarts = thrust::make_transform_iterator(indices, isUniqueGHash);
-  thrust::inclusive_scan(thrust::device, runStarts, runStarts + entryCount,
-                         groups.begin());
-
-  FlatIndex uniqueCount = 0;
-  cuErr.fatal(
-      cudaMemcpy(&uniqueCount,
-                 thrust::raw_pointer_cast(groups.data()) + entryCount - 1,
-                 sizeof(uniqueCount), cudaMemcpyDeviceToHost),
-      "-lldcudaghash failed to copy unique ghash count");
-
-  // Convert group + 1 to the final zero-based group id in place and scatter
-  // only representative source positions into the compact unique table. Each
-  // representative carries its original group so destination indices can be
-  // mapped back to all duplicates later.
-  thrust::device_vector<UniqueGHash> uniqueEntries(uniqueCount);
-  finalizeGHashGroupsAndScatter<<<blocks, threads>>>(
-      thrust::raw_pointer_cast(deviceHashes.data()),
-      thrust::raw_pointer_cast(deviceSrcs.data()),
-      thrust::raw_pointer_cast(groups.data()),
-      thrust::raw_pointer_cast(uniqueEntries.data()), entryCount);
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch ghash group finalization kernel");
-
-  // Sort unique representatives by original source position. This reproduces
-  // the CPU path's final deterministic PDB order: all TPI records first, then
-  // IPI records, each ordered by input source and source type index.
-  auto bySrc = [] __host__ __device__(const UniqueGHash &a,
-                                      const UniqueGHash &b) {
-    return a.src < b.src;
-  };
-  thrust::sort(thrust::device, uniqueEntries.begin(), uniqueEntries.end(),
-               bySrc);
-
-  UniqueGHash firstItem;
-  firstItem.src = 1ULL << 63U;
-  // Find the boundary between destination TPI and IPI streams. IPI indices use
-  // a separate destination index space, so numbering restarts at the boundary.
-  FlatIndex numTypes =
-      thrust::lower_bound(thrust::device, uniqueEntries.begin(),
-                          uniqueEntries.end(), firstItem, bySrc) -
-      uniqueEntries.begin();
-  FlatIndex numItems = uniqueCount - numTypes;
-  if (numTypes > maxPdbTypeIndexCount || numItems > maxPdbTypeIndexCount)
-    Fatal(ctx) << "-lldcudaghash failed: too many unique CUDA ghash records";
-
-  thrust::device_vector<uint32_t> groupToTypeIndex(uniqueCount);
-  state->deviceUniqueSrcs.resize(uniqueCount);
-  uint32_t uniqueBlocks = getBlockCount(ctx, uniqueCount, threads);
-  // Build the compact group -> destination TypeIndex table and preserve the
-  // sorted source order for host-side record staging. This is the only place
-  // that assigns final PDB TPI/IPI indices.
-  assignDestinationIndicesAndExtractSrcs<<<uniqueBlocks, threads>>>(
-      thrust::raw_pointer_cast(uniqueEntries.data()), uniqueCount, numTypes,
-      thrust::raw_pointer_cast(groupToTypeIndex.data()),
-      thrust::raw_pointer_cast(state->deviceUniqueSrcs.data()));
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch destination index kernel");
-
-  // Fill every original flatMap slot. Each worker uses the sorted source
-  // position to reconstruct the flattened map index, then writes the
-  // destination TypeIndex for that entry's deduplicated ghash group.
-  fillFlatMap<<<blocks, threads>>>(
-      thrust::raw_pointer_cast(deviceSrcs.data()),
-      thrust::raw_pointer_cast(groups.data()),
-      thrust::raw_pointer_cast(groupToTypeIndex.data()),
-      thrust::raw_pointer_cast(deviceMapOffsets.data()), entryCount,
-      thrust::raw_pointer_cast(state->deviceMap.data()));
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch flat map fill kernel");
-  cuErr.fatal(cudaDeviceSynchronize(),
-              "-lldcudaghash failed while synchronizing kernels");
-
-  const uint32_t *deviceMapData =
-      thrust::raw_pointer_cast(state->deviceMap.data());
-  MemcpyBatch mapCopies;
-  mapCopies.reserve(tpiSources.size());
-  for (TpiSource *source : tpiSources) {
-    FlatIndex mapOffset = mapOffsets[source->tpiSrcIdx];
-    size_t byteCount = source->indexMapStorage.size() * sizeof(TypeIndex);
-    if (byteCount == 0)
-      continue;
-    mapCopies.append(source->indexMapStorage.data(), deviceMapData + mapOffset,
-                     byteCount);
-  }
-  enqueueMemcpyBatchAndSync(mapCopies,
-                            "-lldcudaghash failed to enqueue type index map "
-                            "copy batch",
-                            "-lldcudaghash failed while copying type index "
-                            "maps",
-                            cuErr);
-
-  state->result.uniqueCount = uniqueCount;
-  state->result.numTypes = numTypes;
-  state->result.numItems = numItems;
-}
-
-void filterGHashesWithCUDA(COFFLinkerContext &ctx,
-                           thrust::device_vector<uint64_t> &deviceHashes,
-                           thrust::device_vector<uint64_t> &deviceSrcs,
-                           GHashFilterCUDAState *state,
-                           CudaErrorChecker &cuErr) {
-  state->result = GHashCUDAResult();
-  state->deviceGroups.clear();
-  state->deviceUniqueSrcs.clear();
-  state->deviceMap.clear();
+void deduplicateGHashesWithCUDA(COFFLinkerContext &ctx,
+                                thrust::device_vector<uint64_t> &deviceHashes,
+                                thrust::device_vector<uint64_t> &deviceSrcs,
+                                GHashCUDAState &state,
+                                CudaErrorChecker &cuErr) {
+  state.result = GHashCUDAResult();
+  state.deviceGroups.clear();
+  state.deviceUniqueSrcs.clear();
+  state.deviceMap.clear();
   assert(deviceHashes.size() == deviceSrcs.size());
   FlatIndex entryCount = deviceHashes.size();
   if (entryCount == 0)
@@ -1406,7 +1144,7 @@ void filterGHashesWithCUDA(COFFLinkerContext &ctx,
       thrust::make_tuple(deviceHashes.end(), deviceSrcs.end()));
   thrust::sort(thrust::device, entriesBegin, entriesEnd, ByGHashThenSrc());
 
-  state->deviceGroups.resize(entryCount);
+  state.deviceGroups.resize(entryCount);
   const uint64_t *deviceHashData =
       thrust::raw_pointer_cast(deviceHashes.data());
   auto indices = thrust::make_counting_iterator<FlatIndex>(0);
@@ -1416,27 +1154,27 @@ void filterGHashesWithCUDA(COFFLinkerContext &ctx,
       };
   auto runStarts = thrust::make_transform_iterator(indices, isUniqueGHash);
   thrust::inclusive_scan(thrust::device, runStarts, runStarts + entryCount,
-                         state->deviceGroups.begin());
+                         state.deviceGroups.begin());
 
   FlatIndex uniqueCount = 0;
   cuErr.fatal(cudaMemcpy(&uniqueCount,
-                         thrust::raw_pointer_cast(state->deviceGroups.data()) +
+                         thrust::raw_pointer_cast(state.deviceGroups.data()) +
                              entryCount - 1,
                          sizeof(uniqueCount), cudaMemcpyDeviceToHost),
               "-lldcudaghash failed to copy filtered ghash count");
 
-  state->deviceUniqueSrcs.resize(uniqueCount);
+  state.deviceUniqueSrcs.resize(uniqueCount);
   uint32_t threads = 256;
   uint32_t blocks = getBlockCount(ctx, entryCount, threads);
-  finalizeGHashGroupsAndScatterSrcs<<<blocks, threads>>>(
+  scatterUniqueSrcsByGHashGroup<<<blocks, threads>>>(
       thrust::raw_pointer_cast(deviceHashes.data()),
       thrust::raw_pointer_cast(deviceSrcs.data()),
-      thrust::raw_pointer_cast(state->deviceGroups.data()),
-      thrust::raw_pointer_cast(state->deviceUniqueSrcs.data()), entryCount);
+      thrust::raw_pointer_cast(state.deviceGroups.data()),
+      thrust::raw_pointer_cast(state.deviceUniqueSrcs.data()), entryCount);
   cuErr.fatal(cudaGetLastError(),
               "-lldcudaghash failed to launch ghash filter kernel");
 
-  state->result.uniqueCount = uniqueCount;
+  state.result.uniqueCount = uniqueCount;
 }
 
 class CudaTypeRecordProvider final : public llvm::pdb::TpiRecordProvider {
@@ -1485,23 +1223,7 @@ public:
   uint32_t RecordCount = 0;
 };
 
-struct SelectedRecordSet {
-  SelectedRecordSet() : sizes(std::make_shared<std::vector<uint16_t>>()) {}
-
-  std::vector<uint8_t> records;
-  std::vector<SelectedRecordDescriptor> descs;
-  std::shared_ptr<std::vector<uint16_t>> sizes;
-
-  bool empty() const { return descs.empty(); }
-
-  void resize(uint32_t recordCount, uint32_t byteCount) {
-    records.resize(byteCount);
-    descs.resize(recordCount);
-    sizes->resize(recordCount);
-  }
-};
-
-struct PackedSelectedRecords {
+struct SelectedRecordPack {
   std::vector<uint8_t> records;
   std::vector<uint32_t> offsets;
   std::vector<uint64_t> srcs;
@@ -1512,21 +1234,6 @@ struct RecordRange {
   uint32_t byteCount = 0;
   uint32_t recordOffset = 0;
   uint32_t recordCount = 0;
-};
-
-struct SourceRecordRanges {
-  RecordRange tpi;
-  RecordRange ipi;
-};
-
-struct SelectedRecordStats {
-  uint32_t byteCount = 0;
-  uint32_t recordCount = 0;
-};
-
-struct SelectedRecordCursor {
-  uint32_t byteOffset = 0;
-  uint32_t recordOffset = 0;
 };
 
 template <typename T> T *deviceData(thrust::device_vector<T> &v) {
@@ -1613,17 +1320,17 @@ void copySelectedRecordBytes(COFFLinkerContext &ctx, const TpiSource &source,
     dst[i] = llvm::codeview::LF_PAD0 + uint8_t(info.alignedSize - i);
 }
 
-PackedSelectedRecords
+SelectedRecordPack
 packSelectedRecordsByGHashGroup(COFFLinkerContext &ctx,
                                 ArrayRef<uint64_t> uniqueSrcs) {
-  PackedSelectedRecords packed;
+  SelectedRecordPack packed;
   uint32_t recordCount =
       checkedUInt32(ctx, uniqueSrcs.size(), "filtered ghash record count");
   packed.srcs.resize(recordCount);
   packed.offsets.resize(size_t(recordCount) + 1);
   packed.offsets[0] = 0;
 
-  for (uint32_t i = 0; i != recordCount; ++i) {
+  llvm::parallelFor(0, recordCount, [&](size_t i) {
     uint64_t src = uniqueSrcs[i];
     uint32_t sourceIdx = getTpiSrcIdx(src);
     uint32_t ghashIdx = getGHashIdx(src);
@@ -1637,13 +1344,17 @@ packSelectedRecordsByGHashGroup(COFFLinkerContext &ctx,
     bool isItem = isSelectedRecordItem(ctx, *source, ghashIdx);
     packed.srcs[i] = encodeSrc(isItem, sourceIdx, ghashIdx);
     SelectedRecordInfo info = getSelectedRecordInfo(ctx, *source, ghashIdx);
-    packed.offsets[i + 1] =
-        checkedUInt32(ctx, size_t(packed.offsets[i]) + info.alignedSize,
-                      "selected type byte count");
+    packed.offsets[i + 1] = info.alignedSize;
+  });
+
+  for (uint32_t i = 0; i != recordCount; ++i) {
+    uint32_t size = packed.offsets[i + 1];
+    packed.offsets[i + 1] = checkedUInt32(ctx, size_t(packed.offsets[i]) + size,
+                                          "selected type byte count");
   }
 
   packed.records.resize(packed.offsets.back());
-  for (uint32_t i = 0; i != recordCount; ++i) {
+  llvm::parallelFor(0, recordCount, [&](size_t i) {
     uint64_t src = packed.srcs[i];
     uint32_t sourceIdx = getTpiSrcIdx(src);
     uint32_t ghashIdx = getGHashIdx(src);
@@ -1651,52 +1362,9 @@ packSelectedRecordsByGHashGroup(COFFLinkerContext &ctx,
     uint32_t size = packed.offsets[i + 1] - offset;
     copySelectedRecordBytes(ctx, *ctx.tpiSourceList[sourceIdx], ghashIdx,
                             packed.records.data() + offset, size);
-  }
+  });
 
   return packed;
-}
-
-void addSelectedRecordStats(COFFLinkerContext &ctx,
-                            const SelectedRecordInfo &info, RecordRange &range,
-                            SelectedRecordStats &stats) {
-  if (range.recordCount == 0) {
-    range.byteOffset = stats.byteCount;
-    range.recordOffset = stats.recordCount;
-  }
-  range.byteCount =
-      checkedUInt32(ctx, size_t(range.byteCount) + info.alignedSize,
-                    "source record byte count");
-  stats.byteCount =
-      checkedUInt32(ctx, size_t(stats.byteCount) + info.alignedSize,
-                    "selected type byte count");
-  ++stats.recordCount;
-  ++range.recordCount;
-}
-
-void copySelectedRecord(COFFLinkerContext &ctx, const TpiSource &source,
-                        uint32_t sourceIdx, uint32_t ghashIdx,
-                        SelectedRecordSet &recordSet,
-                        SelectedRecordCursor &cursor) {
-  SelectedRecordInfo info = getSelectedRecordInfo(ctx, source, ghashIdx);
-  assert(cursor.recordOffset < recordSet.descs.size());
-  assert(cursor.byteOffset + info.alignedSize <= recordSet.records.size());
-
-  recordSet.descs[cursor.recordOffset] = {cursor.byteOffset, info.alignedSize,
-                                          ghashIdx, sourceIdx};
-  (*recordSet.sizes)[cursor.recordOffset] =
-      static_cast<uint16_t>(info.alignedSize);
-  memcpy(recordSet.records.data() + cursor.byteOffset, info.record,
-         info.recordSize);
-  if (info.alignedSize != info.recordSize) {
-    write16le(recordSet.records.data() + cursor.byteOffset,
-              info.alignedSize - 2);
-    for (uint32_t i = info.recordSize; i != info.alignedSize; ++i) {
-      recordSet.records[cursor.byteOffset + i] =
-          llvm::codeview::LF_PAD0 + uint8_t(info.alignedSize - i);
-    }
-  }
-  cursor.byteOffset += info.alignedSize;
-  ++cursor.recordOffset;
 }
 
 void appendTypeIndexMap(COFFLinkerContext &ctx, ArrayRef<TypeIndex> map,
@@ -1830,21 +1498,6 @@ void reportRemapErrors(COFFLinkerContext &ctx, ArrayRef<TpiSource *> sources,
 
 std::shared_ptr<CudaTypeRecordProvider>
 makeRecordProvider(std::shared_ptr<thrust::device_vector<uint8_t>> deviceBytes,
-                   const SelectedRecordSet &recordSet, const RecordRange &range,
-                   std::shared_ptr<std::vector<uint32_t>> hashes) {
-  if (range.recordCount == 0)
-    return nullptr;
-
-  assert(range.recordOffset + range.recordCount <= recordSet.sizes->size());
-  assert(hashes && range.recordOffset + range.recordCount <= hashes->size());
-  return std::make_shared<CudaTypeRecordProvider>(
-      std::move(deviceBytes), range.byteOffset, range.byteCount,
-      recordSet.sizes, std::move(hashes), range.recordOffset,
-      range.recordCount);
-}
-
-std::shared_ptr<CudaTypeRecordProvider>
-makeRecordProvider(std::shared_ptr<thrust::device_vector<uint8_t>> deviceBytes,
                    const RecordRange &range,
                    std::shared_ptr<std::vector<uint16_t>> sizes,
                    std::shared_ptr<std::vector<uint32_t>> hashes) {
@@ -1859,160 +1512,58 @@ makeRecordProvider(std::shared_ptr<thrust::device_vector<uint8_t>> deviceBytes,
       range.recordCount);
 }
 
-void remapRecordSetWithCUDA(
-    COFFLinkerContext &ctx, SelectedRecordSet &recordSet,
-    const thrust::device_vector<RemapSourceDescriptor> &sourceDescs,
-    const thrust::device_vector<uint32_t> &flatMap,
-    const thrust::device_vector<uint32_t> &extraMaps, RemapErrorSummary *errors,
-    std::shared_ptr<thrust::device_vector<uint8_t>> &deviceBytes,
-    std::shared_ptr<std::vector<uint32_t>> &hashes,
-    std::vector<FuncIdToTypeEntry> *funcPairs, CudaErrorChecker &cuErr) {
-  deviceBytes = std::make_shared<thrust::device_vector<uint8_t>>();
-  hashes = std::make_shared<std::vector<uint32_t>>();
-  if (funcPairs)
-    funcPairs->clear();
-  if (recordSet.empty())
-    return;
-
-  uint32_t recordCount =
-      checkedUInt32(ctx, recordSet.descs.size(), "selected record count");
-  deviceBytes->resize(recordSet.records.size());
-  if (!recordSet.records.empty())
-    thrust::copy(recordSet.records.begin(), recordSet.records.end(),
-                 deviceBytes->begin());
-
-  thrust::device_vector<SelectedRecordDescriptor> deviceRecordDescs(
-      recordSet.descs.begin(), recordSet.descs.end());
-  thrust::device_vector<uint32_t> deviceHashes(recordCount);
-  thrust::device_vector<FuncIdToTypeEntry> deviceFuncPairs;
-  FuncIdToTypeEntry *funcPairData = nullptr;
-  if (funcPairs) {
-    deviceFuncPairs.resize(recordCount);
-    cuErr.fatal(cudaMemset(deviceData(deviceFuncPairs), 0,
-                           deviceFuncPairs.size() * sizeof(FuncIdToTypeEntry)),
-                "-lldcudaghash failed to initialize function ID records");
-    funcPairData = deviceData(deviceFuncPairs);
-  }
-
-  uint32_t threads = 256;
-  uint32_t blocks = getBlockCount(ctx, recordCount, threads);
-  remapAndHashTypeRecords<<<blocks, threads>>>(
-      deviceData(*deviceBytes), deviceData(deviceRecordDescs), recordCount,
-      deviceData(sourceDescs), deviceData(flatMap), deviceData(extraMaps),
-      deviceData(deviceHashes), funcPairData, errors);
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch type remap kernel");
-  cuErr.fatal(cudaDeviceSynchronize(),
-              "-lldcudaghash failed while synchronizing type remap kernel");
-
-  hashes->resize(recordCount);
-  cuErr.fatal(cudaMemcpy(hashes->data(), deviceData(deviceHashes),
-                         hashes->size() * sizeof(uint32_t),
-                         cudaMemcpyDeviceToHost),
-              "-lldcudaghash failed to copy type record hashes");
-  if (funcPairs) {
-    funcPairs->resize(deviceFuncPairs.size());
-    cuErr.fatal(cudaMemcpy(funcPairs->data(),
-                           thrust::raw_pointer_cast(deviceFuncPairs.data()),
-                           funcPairs->size() * sizeof(FuncIdToTypeEntry),
-                           cudaMemcpyDeviceToHost),
-                "-lldcudaghash failed to copy function ID records");
-  }
-}
-
-void addOrderedRecordRange(COFFLinkerContext &ctx, uint64_t src,
-                           uint16_t recordSize, uint32_t recordOffset,
-                           uint32_t byteOffset,
-                           std::vector<SourceRecordRanges> &recordRanges) {
-  uint32_t sourceIdx = getTpiSrcIdx(src);
-  RecordRange &range = isItemSrc(src) ? recordRanges[sourceIdx].ipi
-                                      : recordRanges[sourceIdx].tpi;
-  if (range.recordCount == 0) {
-    range.byteOffset = byteOffset;
-    range.recordOffset = recordOffset;
-  } else if (range.recordOffset + range.recordCount != recordOffset) {
-    Fatal(ctx) << "-lldcudaghash produced non-contiguous selected records for "
-               << getTpiSourceName(*ctx.tpiSourceList[sourceIdx]);
-  }
-
-  range.byteCount = checkedUInt32(ctx, size_t(range.byteCount) + recordSize,
-                                  "source selected record byte count");
-  ++range.recordCount;
-}
-
-void remapPackedSelectedTypeRecordsWithCUDA(
-    COFFLinkerContext &ctx, ArrayRef<FlatIndex> mapOffsets, FlatIndex mapCount,
-    uint32_t notTranslated, thrust::device_vector<uint64_t> &deviceSrcs,
-    GHashFilterCUDAState &filterState, CudaErrorChecker &cuErr) {
-  bool streamProviderExperiment = useStreamProviderExperiment();
-  std::vector<uint64_t> uniqueSrcs(filterState.result.uniqueCount);
+std::vector<uint64_t> copyUniqueSrcsToHost(const GHashCUDAState &ghashState,
+                                           CudaErrorChecker &cuErr) {
+  std::vector<uint64_t> uniqueSrcs(ghashState.result.uniqueCount);
   if (!uniqueSrcs.empty())
     cuErr.fatal(cudaMemcpy(uniqueSrcs.data(),
-                           deviceData(filterState.deviceUniqueSrcs),
+                           deviceData(ghashState.deviceUniqueSrcs),
                            uniqueSrcs.size() * sizeof(uint64_t),
                            cudaMemcpyDeviceToHost),
                 "-lldcudaghash failed to copy filtered source records");
+  return uniqueSrcs;
+}
 
-  PackedSelectedRecords packed =
-      packSelectedRecordsByGHashGroup(ctx, uniqueSrcs);
+struct OrderedSelection {
+  thrust::device_vector<uint64_t> srcs;
+  thrust::device_vector<FlatIndex> groups;
+  FlatIndex numTypes = 0;
+  FlatIndex numItems = 0;
+};
+
+OrderedSelection orderSelectedRecordsWithCUDA(COFFLinkerContext &ctx,
+                                              ArrayRef<uint64_t> selectedSrcs) {
   uint32_t recordCount =
-      checkedUInt32(ctx, packed.srcs.size(), "selected record count");
-  if (recordCount == 0)
-    return;
-
-  std::vector<uint8_t> selectedSources(ctx.tpiSourceList.size());
-  for (uint64_t src : packed.srcs)
-    selectedSources[getTpiSrcIdx(src)] = 1;
-
-  thrust::device_vector<uint64_t> deviceSelectedSrcs(packed.srcs.begin(),
-                                                     packed.srcs.end());
-  thrust::device_vector<FlatIndex> deviceSelectedGroups(recordCount);
+      checkedUInt32(ctx, selectedSrcs.size(), "selected record count");
+  OrderedSelection ordered;
+  ordered.srcs.assign(selectedSrcs.begin(), selectedSrcs.end());
+  ordered.groups.resize(recordCount);
   thrust::copy(thrust::make_counting_iterator<FlatIndex>(0),
                thrust::make_counting_iterator<FlatIndex>(recordCount),
-               deviceSelectedGroups.begin());
+               ordered.groups.begin());
 
-  auto selectedBegin = thrust::make_zip_iterator(thrust::make_tuple(
-      deviceSelectedSrcs.begin(), deviceSelectedGroups.begin()));
+  auto selectedBegin = thrust::make_zip_iterator(
+      thrust::make_tuple(ordered.srcs.begin(), ordered.groups.begin()));
   auto selectedEnd = thrust::make_zip_iterator(
-      thrust::make_tuple(deviceSelectedSrcs.end(), deviceSelectedGroups.end()));
+      thrust::make_tuple(ordered.srcs.end(), ordered.groups.end()));
   thrust::sort(thrust::device, selectedBegin, selectedEnd, BySrcThenGroup());
 
   uint64_t firstItemSrc = 1ULL << 63U;
-  FlatIndex numTypes =
-      thrust::lower_bound(thrust::device, deviceSelectedSrcs.begin(),
-                          deviceSelectedSrcs.end(), firstItemSrc) -
-      deviceSelectedSrcs.begin();
-  FlatIndex numItems = FlatIndex(recordCount) - numTypes;
-  if (numTypes > maxPdbTypeIndexCount || numItems > maxPdbTypeIndexCount)
+  ordered.numTypes = thrust::lower_bound(thrust::device, ordered.srcs.begin(),
+                                         ordered.srcs.end(), firstItemSrc) -
+                     ordered.srcs.begin();
+  ordered.numItems = FlatIndex(recordCount) - ordered.numTypes;
+  if (ordered.numTypes > maxPdbTypeIndexCount ||
+      ordered.numItems > maxPdbTypeIndexCount)
     Fatal(ctx) << "-lldcudaghash failed: too many unique CUDA ghash records";
+  return ordered;
+}
 
-  filterState.deviceMap.resize(mapCount);
-  thrust::fill(thrust::device, filterState.deviceMap.begin(),
-               filterState.deviceMap.end(), notTranslated);
-  thrust::device_vector<FlatIndex> deviceMapOffsets(mapOffsets.begin(),
-                                                    mapOffsets.end());
-  thrust::device_vector<uint32_t> groupToTypeIndex(recordCount);
-
-  uint32_t threads = 256;
-  uint32_t selectedBlocks = getBlockCount(ctx, recordCount, threads);
-  assignDestinationIndicesFromGroups<<<selectedBlocks, threads>>>(
-      deviceData(deviceSelectedGroups), recordCount, numTypes,
-      deviceData(groupToTypeIndex));
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch destination index kernel");
-
-  FlatIndex entryCount = deviceSrcs.size();
-  uint32_t entryBlocks = getBlockCount(ctx, entryCount, threads);
-  fillFlatMap<<<entryBlocks, threads>>>(
-      deviceData(deviceSrcs), deviceData(filterState.deviceGroups),
-      deviceData(groupToTypeIndex), deviceData(deviceMapOffsets), entryCount,
-      deviceData(filterState.deviceMap));
-  cuErr.fatal(cudaGetLastError(),
-              "-lldcudaghash failed to launch flat map fill kernel");
-  cuErr.fatal(cudaDeviceSynchronize(),
-              "-lldcudaghash failed while synchronizing filtered kernels");
-
-  const uint32_t *deviceMapData = deviceData(filterState.deviceMap);
+void copyTypeIndexMapsToHost(COFFLinkerContext &ctx,
+                             ArrayRef<FlatIndex> mapOffsets,
+                             const thrust::device_vector<uint32_t> &deviceMap,
+                             CudaErrorChecker &cuErr) {
+  const uint32_t *deviceMapData = deviceData(deviceMap);
   MemcpyBatch mapCopies;
   mapCopies.reserve(ctx.tpiSourceList.size());
   for (TpiSource *source : ctx.tpiSourceList) {
@@ -2029,18 +1580,63 @@ void remapPackedSelectedTypeRecordsWithCUDA(
                             "-lldcudaghash failed while copying type index "
                             "maps",
                             cuErr);
+}
 
-  std::vector<SourceRecordRanges> recordRanges(ctx.tpiSourceList.size());
-  std::vector<RemapSourceDescriptor> sourceDescs(ctx.tpiSourceList.size());
-  std::vector<uint8_t> remapPrepared(ctx.tpiSourceList.size());
+void buildFlatMapWithCUDA(COFFLinkerContext &ctx,
+                          ArrayRef<FlatIndex> mapOffsets, FlatIndex mapCount,
+                          uint32_t notTranslated,
+                          const thrust::device_vector<uint64_t> &deviceSrcs,
+                          const OrderedSelection &ordered,
+                          GHashCUDAState &ghashState, CudaErrorChecker &cuErr) {
+  uint32_t recordCount =
+      checkedUInt32(ctx, ordered.srcs.size(), "selected record count");
+  ghashState.deviceMap.resize(mapCount);
+  thrust::fill(thrust::device, ghashState.deviceMap.begin(),
+               ghashState.deviceMap.end(), notTranslated);
+  thrust::device_vector<FlatIndex> deviceMapOffsets(mapOffsets.begin(),
+                                                    mapOffsets.end());
+  thrust::device_vector<uint32_t> groupToTypeIndex(recordCount);
+
+  uint32_t threads = 256;
+  uint32_t selectedBlocks = getBlockCount(ctx, recordCount, threads);
+  assignDestinationIndicesFromGroups<<<selectedBlocks, threads>>>(
+      deviceData(ordered.groups), recordCount, ordered.numTypes,
+      deviceData(groupToTypeIndex));
+  cuErr.fatal(cudaGetLastError(),
+              "-lldcudaghash failed to launch destination index kernel");
+
+  FlatIndex entryCount = deviceSrcs.size();
+  uint32_t entryBlocks = getBlockCount(ctx, entryCount, threads);
+  fillFlatMap<<<entryBlocks, threads>>>(
+      deviceData(deviceSrcs), deviceData(ghashState.deviceGroups),
+      deviceData(groupToTypeIndex), deviceData(deviceMapOffsets), entryCount,
+      deviceData(ghashState.deviceMap));
+  cuErr.fatal(cudaGetLastError(),
+              "-lldcudaghash failed to launch flat map fill kernel");
+  cuErr.fatal(cudaDeviceSynchronize(),
+              "-lldcudaghash failed while synchronizing filtered kernels");
+
+  copyTypeIndexMapsToHost(ctx, mapOffsets, ghashState.deviceMap, cuErr);
+}
+
+struct RemapDescriptorPack {
+  std::vector<RemapSourceDescriptor> sources;
   std::vector<uint32_t> extraMaps;
+};
+
+RemapDescriptorPack prepareRemapDescriptors(COFFLinkerContext &ctx,
+                                            ArrayRef<FlatIndex> mapOffsets,
+                                            ArrayRef<uint8_t> selectedSources) {
+  RemapDescriptorPack remap;
+  remap.sources.resize(ctx.tpiSourceList.size());
+  std::vector<uint8_t> remapPrepared(ctx.tpiSourceList.size());
 
   for (TpiSource *source : ctx.tpiSourceList)
     remapPrepared[source->tpiSrcIdx] = source->prepareGHashRemap();
 
   RemapMapResolver mapResolver(ctx.tpiSourceList, mapOffsets);
   auto prepareSelectedSource = [&](TpiSource *source) {
-    RemapSourceDescriptor &sourceDesc = sourceDescs[source->tpiSrcIdx];
+    RemapSourceDescriptor &sourceDesc = remap.sources[source->tpiSrcIdx];
     if (sourceDesc.sourceTypeIndexBegin != 0)
       return;
 
@@ -2055,10 +1651,10 @@ void remapPackedSelectedTypeRecordsWithCUDA(
 
     sourceDesc.sourceTypeIndexBegin =
         source->getGHashRecordStartIndex().getIndex();
-    setRemapMapDescriptor(ctx, mapResolver, *source, source->tpiMap, extraMaps,
-                          sourceDesc.tpiMap);
-    setRemapMapDescriptor(ctx, mapResolver, *source, source->ipiMap, extraMaps,
-                          sourceDesc.ipiMap);
+    setRemapMapDescriptor(ctx, mapResolver, *source, source->tpiMap,
+                          remap.extraMaps, sourceDesc.tpiMap);
+    setRemapMapDescriptor(ctx, mapResolver, *source, source->ipiMap,
+                          remap.extraMaps, sourceDesc.ipiMap);
 
     if (ctx.config.showSummary) {
       source->nbTypeRecords = source->ghashes.size();
@@ -2070,27 +1666,45 @@ void remapPackedSelectedTypeRecordsWithCUDA(
     if (selectedSources[source->tpiSrcIdx])
       prepareSelectedSource(source);
 
+  return remap;
+}
+
+struct RemappedRecordOutput {
+  std::shared_ptr<thrust::device_vector<uint8_t>> bytes;
+  thrust::device_vector<uint32_t> hashes;
+  thrust::device_vector<FuncIdToTypeEntry> funcPairs;
+  thrust::device_vector<RemapErrorSummary> errors;
+};
+
+RemappedRecordOutput remapAndHashSelectedRecordsWithCUDA(
+    COFFLinkerContext &ctx, const SelectedRecordPack &packed,
+    const OrderedSelection &ordered, const RemapDescriptorPack &remap,
+    const thrust::device_vector<uint32_t> &deviceMap, CudaErrorChecker &cuErr) {
+  uint32_t recordCount =
+      checkedUInt32(ctx, packed.srcs.size(), "selected record count");
   thrust::device_vector<RemapSourceDescriptor> deviceSourceDescs(
-      sourceDescs.begin(), sourceDescs.end());
-  thrust::device_vector<uint32_t> deviceExtraMaps(extraMaps.begin(),
-                                                  extraMaps.end());
-  thrust::device_vector<RemapErrorSummary> deviceErrors(
-      ctx.tpiSourceList.size());
-  if (!deviceErrors.empty())
-    cuErr.fatal(cudaMemset(deviceData(deviceErrors), 0,
-                           deviceErrors.size() * sizeof(RemapErrorSummary)),
+      remap.sources.begin(), remap.sources.end());
+  thrust::device_vector<uint32_t> deviceExtraMaps(remap.extraMaps.begin(),
+                                                  remap.extraMaps.end());
+  RemappedRecordOutput output;
+  output.bytes =
+      std::make_shared<thrust::device_vector<uint8_t>>(packed.records.size());
+  output.hashes.resize(recordCount);
+  output.funcPairs.resize(recordCount);
+  output.errors.resize(ctx.tpiSourceList.size());
+  if (!output.errors.empty())
+    cuErr.fatal(cudaMemset(deviceData(output.errors), 0,
+                           output.errors.size() * sizeof(RemapErrorSummary)),
                 "-lldcudaghash failed to initialize remap error state");
 
   thrust::device_vector<uint8_t> deviceInputBytes(packed.records.begin(),
                                                   packed.records.end());
   thrust::device_vector<uint32_t> deviceInputOffsets(packed.offsets.begin(),
                                                      packed.offsets.end());
-  auto deviceOutputBytes =
-      std::make_shared<thrust::device_vector<uint8_t>>(packed.records.size());
   thrust::device_vector<uint32_t> deviceOutputOffsets(recordCount);
 
   const uint32_t *inputOffsets = deviceData(deviceInputOffsets);
-  const FlatIndex *orderedGroups = deviceData(deviceSelectedGroups);
+  const FlatIndex *orderedGroups = deviceData(ordered.groups);
   auto orderedIndices = thrust::make_counting_iterator<FlatIndex>(0);
   auto sizeForOrderedRecord = [inputOffsets, orderedGroups] __host__ __device__(
                                   FlatIndex i) -> uint32_t {
@@ -2103,106 +1717,117 @@ void remapPackedSelectedTypeRecordsWithCUDA(
                          orderedSizes + recordCount,
                          deviceOutputOffsets.begin(), uint32_t(0));
 
-  thrust::device_vector<uint32_t> deviceHashes(recordCount);
-  thrust::device_vector<FuncIdToTypeEntry> deviceFuncPairs(recordCount);
-  cuErr.fatal(cudaMemset(deviceData(deviceFuncPairs), 0,
-                         deviceFuncPairs.size() * sizeof(FuncIdToTypeEntry)),
+  cuErr.fatal(cudaMemset(deviceData(output.funcPairs), 0,
+                         output.funcPairs.size() * sizeof(FuncIdToTypeEntry)),
               "-lldcudaghash failed to initialize function ID records");
 
-  copyRemapAndHashPackedTypeRecords<<<selectedBlocks, threads>>>(
+  uint32_t threads = 256;
+  uint32_t blocks = getBlockCount(ctx, recordCount, threads);
+  copyRemapAndHashPackedTypeRecords<<<blocks, threads>>>(
       deviceData(deviceInputBytes), deviceData(deviceInputOffsets),
-      deviceData(deviceSelectedSrcs), deviceData(deviceSelectedGroups),
-      deviceData(deviceOutputOffsets), deviceData(*deviceOutputBytes),
-      recordCount, deviceData(deviceSourceDescs),
-      deviceData(filterState.deviceMap), deviceData(deviceExtraMaps),
-      deviceData(deviceHashes), deviceData(deviceFuncPairs),
-      deviceData(deviceErrors));
+      deviceData(ordered.srcs), deviceData(ordered.groups),
+      deviceData(deviceOutputOffsets), deviceData(*output.bytes), recordCount,
+      deviceData(deviceSourceDescs), deviceData(deviceMap),
+      deviceData(deviceExtraMaps), deviceData(output.hashes),
+      deviceData(output.funcPairs), deviceData(output.errors));
   cuErr.fatal(cudaGetLastError(),
               "-lldcudaghash failed to launch packed type remap kernel");
   cuErr.fatal(cudaDeviceSynchronize(),
               "-lldcudaghash failed while synchronizing packed remap kernel");
+  return output;
+}
 
+std::shared_ptr<std::vector<uint32_t>>
+copyRecordHashesToHost(thrust::device_vector<uint32_t> &deviceHashes,
+                       CudaErrorChecker &cuErr) {
+  uint32_t recordCount = static_cast<uint32_t>(deviceHashes.size());
   auto hashes = std::make_shared<std::vector<uint32_t>>(recordCount);
   cuErr.fatal(cudaMemcpy(hashes->data(), deviceData(deviceHashes),
                          hashes->size() * sizeof(uint32_t),
                          cudaMemcpyDeviceToHost),
               "-lldcudaghash failed to copy type record hashes");
+  return hashes;
+}
 
-  std::vector<uint64_t> orderedSrcs(recordCount);
-  cuErr.fatal(cudaMemcpy(orderedSrcs.data(), deviceData(deviceSelectedSrcs),
+std::vector<uint64_t> copyOrderedSrcsToHost(const OrderedSelection &ordered,
+                                            CudaErrorChecker &cuErr) {
+  std::vector<uint64_t> orderedSrcs(ordered.srcs.size());
+  cuErr.fatal(cudaMemcpy(orderedSrcs.data(), deviceData(ordered.srcs),
                          orderedSrcs.size() * sizeof(uint64_t),
                          cudaMemcpyDeviceToHost),
               "-lldcudaghash failed to copy ordered source records");
+  return orderedSrcs;
+}
 
+struct StreamRecordLayout {
+  std::shared_ptr<std::vector<uint16_t>> sizes;
+  RecordRange tpi;
+  RecordRange ipi;
+};
+
+StreamRecordLayout buildStreamRecordLayout(COFFLinkerContext &ctx,
+                                           ArrayRef<uint64_t> orderedSrcs,
+                                           FlatIndex numTypes,
+                                           FlatIndex numItems,
+                                           uint32_t totalByteCount) {
+  StreamRecordLayout layout;
+  uint32_t numTypeRecords =
+      checkedUInt32(ctx, numTypes, "selected TPI record count");
+  uint32_t numItemRecords =
+      checkedUInt32(ctx, numItems, "selected IPI record count");
   auto sizes = std::make_shared<std::vector<uint16_t>>();
-  sizes->reserve(recordCount);
-  uint32_t tpiByteCount = 0;
-  uint32_t ipiByteCount = 0;
-  for (uint64_t src : orderedSrcs) {
+  sizes->resize(orderedSrcs.size());
+  llvm::parallelFor(0, orderedSrcs.size(), [&](size_t i) {
+    uint64_t src = orderedSrcs[i];
     SelectedRecordInfo info = getSelectedRecordInfo(
         ctx, *ctx.tpiSourceList[getTpiSrcIdx(src)], getGHashIdx(src));
-    sizes->push_back(static_cast<uint16_t>(info.alignedSize));
-    if (sizes->size() <= numTypes)
-      tpiByteCount = checkedUInt32(ctx, size_t(tpiByteCount) + info.alignedSize,
-                                   "selected TPI byte count");
-    else
-      ipiByteCount = checkedUInt32(ctx, size_t(ipiByteCount) + info.alignedSize,
-                                   "selected IPI byte count");
-  }
-  assert(size_t(tpiByteCount) + ipiByteCount == packed.records.size());
+    (*sizes)[i] = static_cast<uint16_t>(info.alignedSize);
+  });
+  uint64_t tpiSize = llvm::parallelTransformReduce(
+      sizes->begin(), sizes->begin() + numTypeRecords, uint64_t(0),
+      std::plus<uint64_t>(), [](uint16_t size) { return uint64_t(size); });
+  uint64_t ipiSize = llvm::parallelTransformReduce(
+      sizes->begin() + numTypeRecords, sizes->end(), uint64_t(0),
+      std::plus<uint64_t>(), [](uint16_t size) { return uint64_t(size); });
+  uint32_t tpiByteCount =
+      checkedUInt32(ctx, tpiSize, "selected TPI byte count");
+  uint32_t ipiByteCount =
+      checkedUInt32(ctx, ipiSize, "selected IPI byte count");
+  assert(size_t(tpiByteCount) + ipiByteCount == totalByteCount);
+  layout.sizes = std::move(sizes);
+  layout.tpi = {0, tpiByteCount, 0, numTypeRecords};
+  layout.ipi = {tpiByteCount, ipiByteCount, numTypeRecords, numItemRecords};
+  return layout;
+}
 
-  std::vector<FuncIdToTypeEntry> funcPairs(recordCount);
+std::vector<FuncIdToTypeEntry>
+copyFuncPairsToHost(thrust::device_vector<FuncIdToTypeEntry> &deviceFuncPairs,
+                    CudaErrorChecker &cuErr) {
+  std::vector<FuncIdToTypeEntry> funcPairs(deviceFuncPairs.size());
+  if (funcPairs.empty())
+    return funcPairs;
   cuErr.fatal(cudaMemcpy(funcPairs.data(), deviceData(deviceFuncPairs),
                          funcPairs.size() * sizeof(FuncIdToTypeEntry),
                          cudaMemcpyDeviceToHost),
               "-lldcudaghash failed to copy function ID records");
+  return funcPairs;
+}
 
-  std::vector<RemapErrorSummary> errorsHost(deviceErrors.size());
+void copyAndReportRemapErrors(COFFLinkerContext &ctx,
+                              thrust::device_vector<RemapErrorSummary> &errors,
+                              CudaErrorChecker &cuErr) {
+  std::vector<RemapErrorSummary> errorsHost(errors.size());
   if (!errorsHost.empty())
-    cuErr.fatal(cudaMemcpy(errorsHost.data(), deviceData(deviceErrors),
+    cuErr.fatal(cudaMemcpy(errorsHost.data(), deviceData(errors),
                            errorsHost.size() * sizeof(RemapErrorSummary),
                            cudaMemcpyDeviceToHost),
                 "-lldcudaghash failed to copy remap error state");
   reportRemapErrors(ctx, ctx.tpiSourceList, errorsHost);
+}
 
-  if (streamProviderExperiment) {
-    TpiSource *anchor = ctx.tpiSourceList.front();
-    uint32_t numTypeRecords =
-        checkedUInt32(ctx, numTypes, "selected TPI record count");
-    uint32_t numItemRecords =
-        checkedUInt32(ctx, numItems, "selected IPI record count");
-    RecordRange tpiRange{0, tpiByteCount, 0, numTypeRecords};
-    RecordRange ipiRange{tpiByteCount, ipiByteCount, numTypeRecords,
-                         numItemRecords};
-    if (tpiRange.recordCount != 0)
-      anchor->mergedTpi.deferredRecords =
-          makeRecordProvider(deviceOutputBytes, tpiRange, sizes, hashes);
-    if (ipiRange.recordCount != 0)
-      anchor->mergedIpi.deferredRecords =
-          makeRecordProvider(deviceOutputBytes, ipiRange, sizes, hashes);
-  } else {
-    uint32_t byteOffset = 0;
-    for (uint32_t i = 0; i != recordCount; ++i) {
-      uint16_t recordSize = (*sizes)[i];
-      addOrderedRecordRange(ctx, orderedSrcs[i], recordSize, i, byteOffset,
-                            recordRanges);
-      byteOffset = checkedUInt32(ctx, size_t(byteOffset) + recordSize,
-                                 "selected type byte count");
-    }
-    assert(byteOffset == packed.records.size());
-
-    for (TpiSource *source : ctx.tpiSourceList) {
-      SourceRecordRanges &ranges = recordRanges[source->tpiSrcIdx];
-      if (ranges.tpi.recordCount != 0)
-        source->mergedTpi.deferredRecords =
-            makeRecordProvider(deviceOutputBytes, ranges.tpi, sizes, hashes);
-      if (ranges.ipi.recordCount != 0)
-        source->mergedIpi.deferredRecords =
-            makeRecordProvider(deviceOutputBytes, ranges.ipi, sizes, hashes);
-    }
-  }
-
-  for (uint32_t i = 0; i != recordCount; ++i) {
+void collectFuncIdToType(COFFLinkerContext &ctx, ArrayRef<uint64_t> orderedSrcs,
+                         ArrayRef<FuncIdToTypeEntry> funcPairs) {
+  for (uint32_t i = 0, e = funcPairs.size(); i != e; ++i) {
     FuncIdToTypeEntry pair = funcPairs[i];
     if (pair.funcId == 0)
       continue;
@@ -2210,152 +1835,57 @@ void remapPackedSelectedTypeRecordsWithCUDA(
     source->funcIdToType.push_back(
         {TypeIndex(pair.funcId), TypeIndex(pair.funcType)});
   }
-
-  filterState.result.uniqueCount = recordCount;
-  filterState.result.numTypes = numTypes;
-  filterState.result.numItems = numItems;
 }
 
-void remapAllSelectedTypeRecordsWithCUDA(COFFLinkerContext &ctx,
-                                         ArrayRef<FlatIndex> mapOffsets,
-                                         const GHashCUDAState &ghashState,
-                                         CudaErrorChecker &cuErr) {
-  SelectedRecordSet tpiRecords;
-  SelectedRecordSet ipiRecords;
-  std::vector<SourceRecordRanges> recordRanges(ctx.tpiSourceList.size());
-  std::vector<RemapSourceDescriptor> sourceDescs(ctx.tpiSourceList.size());
-  std::vector<uint8_t> remapPrepared(ctx.tpiSourceList.size());
-  std::vector<uint32_t> extraMaps;
-  std::vector<uint64_t> uniqueSrcs(ghashState.result.uniqueCount);
-  if (!uniqueSrcs.empty())
-    cuErr.fatal(cudaMemcpy(uniqueSrcs.data(),
-                           deviceData(ghashState.deviceUniqueSrcs),
-                           uniqueSrcs.size() * sizeof(uint64_t),
-                           cudaMemcpyDeviceToHost),
-                "-lldcudaghash failed to copy unique source records");
+void attachStreamRecordProviders(
+    COFFLinkerContext &ctx,
+    std::shared_ptr<thrust::device_vector<uint8_t>> deviceRecords,
+    const StreamRecordLayout &layout,
+    std::shared_ptr<std::vector<uint32_t>> hashes) {
+  TpiSource *anchor = ctx.tpiSourceList.front();
+  if (layout.tpi.recordCount != 0)
+    anchor->mergedTpi.deferredRecords =
+        makeRecordProvider(deviceRecords, layout.tpi, layout.sizes, hashes);
+  if (layout.ipi.recordCount != 0)
+    anchor->mergedIpi.deferredRecords =
+        makeRecordProvider(deviceRecords, layout.ipi, layout.sizes, hashes);
+}
 
-  // Symbol remapping still consumes each source's tpiMap/ipiMap later. Prepare
-  // those lightweight ArrayRef views for every source, but only build CUDA
-  // remap descriptors and stage type bytes for sources that actually contribute
-  // selected records below.
-  for (TpiSource *source : ctx.tpiSourceList)
-    remapPrepared[source->tpiSrcIdx] = source->prepareGHashRemap();
+void remapPackedSelectedTypeRecordsWithCUDA(
+    COFFLinkerContext &ctx, ArrayRef<FlatIndex> mapOffsets, FlatIndex mapCount,
+    uint32_t notTranslated, thrust::device_vector<uint64_t> &deviceSrcs,
+    GHashCUDAState &ghashState, CudaErrorChecker &cuErr) {
+  std::vector<uint64_t> uniqueSrcs = copyUniqueSrcsToHost(ghashState, cuErr);
+  SelectedRecordPack packed = packSelectedRecordsByGHashGroup(ctx, uniqueSrcs);
+  if (packed.srcs.empty())
+    return;
 
-  RemapMapResolver mapResolver(ctx.tpiSourceList, mapOffsets);
+  std::vector<uint8_t> selectedSources(ctx.tpiSourceList.size());
+  for (uint64_t src : packed.srcs)
+    selectedSources[getTpiSrcIdx(src)] = 1;
 
-  auto prepareSelectedSource = [&](TpiSource *source) {
-    RemapSourceDescriptor &sourceDesc = sourceDescs[source->tpiSrcIdx];
-    if (sourceDesc.sourceTypeIndexBegin != 0)
-      return;
+  OrderedSelection ordered = orderSelectedRecordsWithCUDA(ctx, packed.srcs);
+  buildFlatMapWithCUDA(ctx, mapOffsets, mapCount, notTranslated, deviceSrcs,
+                       ordered, ghashState, cuErr);
+  RemapDescriptorPack remap =
+      prepareRemapDescriptors(ctx, mapOffsets, selectedSources);
+  RemappedRecordOutput output = remapAndHashSelectedRecordsWithCUDA(
+      ctx, packed, ordered, remap, ghashState.deviceMap, cuErr);
 
-    if (!source->mergedTpi.recs.empty() || !source->mergedIpi.recs.empty() ||
-        source->mergedTpi.deferredRecords || source->mergedIpi.deferredRecords)
-      Fatal(ctx) << "-lldcudaghash found pre-existing merged type records for "
-                 << getTpiSourceName(*source);
+  auto hashes = copyRecordHashesToHost(output.hashes, cuErr);
+  std::vector<uint64_t> orderedSrcs = copyOrderedSrcsToHost(ordered, cuErr);
+  StreamRecordLayout layout =
+      buildStreamRecordLayout(ctx, orderedSrcs, ordered.numTypes,
+                              ordered.numItems, packed.records.size());
+  std::vector<FuncIdToTypeEntry> funcPairs =
+      copyFuncPairsToHost(output.funcPairs, cuErr);
+  copyAndReportRemapErrors(ctx, output.errors, cuErr);
+  attachStreamRecordProviders(ctx, output.bytes, layout, hashes);
+  collectFuncIdToType(ctx, orderedSrcs, funcPairs);
 
-    if (!remapPrepared[source->tpiSrcIdx])
-      Fatal(ctx) << "-lldcudaghash failed to prepare type remapping for "
-                 << getTpiSourceName(*source);
-
-    sourceDesc.sourceTypeIndexBegin =
-        source->getGHashRecordStartIndex().getIndex();
-    setRemapMapDescriptor(ctx, mapResolver, *source, source->tpiMap, extraMaps,
-                          sourceDesc.tpiMap);
-    setRemapMapDescriptor(ctx, mapResolver, *source, source->ipiMap, extraMaps,
-                          sourceDesc.ipiMap);
-
-    if (ctx.config.showSummary) {
-      source->nbTypeRecords = source->ghashes.size();
-      source->nbTypeRecordsBytes = source->ghashTypeRecords.size();
-    }
-  };
-
-  SelectedRecordStats tpiStats;
-  SelectedRecordStats ipiStats;
-  for (uint64_t src : uniqueSrcs) {
-    uint32_t sourceIdx = getTpiSrcIdx(src);
-    uint32_t ghashIdx = getGHashIdx(src);
-    TpiSource *source = ctx.tpiSourceList[sourceIdx];
-    prepareSelectedSource(source);
-    if (source->typeLeafKinds.size() != source->ghashes.size() ||
-        source->typeIndexOffsets.size() != source->ghashes.size() ||
-        source->ghashTypeRecords.empty())
-      Fatal(ctx) << "-lldcudaghash selected record metadata is incomplete for "
-                 << getTpiSourceName(*source);
-
-    RecordRange &range = isItemSrc(src) ? recordRanges[sourceIdx].ipi
-                                        : recordRanges[sourceIdx].tpi;
-    SelectedRecordStats &stats = isItemSrc(src) ? ipiStats : tpiStats;
-    addSelectedRecordStats(ctx, getSelectedRecordInfo(ctx, *source, ghashIdx),
-                           range, stats);
-  }
-
-  tpiRecords.resize(tpiStats.recordCount, tpiStats.byteCount);
-  ipiRecords.resize(ipiStats.recordCount, ipiStats.byteCount);
-  SelectedRecordCursor tpiCursor;
-  SelectedRecordCursor ipiCursor;
-  for (uint64_t src : uniqueSrcs) {
-    uint32_t sourceIdx = getTpiSrcIdx(src);
-    uint32_t ghashIdx = getGHashIdx(src);
-    TpiSource *source = ctx.tpiSourceList[sourceIdx];
-    SelectedRecordSet &recordSet = isItemSrc(src) ? ipiRecords : tpiRecords;
-    SelectedRecordCursor &cursor = isItemSrc(src) ? ipiCursor : tpiCursor;
-    copySelectedRecord(ctx, *source, sourceIdx, ghashIdx, recordSet, cursor);
-  }
-  assert(tpiCursor.recordOffset == tpiRecords.descs.size());
-  assert(tpiCursor.byteOffset == tpiRecords.records.size());
-  assert(ipiCursor.recordOffset == ipiRecords.descs.size());
-  assert(ipiCursor.byteOffset == ipiRecords.records.size());
-
-  thrust::device_vector<RemapSourceDescriptor> deviceSourceDescs(
-      sourceDescs.begin(), sourceDescs.end());
-  thrust::device_vector<uint32_t> deviceExtraMaps(extraMaps.begin(),
-                                                  extraMaps.end());
-  thrust::device_vector<RemapErrorSummary> deviceErrors(
-      ctx.tpiSourceList.size());
-  if (!deviceErrors.empty())
-    cuErr.fatal(cudaMemset(deviceData(deviceErrors), 0,
-                           deviceErrors.size() * sizeof(RemapErrorSummary)),
-                "-lldcudaghash failed to initialize remap error state");
-
-  std::shared_ptr<thrust::device_vector<uint8_t>> deviceTpiBytes;
-  std::shared_ptr<thrust::device_vector<uint8_t>> deviceIpiBytes;
-  std::shared_ptr<std::vector<uint32_t>> tpiHashes;
-  std::shared_ptr<std::vector<uint32_t>> ipiHashes;
-  std::vector<FuncIdToTypeEntry> funcPairs;
-  remapRecordSetWithCUDA(
-      ctx, tpiRecords, deviceSourceDescs, ghashState.deviceMap, deviceExtraMaps,
-      deviceData(deviceErrors), deviceTpiBytes, tpiHashes, nullptr, cuErr);
-  remapRecordSetWithCUDA(
-      ctx, ipiRecords, deviceSourceDescs, ghashState.deviceMap, deviceExtraMaps,
-      deviceData(deviceErrors), deviceIpiBytes, ipiHashes, &funcPairs, cuErr);
-
-  std::vector<RemapErrorSummary> errorsHost(deviceErrors.size());
-  if (!errorsHost.empty())
-    cuErr.fatal(cudaMemcpy(errorsHost.data(), deviceData(deviceErrors),
-                           errorsHost.size() * sizeof(RemapErrorSummary),
-                           cudaMemcpyDeviceToHost),
-                "-lldcudaghash failed to copy remap error state");
-  reportRemapErrors(ctx, ctx.tpiSourceList, errorsHost);
-
-  for (TpiSource *source : ctx.tpiSourceList) {
-    SourceRecordRanges &ranges = recordRanges[source->tpiSrcIdx];
-    if (ranges.tpi.recordCount != 0)
-      source->mergedTpi.deferredRecords =
-          makeRecordProvider(deviceTpiBytes, tpiRecords, ranges.tpi, tpiHashes);
-    if (ranges.ipi.recordCount != 0)
-      source->mergedIpi.deferredRecords =
-          makeRecordProvider(deviceIpiBytes, ipiRecords, ranges.ipi, ipiHashes);
-  }
-
-  for (size_t i = 0, e = funcPairs.size(); i != e; ++i) {
-    FuncIdToTypeEntry pair = funcPairs[i];
-    if (pair.funcId == 0)
-      continue;
-    TpiSource *source = ctx.tpiSourceList[ipiRecords.descs[i].sourceIndex];
-    source->funcIdToType.push_back(
-        {TypeIndex(pair.funcId), TypeIndex(pair.funcType)});
-  }
+  ghashState.result.uniqueCount = packed.srcs.size();
+  ghashState.result.numTypes = ordered.numTypes;
+  ghashState.result.numItems = ordered.numItems;
 }
 
 } // namespace
@@ -2363,16 +1893,12 @@ void remapAllSelectedTypeRecordsWithCUDA(COFFLinkerContext &ctx,
 bool TypeMerger::mergeTypesWithCUDA() {
   constexpr uint32_t notTranslated =
       static_cast<uint32_t>(llvm::codeview::SimpleTypeKind::NotTranslated);
-  bool filterPackExperiment = useFilterPackExperiment();
 
   // Flatten the ragged 2D TpiSource x type-index grid into a flat,
   // one-dimensional index space. mapOffsets stores each source row's base
-  // offset. The hash array is parallel to the source-position array, and each
-  // source position carries the original row, original column, and TPI-vs-IPI
-  // bit needed after sorting.
+  // offset. The hash array is parallel to the source-position array.
   FlatIndex totalMapSize = 0;
   FlatIndex entryCount = 0;
-  FlatIndex leafKindCount = 0;
   llvm::SmallVector<FlatIndex, 0> mapOffsets;
   llvm::SmallVector<FlatIndex, 0> entryOffsets;
   mapOffsets.reserve(ctx.tpiSourceList.size() + 1);
@@ -2388,9 +1914,6 @@ bool TypeMerger::mergeTypesWithCUDA() {
     totalMapSize += source->ghashes.size();
     entryCount += source->ghashes.size() -
                   (source->endPrecompIdx < source->ghashes.size());
-    if (!filterPackExperiment &&
-        getSourceItemMode(*source) == SourceItemMode::LeafKinds)
-      leafKindCount += source->ghashes.size();
     mapOffsets.push_back(totalMapSize);
   }
 
@@ -2406,14 +1929,10 @@ bool TypeMerger::mergeTypesWithCUDA() {
   // device layout, avoiding an extra flat host hash vector.
   thrust::device_vector<uint64_t> deviceHashes(entryCount);
   thrust::device_vector<uint64_t> deviceSrcs(entryCount);
-  thrust::device_vector<uint16_t> deviceLeafKinds(
-      checkedUInt32(ctx, leafKindCount, "CUDA leaf kind count"));
-  uint16_t *deviceLeafKindData = deviceData(deviceLeafKinds);
 
   std::vector<SourceDescriptor> sourceDescriptors(ctx.tpiSourceList.size());
   MemcpyBatch setupCopies;
-  setupCopies.reserve(ctx.tpiSourceList.size() * 3);
-  uint32_t leafKindOffset = 0;
+  setupCopies.reserve(ctx.tpiSourceList.size() * 2);
   for (size_t i = 0, e = ctx.tpiSourceList.size(); i != e; ++i) {
     TpiSource *source = ctx.tpiSourceList[i];
     source->indexMapStorage.assign(
@@ -2427,25 +1946,7 @@ bool TypeMerger::mergeTypesWithCUDA() {
     desc.tpiSrcIdx = source->tpiSrcIdx;
     desc.ghashCount = static_cast<uint32_t>(source->ghashes.size());
     desc.endPrecompIdx = source->endPrecompIdx;
-    desc.itemMode = filterPackExperiment ? SourceItemMode::AllTypes
-                                         : getSourceItemMode(*source);
-
-    if (!filterPackExperiment && desc.itemMode == SourceItemMode::LeafKinds) {
-      if (source->typeLeafKinds.size() != source->ghashes.size())
-        Fatal(ctx) << "-lldcudaghash setup failed: missing type leaf metadata "
-                      "for "
-                   << getTpiSourceName(*source);
-      desc.leafKindOffset = leafKindOffset;
-      if (!source->typeLeafKinds.empty()) {
-        setupCopies.append(deviceLeafKindData + leafKindOffset,
-                           source->typeLeafKinds.data(),
-                           source->typeLeafKinds.size() * sizeof(uint16_t));
-        leafKindOffset += static_cast<uint32_t>(source->typeLeafKinds.size());
-      }
-    }
   }
-  assert(leafKindOffset == leafKindCount &&
-         "source leaf kind copies must fill the device buffer");
   enqueueMemcpyBatchAndSync(setupCopies,
                             "-lldcudaghash failed to enqueue setup data copy "
                             "batch",
@@ -2460,7 +1961,7 @@ bool TypeMerger::mergeTypesWithCUDA() {
   if (!sourceDescriptors.empty()) {
     buildSourceCells<<<static_cast<uint32_t>(sourceDescriptors.size()), 256>>>(
         thrust::raw_pointer_cast(deviceSourceDescriptors.data()),
-        thrust::raw_pointer_cast(deviceEntryOffsets.data()), deviceLeafKindData,
+        thrust::raw_pointer_cast(deviceEntryOffsets.data()),
         thrust::raw_pointer_cast(deviceSrcs.data()),
         static_cast<uint32_t>(sourceDescriptors.size()));
     cuErr.fatal(cudaGetLastError(),
@@ -2469,31 +1970,17 @@ bool TypeMerger::mergeTypesWithCUDA() {
                 "-lldcudaghash failed while synchronizing source-cell kernel");
   }
 
-  if (filterPackExperiment) {
-    GHashFilterCUDAState filterState;
-    filterGHashesWithCUDA(ctx, deviceHashes, deviceSrcs, &filterState, cuErr);
-    Log(ctx) << "CUDA filtered ghash record count: "
-             << filterState.result.uniqueCount << " / input " << totalMapSize;
+  GHashCUDAState ghashState;
+  deduplicateGHashesWithCUDA(ctx, deviceHashes, deviceSrcs, ghashState, cuErr);
+  Log(ctx) << "CUDA filtered ghash record count: "
+           << ghashState.result.uniqueCount << " / input " << totalMapSize;
 
-    remapPackedSelectedTypeRecordsWithCUDA(ctx, mapOffsets, totalMapSize,
-                                           notTranslated, deviceSrcs,
-                                           filterState, cuErr);
+  remapPackedSelectedTypeRecordsWithCUDA(ctx, mapOffsets, totalMapSize,
+                                         notTranslated, deviceSrcs, ghashState,
+                                         cuErr);
 
-    Log(ctx) << "Tpi record count: " << filterState.result.numTypes;
-    Log(ctx) << "Ipi record count: " << filterState.result.numItems;
-  } else {
-    GHashCUDAState ghashState;
-    mergeGHashesWithCUDA(ctx, deviceHashes, deviceSrcs, mapOffsets.data(),
-                         mapOffsets.size(), totalMapSize, notTranslated,
-                         ctx.tpiSourceList, &ghashState, cuErr);
-
-    Log(ctx) << "CUDA ghash record count: " << ghashState.result.uniqueCount
-             << " / input " << totalMapSize;
-    Log(ctx) << "Tpi record count: " << ghashState.result.numTypes;
-    Log(ctx) << "Ipi record count: " << ghashState.result.numItems;
-
-    remapAllSelectedTypeRecordsWithCUDA(ctx, mapOffsets, ghashState, cuErr);
-  }
+  Log(ctx) << "Tpi record count: " << ghashState.result.numTypes;
+  Log(ctx) << "Ipi record count: " << ghashState.result.numItems;
 
   for (TpiSource *source : ctx.tpiSourceList) {
     funcIdToType.insert_range(source->funcIdToType);
