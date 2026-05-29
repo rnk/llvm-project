@@ -1102,8 +1102,12 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
                                               descriptors, storage);
   PDBSymbolRemapSourceMap sourceMap =
       makePDBSymbolRemapSourceMap(debugChunk->file->debugTypesObj);
-  remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, sourceMap, descriptors,
-                                           typeRefs, storage);
+  if (ctx.config.lldCudaGHash)
+    executePDBSymbolRemapCUDA(descriptors, typeRefs, sourceMap,
+                              MutableArrayRef<uint8_t>(storage));
+  else
+    remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, sourceMap, descriptors,
+                                             typeRefs, storage);
   applyScopeFixups(scopeFixups, storage);
 }
 
