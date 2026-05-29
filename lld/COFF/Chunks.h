@@ -262,13 +262,25 @@ public:
 
   // Write and relocate a portion of the section. This is intended to be called
   // in a loop. Relocations must be sorted first.
+  struct RelocationRange {
+    uint32_t startIndex;
+    uint32_t endIndex;
+  };
+
   void writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
                                   ArrayRef<uint8_t> subsec,
                                   uint32_t &nextRelocIndex, uint8_t *buf) const;
   void writeAndRelocateSubsectionAt(ArrayRef<uint8_t> sec,
                                     ArrayRef<uint8_t> subsec,
+                                    RelocationRange relocRange,
+                                    uint8_t *buf) const;
+  void writeAndRelocateSubsectionAt(ArrayRef<uint8_t> sec,
+                                    ArrayRef<uint8_t> subsec,
                                     uint32_t relocStartIndex,
                                     uint8_t *buf) const;
+  RelocationRange advanceRelocRangePastSubsection(ArrayRef<uint8_t> sec,
+                                                  ArrayRef<uint8_t> subsec,
+                                                  uint32_t &nextRelocIndex) const;
   uint32_t advanceRelocIndexPastSubsection(ArrayRef<uint8_t> sec,
                                            ArrayRef<uint8_t> subsec,
                                            uint32_t &nextRelocIndex) const;

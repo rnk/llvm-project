@@ -66,6 +66,7 @@ struct SymbolRecordPlan {
   CVSymbol sym;
   uint32_t alignedSize;
   uint32_t relocStartIndex;
+  uint32_t relocEndIndex;
   uint32_t moduleSymOffset;
   bool goesInGlobals;
   bool goesInModule;
@@ -590,11 +591,13 @@ static SymbolRecordPlan planSymbolRecord(SectionChunk *debugChunk,
                                          uint32_t moduleSymOffset,
                                          uint32_t &nextRelocIndex,
                                          uint32_t symbolScopeDepth) {
-  uint32_t relocStartIndex = debugChunk->advanceRelocIndexPastSubsection(
-      sectionContents, sym.data(), nextRelocIndex);
+  SectionChunk::RelocationRange relocRange =
+      debugChunk->advanceRelocRangePastSubsection(sectionContents, sym.data(),
+                                                  nextRelocIndex);
   return {sym,
           alignedSize,
-          relocStartIndex,
+          relocRange.startIndex,
+          relocRange.endIndex,
           moduleSymOffset,
           symbolGoesInGlobalsStream(sym, symbolScopeDepth),
           symbolGoesInModuleStream(sym, symbolScopeDepth),
@@ -642,7 +645,8 @@ void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
   assert(recordBytes.size() == plan.alignedSize);
   // Copy the symbol record and relocate it.
   debugChunk->writeAndRelocateSubsectionAt(sectionContents, plan.sym.data(),
-                                           plan.relocStartIndex,
+                                           {plan.relocStartIndex,
+                                            plan.relocEndIndex},
                                            recordBytes.data());
   fixRecordAlignment(recordBytes, plan.sym.length());
 

@@ -492,11 +492,25 @@ void SectionChunk::writeAndRelocateSubsection(ArrayRef<uint8_t> sec,
   assert(!subsec.empty() && !sec.empty());
   assert(sec.begin() <= subsec.begin() && subsec.end() <= sec.end() &&
          "subsection is not part of this section");
+  RelocationRange relocRange =
+      advanceRelocRangePastSubsection(sec, subsec, nextRelocIndex);
+  writeAndRelocateSubsectionAt(sec, subsec, relocRange, buf);
+}
+
+void SectionChunk::writeAndRelocateSubsectionAt(
+    ArrayRef<uint8_t> sec, ArrayRef<uint8_t> subsec,
+    RelocationRange relocRange, uint8_t *buf) const {
+  assert(!subsec.empty() && !sec.empty());
+  assert(sec.begin() <= subsec.begin() && subsec.end() <= sec.end() &&
+         "subsection is not part of this section");
+  assert(relocRange.startIndex <= relocRange.endIndex &&
+         relocRange.endIndex <= relocsSize);
   size_t vaBegin = std::distance(sec.begin(), subsec.begin());
   size_t vaEnd = std::distance(sec.begin(), subsec.end());
   memcpy(buf, subsec.data(), subsec.size());
-  for (; nextRelocIndex < relocsSize; ++nextRelocIndex) {
-    const coff_relocation &rel = relocsData[nextRelocIndex];
+  for (uint32_t relocIndex = relocRange.startIndex;
+       relocIndex < relocRange.endIndex; ++relocIndex) {
+    const coff_relocation &rel = relocsData[relocIndex];
     // Only apply relocations that apply to this subsection. These checks
     // assume that all subsections completely contain their relocations.
     // Relocations must not straddle the beginning or end of a subsection.
@@ -515,8 +529,8 @@ void SectionChunk::writeAndRelocateSubsectionAt(ArrayRef<uint8_t> sec,
   writeAndRelocateSubsection(sec, subsec, relocStartIndex, buf);
 }
 
-uint32_t
-SectionChunk::advanceRelocIndexPastSubsection(ArrayRef<uint8_t> sec,
+SectionChunk::RelocationRange
+SectionChunk::advanceRelocRangePastSubsection(ArrayRef<uint8_t> sec,
                                               ArrayRef<uint8_t> subsec,
                                               uint32_t &nextRelocIndex) const {
   assert(!subsec.empty() && !sec.empty());
@@ -536,7 +550,15 @@ SectionChunk::advanceRelocIndexPastSubsection(ArrayRef<uint8_t> sec,
     if (rel.VirtualAddress + 1 >= vaEnd)
       break;
   }
-  return relocStartIndex;
+  return {relocStartIndex, nextRelocIndex};
+}
+
+uint32_t
+SectionChunk::advanceRelocIndexPastSubsection(ArrayRef<uint8_t> sec,
+                                              ArrayRef<uint8_t> subsec,
+                                              uint32_t &nextRelocIndex) const {
+  return advanceRelocRangePastSubsection(sec, subsec, nextRelocIndex)
+      .startIndex;
 }
 
 void SectionChunk::addAssociative(SectionChunk *child) {
