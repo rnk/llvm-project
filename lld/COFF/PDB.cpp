@@ -139,7 +139,7 @@ struct PlannedSymbolChunkBatch {
   size_t descriptorEnd;
 };
 
-constexpr size_t minCUDASymbolRemapDescriptors = 1024;
+constexpr size_t minCUDASymbolRemapDescriptors = 4096;
 constexpr size_t minCUDASymbolRemapStorageBytes = 256 * 1024;
 
 static bool shouldUsePDBSymbolRemapCUDA(
