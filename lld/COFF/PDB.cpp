@@ -81,6 +81,13 @@ struct SymbolRecordPlan {
   bool opensScope;
   bool closesScope;
   bool knownTypeRefs;
+  uint32_t idTypeIndexOffset = ~0U;
+  uint32_t idFinalTypeIndex = 0;
+  bool translateProcIdEnd = false;
+  bool translateProcIdRecord = false;
+  bool hasIdTypeIndex = false;
+  bool hasIdFinalTypeIndex = false;
+  bool warnInvalidFuncId = false;
 };
 
 static PlannedSymbolRecordDescriptor
@@ -95,6 +102,16 @@ makePlannedSymbolRecordDescriptor(const SymbolRecordPlan &plan,
     flags |= PSRF_ClosesScope;
   if (plan.knownTypeRefs)
     flags |= PSRF_KnownTypeRefs;
+  if (plan.translateProcIdEnd)
+    flags |= PSRF_TranslateProcIdEnd;
+  if (plan.translateProcIdRecord)
+    flags |= PSRF_TranslateProcIdRecord;
+  if (plan.hasIdTypeIndex)
+    flags |= PSRF_HasIdTypeIndex;
+  if (plan.hasIdFinalTypeIndex)
+    flags |= PSRF_HasIdFinalTypeIndex;
+  if (plan.warnInvalidFuncId)
+    flags |= PSRF_WarnInvalidFuncId;
 
   return {plan.inputOffset,
           plan.inputSize,
@@ -104,6 +121,8 @@ makePlannedSymbolRecordDescriptor(const SymbolRecordPlan &plan,
           plan.relocEndIndex,
           plan.typeRefStartIndex,
           plan.typeRefCount,
+          plan.idTypeIndexOffset,
+          plan.idFinalTypeIndex,
           plan.kind,
           flags};
 }
@@ -161,6 +180,14 @@ public:
   // Analyze the symbol records to separate module symbols from global symbols,
   // find string references, and calculate how large the symbol stream will be
   // in the PDB.
+  Error planSymbolSubsection(SectionChunk *debugChunk,
+                             ArrayRef<uint8_t> sectionContents,
+                             BinaryStreamRef symData,
+                             uint32_t &moduleSymOffset,
+                             uint32_t &nextRelocIndex,
+                             std::vector<SymbolRecordPlan> &plans,
+                             std::vector<PlannedSymbolTypeRef> &typeRefs,
+                             bool planStringTableFixups = false);
   void analyzeSymbolSubsection(SectionChunk *debugChunk,
                                uint32_t &moduleSymOffset,
                                uint32_t &nextRelocIndex,
@@ -223,8 +250,11 @@ public:
 private:
   void pdbMakeAbsolute(SmallVectorImpl<char> &fileName);
   void translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
-                          TpiSource *source,
+                          const SymbolRecordPlan &plan,
                           ArrayRef<PlannedSymbolTypeRef> typeRefs);
+  void planIdSymbolTranslation(SymbolRecordPlan &plan,
+                               TpiSource *source,
+                               ArrayRef<PlannedSymbolTypeRef> typeRefs);
   void addCommonLinkerModuleSymbols(StringRef path,
                                     pdb::DbiModuleDescriptorBuilder &mod);
 
@@ -401,13 +431,16 @@ static SymbolKind symbolKind(ArrayRef<uint8_t> recordData) {
 
 /// MSVC translates S_PROC_ID_END to S_END, and S_[LG]PROC32_ID to S_[LG]PROC32
 void PDBLinker::translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
-                                   TpiSource *source,
+                                   const SymbolRecordPlan &plan,
                                    ArrayRef<PlannedSymbolTypeRef> typeRefs) {
   RecordPrefix *prefix = reinterpret_cast<RecordPrefix *>(recordData.data());
 
   SymbolKind kind = symbolKind(recordData);
 
-  if (kind == SymbolKind::S_PROC_ID_END) {
+  if (kind == SymbolKind::S_SKIP)
+    return;
+
+  if (plan.translateProcIdEnd && kind == SymbolKind::S_PROC_ID_END) {
     prefix->RecordKind = SymbolKind::S_END;
     return;
   }
@@ -417,16 +450,26 @@ void PDBLinker::translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
   // to the PDB file's ID stream index space, but we need to convert this to a
   // symbol that refers to the type stream index space.  So we remap again from
   // ID index space to type index space.
-  if (kind == SymbolKind::S_GPROC32_ID || kind == SymbolKind::S_LPROC32_ID) {
-    uint32_t typeIndexOffset = ~0U;
+  if (plan.translateProcIdRecord &&
+      (kind == SymbolKind::S_GPROC32_ID || kind == SymbolKind::S_LPROC32_ID)) {
+    uint32_t typeIndexOffset = plan.idTypeIndexOffset;
+    assert(plan.hasIdTypeIndex);
+#ifndef NDEBUG
+    uint32_t discoveredTypeIndexOffset = ~0U;
     auto content = recordData.drop_front(sizeof(RecordPrefix));
     for (const PlannedSymbolTypeRef &typeRef : typeRefs) {
       if (typeRef.refKind == PSTRK_IndexRef) {
-        typeIndexOffset = typeRef.contentOffset;
+        discoveredTypeIndexOffset = typeRef.contentOffset;
         break;
       }
     }
-    assert(typeIndexOffset != ~0U);
+    assert(discoveredTypeIndexOffset == typeIndexOffset);
+#else
+    (void)typeRefs;
+    auto content = recordData.drop_front(sizeof(RecordPrefix));
+#endif
+    if (content.size() < typeIndexOffset + sizeof(TypeIndex))
+      Fatal(ctx) << "symbol record too short";
     TypeIndex *ti =
         reinterpret_cast<TypeIndex *>(content.data() + typeIndexOffset);
 
@@ -435,35 +478,81 @@ void PDBLinker::translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
     // Note that LF_FUNC_ID and LF_MFUNC_ID have the same record layout, and
     // in both cases we just need the second type index.
     if (!ti->isSimple() && !ti->isNoneType()) {
-      TypeIndex newType = TypeIndex(SimpleTypeKind::NotTranslated);
-      if (ctx.config.debugGHashes) {
-        auto idToType = tMerger.funcIdToType.find(*ti);
-        if (idToType != tMerger.funcIdToType.end())
-          newType = idToType->second;
-      } else {
-        if (tMerger.getIDTable().contains(*ti)) {
-          CVType funcIdData = tMerger.getIDTable().getType(*ti);
-          if (funcIdData.length() >= 8 && (funcIdData.kind() == LF_FUNC_ID ||
-                                           funcIdData.kind() == LF_MFUNC_ID)) {
-            newType =
-                *reinterpret_cast<const TypeIndex *>(&funcIdData.data()[8]);
-          }
-        }
-      }
-      if (newType == TypeIndex(SimpleTypeKind::NotTranslated)) {
-        Warn(ctx) << formatv(
-            "procedure symbol record for `{0}` in {1} refers to PDB "
-            "item index {2:X} which is not a valid function ID record",
-            getSymbolName(CVSymbol(recordData)), source->file->getName(),
-            ti->getIndex());
-      }
-      *ti = newType;
+      if (plan.hasIdFinalTypeIndex)
+        *ti = TypeIndex(plan.idFinalTypeIndex);
+      else if (plan.warnInvalidFuncId)
+        *ti = TypeIndex(SimpleTypeKind::NotTranslated);
     }
 
     kind = (kind == SymbolKind::S_GPROC32_ID) ? SymbolKind::S_GPROC32
                                               : SymbolKind::S_LPROC32;
     prefix->RecordKind = uint16_t(kind);
   }
+}
+
+void PDBLinker::planIdSymbolTranslation(
+    SymbolRecordPlan &plan, TpiSource *source,
+    ArrayRef<PlannedSymbolTypeRef> typeRefs) {
+  SymbolKind kind = plan.sym.kind();
+  if (kind == SymbolKind::S_PROC_ID_END) {
+    plan.translateProcIdEnd = true;
+    return;
+  }
+
+  if (kind != SymbolKind::S_GPROC32_ID && kind != SymbolKind::S_LPROC32_ID)
+    return;
+
+  plan.translateProcIdRecord = true;
+  for (const PlannedSymbolTypeRef &typeRef : typeRefs) {
+    if (typeRef.refKind == PSTRK_IndexRef) {
+      plan.idTypeIndexOffset = typeRef.contentOffset;
+      plan.hasIdTypeIndex = true;
+      break;
+    }
+  }
+  assert(plan.hasIdTypeIndex);
+
+  ArrayRef<uint8_t> content = plan.sym.content();
+  if (content.size() < plan.idTypeIndexOffset + sizeof(TypeIndex))
+    Fatal(ctx) << "symbol record too short";
+
+  TypeIndex ti =
+      *reinterpret_cast<const TypeIndex *>(content.data() +
+                                           plan.idTypeIndexOffset);
+  if (ti.isSimple() || ti.isNoneType())
+    return;
+
+  if (!source->remapTypeIndex(ti, TiRefKind::IndexRef))
+    return;
+
+  if (ti.isSimple() || ti.isNoneType())
+    return;
+
+  TypeIndex newType = TypeIndex(SimpleTypeKind::NotTranslated);
+  if (ctx.config.debugGHashes) {
+    auto idToType = tMerger.funcIdToType.find(ti);
+    if (idToType != tMerger.funcIdToType.end())
+      newType = idToType->second;
+  } else {
+    if (tMerger.getIDTable().contains(ti)) {
+      CVType funcIdData = tMerger.getIDTable().getType(ti);
+      if (funcIdData.length() >= 8 && (funcIdData.kind() == LF_FUNC_ID ||
+                                       funcIdData.kind() == LF_MFUNC_ID))
+        newType = *reinterpret_cast<const TypeIndex *>(&funcIdData.data()[8]);
+    }
+  }
+
+  if (newType == TypeIndex(SimpleTypeKind::NotTranslated)) {
+    plan.warnInvalidFuncId = true;
+    Warn(ctx) << formatv(
+        "procedure symbol record for `{0}` in {1} refers to PDB "
+        "item index {2:X} which is not a valid function ID record",
+        getSymbolName(plan.sym), source->file->getName(), ti.getIndex());
+    return;
+  }
+
+  plan.idFinalTypeIndex = newType.getIndex();
+  plan.hasIdFinalTypeIndex = true;
 }
 
 namespace {
@@ -699,16 +788,17 @@ planSymbolRecord(SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
           knownTypeRefs};
 }
 
-static Error planSymbolSubsection(SectionChunk *debugChunk,
-                                  ArrayRef<uint8_t> sectionContents,
-                                  BinaryStreamRef symData,
-                                  uint32_t &moduleSymOffset,
-                                  uint32_t &nextRelocIndex,
-                                  std::vector<SymbolRecordPlan> &plans,
-                                  std::vector<PlannedSymbolTypeRef> &typeRefs,
-                                  bool planStringTableFixups = false) {
+Error PDBLinker::planSymbolSubsection(
+    SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
+    BinaryStreamRef symData, uint32_t &moduleSymOffset,
+    uint32_t &nextRelocIndex, std::vector<SymbolRecordPlan> &plans,
+    std::vector<PlannedSymbolTypeRef> &typeRefs,
+    bool planStringTableFixups) {
   ArrayRef<uint8_t> symsBuffer;
   cantFail(symData.readBytes(0, symData.getLength(), symsBuffer));
+
+  TpiSource *source = debugChunk->file->debugTypesObj;
+  assert(source && "symbol records should have a type source");
 
   uint32_t scopeLevel = 0;
   return forEachCodeViewRecord<CVSymbol>(
@@ -733,6 +823,9 @@ static Error planSymbolSubsection(SectionChunk *debugChunk,
             debugChunk, sectionContents, sym, alignedSize, moduleSymOffset,
             nextRelocIndex, scopeLevel, typeRefStartIndex, typeRefCount,
             knownTypeRefs, planStringTableFixups));
+        planIdSymbolTranslation(
+            plans.back(), source,
+            ArrayRef(typeRefs).slice(typeRefStartIndex, typeRefCount));
         if (plans.back().goesInModule)
           moduleSymOffset += alignedSize;
         return Error::success();
@@ -794,7 +887,7 @@ void PDBLinker::remapAndTranslateSymbolRecordCPU(
 
   // An object file may have S_xxx_ID symbols, but these get converted to
   // "real" symbols in a PDB.
-  translateIdSymbols(recordBytes, source, typeRefs);
+  translateIdSymbols(recordBytes, plan, typeRefs);
 }
 
 void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,

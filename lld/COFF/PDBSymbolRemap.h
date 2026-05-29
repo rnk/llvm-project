@@ -19,6 +19,11 @@ enum PlannedSymbolRecordFlags : uint16_t {
   PSRF_OpensScope = 1 << 1,
   PSRF_ClosesScope = 1 << 2,
   PSRF_KnownTypeRefs = 1 << 3,
+  PSRF_TranslateProcIdEnd = 1 << 4,
+  PSRF_TranslateProcIdRecord = 1 << 5,
+  PSRF_HasIdTypeIndex = 1 << 6,
+  PSRF_HasIdFinalTypeIndex = 1 << 7,
+  PSRF_WarnInvalidFuncId = 1 << 8,
 };
 
 enum PlannedSymbolTypeRefKind : uint8_t {
@@ -42,6 +47,8 @@ struct PlannedSymbolRecordDescriptor {
   uint32_t relocEndIndex;
   uint32_t typeRefStartIndex;
   uint32_t typeRefCount;
+  uint32_t idTypeIndexOffset;
+  uint32_t idFinalTypeIndex;
   uint16_t kind;
   uint16_t flags;
 };
