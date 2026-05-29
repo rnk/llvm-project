@@ -169,8 +169,15 @@ public:
                                       BinaryStreamWriter &writer);
 
   // Copy the symbol record, relocate it, and fix the alignment if necessary.
-  // Rewrite type indices in the record. Replace unrecognized symbol records
-  // with S_SKIP records.
+  void copyRelocateAndAlignSymbolRecordTo(SectionChunk *debugChunk,
+                                          ArrayRef<uint8_t> sectionContents,
+                                          const SymbolRecordPlan &plan,
+                                          MutableArrayRef<uint8_t> recordBytes);
+  // Rewrite type indices in the already relocated record. Replace
+  // unrecognized symbol records with S_SKIP records.
+  void remapAndTranslateSymbolRecordCPU(SectionChunk *debugChunk,
+                                        const SymbolRecordPlan &plan,
+                                        MutableArrayRef<uint8_t> recordBytes);
   void writeSymbolRecordTo(SectionChunk *debugChunk,
                            ArrayRef<uint8_t> sectionContents,
                            const SymbolRecordPlan &plan,
@@ -696,15 +703,10 @@ static Error planSymbolSubsection(SectionChunk *debugChunk,
       });
 }
 
-// Copy the symbol record, relocate it, and fix the alignment if necessary.
-// Rewrite type indices in the record. Replace unrecognized symbol records with
-// S_SKIP records.
-void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
-                                    ArrayRef<uint8_t> sectionContents,
-                                    const SymbolRecordPlan &plan,
-                                    MutableArrayRef<uint8_t> recordBytes) {
+void PDBLinker::copyRelocateAndAlignSymbolRecordTo(
+    SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
+    const SymbolRecordPlan &plan, MutableArrayRef<uint8_t> recordBytes) {
   assert(recordBytes.size() == plan.alignedSize);
-  // Copy the symbol record and relocate it.
   ArrayRef<uint8_t> inputBytes =
       sectionContents.slice(plan.inputOffset, plan.inputSize);
   debugChunk->writeAndRelocateSubsectionAt(sectionContents, inputBytes,
@@ -712,7 +714,12 @@ void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
                                             plan.relocEndIndex},
                                            recordBytes.data());
   fixRecordAlignment(recordBytes, plan.inputSize);
+}
 
+void PDBLinker::remapAndTranslateSymbolRecordCPU(
+    SectionChunk *debugChunk, const SymbolRecordPlan &plan,
+    MutableArrayRef<uint8_t> recordBytes) {
+  assert(recordBytes.size() == plan.alignedSize);
   // Re-map all the type index references.
   TpiSource *source = debugChunk->file->debugTypesObj;
   if (!source->remapTypesInSymbolRecord(recordBytes)) {
@@ -724,6 +731,15 @@ void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
   // An object file may have S_xxx_ID symbols, but these get converted to
   // "real" symbols in a PDB.
   translateIdSymbols(recordBytes, source);
+}
+
+void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
+                                    ArrayRef<uint8_t> sectionContents,
+                                    const SymbolRecordPlan &plan,
+                                    MutableArrayRef<uint8_t> recordBytes) {
+  copyRelocateAndAlignSymbolRecordTo(debugChunk, sectionContents, plan,
+                                     recordBytes);
+  remapAndTranslateSymbolRecordCPU(debugChunk, plan, recordBytes);
 }
 
 void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
@@ -750,15 +766,15 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
   parallelFor(0, plans.size(), [&](size_t i) {
     const SymbolRecordPlan &plan = plans[i];
     const PlannedSymbolRecordDescriptor &desc = descriptors[i];
-    // Copy, relocate, and rewrite each module symbol into its planned
-    // disjoint output range.
     if (!(desc.flags & PSRF_GoesInModule))
       return;
 
     MutableArrayRef<uint8_t> recordBytes =
         MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
                                                 desc.alignedSize);
-    writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
+    copyRelocateAndAlignSymbolRecordTo(debugChunk, sectionContents, plan,
+                                       recordBytes);
+    remapAndTranslateSymbolRecordCPU(debugChunk, plan, recordBytes);
   });
 
   applyScopeFixups(scopeFixups, storage);
