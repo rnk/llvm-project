@@ -64,6 +64,9 @@ struct PDBSymbolRemapSourceMap {
   ArrayRef<llvm::codeview::TypeIndex> ipiMap;
 };
 
+// CUDA remap executor for large symbol batches. Callers should dispatch small
+// batches to the CPU path because this entry point uploads source maps and the
+// module symbol storage on each invocation.
 void executePDBSymbolRemapCUDA(
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs,

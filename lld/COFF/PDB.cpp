@@ -142,6 +142,25 @@ static PDBSymbolRemapSourceMap makePDBSymbolRemapSourceMap(TpiSource *source) {
   return {source->tpiMap, source->ipiMap};
 }
 
+constexpr size_t minCUDASymbolRemapDescriptors = 4096;
+constexpr size_t minCUDASymbolRemapStorageBytes = 256 * 1024;
+
+static bool shouldUsePDBSymbolRemapCUDA(
+    ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+    ArrayRef<uint8_t> moduleSymbolStorage) {
+  if (moduleSymbolStorage.size() < minCUDASymbolRemapStorageBytes)
+    return false;
+
+  size_t moduleDescriptorCount = 0;
+  for (const PlannedSymbolRecordDescriptor &desc : descriptors)
+    if (desc.flags & PSRF_GoesInModule)
+      ++moduleDescriptorCount;
+
+  // Each CUDA invocation uploads the source maps and current symbol storage for
+  // one subsection, so small batches are slower than the CPU remap path.
+  return moduleDescriptorCount >= minCUDASymbolRemapDescriptors;
+}
+
 class PDBLinker {
   friend DebugSHandler;
 
@@ -1102,7 +1121,8 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
                                               descriptors, storage);
   PDBSymbolRemapSourceMap sourceMap =
       makePDBSymbolRemapSourceMap(debugChunk->file->debugTypesObj);
-  if (ctx.config.lldCudaGHash)
+  if (ctx.config.lldCudaGHash &&
+      shouldUsePDBSymbolRemapCUDA(descriptors, storage))
     executePDBSymbolRemapCUDA(descriptors, typeRefs, sourceMap,
                               MutableArrayRef<uint8_t>(storage));
   else
