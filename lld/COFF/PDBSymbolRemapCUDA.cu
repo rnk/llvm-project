@@ -15,9 +15,11 @@ using namespace lld::coff;
 void lld::coff::executePDBSymbolRemapCUDA(
     ArrayRef<uint8_t> sectionContents,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+    ArrayRef<PlannedSymbolTypeRef> typeRefs,
     MutableArrayRef<uint8_t> moduleSymbolStorage) {
   (void)sectionContents;
   (void)descriptors;
+  (void)typeRefs;
   (void)moduleSymbolStorage;
   fatal("CUDA PDB symbol remap is not implemented");
 }

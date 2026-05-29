@@ -18,6 +18,17 @@ enum PlannedSymbolRecordFlags : uint16_t {
   PSRF_GoesInModule = 1 << 0,
   PSRF_OpensScope = 1 << 1,
   PSRF_ClosesScope = 1 << 2,
+  PSRF_KnownTypeRefs = 1 << 3,
+};
+
+enum PlannedSymbolTypeRefKind : uint8_t {
+  PSTRK_TypeRef,
+  PSTRK_IndexRef,
+};
+
+struct PlannedSymbolTypeRef {
+  uint32_t contentOffset;
+  uint8_t refKind;
 };
 
 // Numeric-only symbol work item for the CUDA/bulk executor boundary. Scope and
@@ -29,6 +40,8 @@ struct PlannedSymbolRecordDescriptor {
   uint32_t alignedSize;
   uint32_t relocStartIndex;
   uint32_t relocEndIndex;
+  uint32_t typeRefStartIndex;
+  uint32_t typeRefCount;
   uint16_t kind;
   uint16_t flags;
 };
@@ -36,6 +49,7 @@ struct PlannedSymbolRecordDescriptor {
 void executePDBSymbolRemapCUDA(
     ArrayRef<uint8_t> sectionContents,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+    ArrayRef<PlannedSymbolTypeRef> typeRefs,
     MutableArrayRef<uint8_t> moduleSymbolStorage);
 
 } // namespace lld::coff
