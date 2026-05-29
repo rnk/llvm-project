@@ -37,5 +37,13 @@ COFFLinkerContext::COFFLinkerContext()
       symbolMergingTimer("Symbol Merging", addObjectsTimer),
       publicsLayoutTimer("Publics Stream Layout", totalPdbLinkTimer),
       tpiStreamLayoutTimer("TPI Stream Layout", totalPdbLinkTimer),
-      diskCommitTimer("Commit to Disk", totalPdbLinkTimer) {}
+      diskCommitTimer("Commit to Disk", totalPdbLinkTimer),
+      pdbSymbolCopyRelocateAlignTimer(
+          "PDB Symbol Copy Relocate Align (Cumulative)", totalPdbLinkTimer),
+      pdbSymbolRemapCPUTimer("PDB Symbol Remap CPU (Cumulative)",
+                             totalPdbLinkTimer),
+      pdbSymbolRemapCUDATimer("PDB Symbol Remap CUDA (Cumulative)",
+                              totalPdbLinkTimer),
+      pdbSymbolScopeFixupsTimer("PDB Symbol Scope Fixups (Cumulative)",
+                                totalPdbLinkTimer) {}
 } // namespace lld::coff

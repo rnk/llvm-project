@@ -113,6 +113,10 @@ public:
   Timer publicsLayoutTimer;
   Timer tpiStreamLayoutTimer;
   Timer diskCommitTimer;
+  Timer pdbSymbolCopyRelocateAlignTimer;
+  Timer pdbSymbolRemapCPUTimer;
+  Timer pdbSymbolRemapCUDATimer;
+  Timer pdbSymbolScopeFixupsTimer;
 
   std::optional<PDBStats> pdbStats;
 

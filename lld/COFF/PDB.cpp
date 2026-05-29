@@ -1068,6 +1068,7 @@ void PDBLinker::copyRelocateAndAlignPlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     std::vector<uint8_t> &storage) {
+  ScopedTimer t(ctx.pdbSymbolCopyRelocateAlignTimer);
   parallelFor(0, descriptors.size(), [&](size_t i) {
     const PlannedSymbolRecordDescriptor &desc = descriptors[i];
     if (!(desc.flags & PSRF_GoesInModule))
@@ -1085,6 +1086,7 @@ void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, PDBSymbolRemapSourceMap sourceMap,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
+  ScopedTimer t(ctx.pdbSymbolRemapCPUTimer);
   parallelFor(0, descriptors.size(), [&](size_t i) {
     const PlannedSymbolRecordDescriptor &desc = descriptors[i];
     if (!(desc.flags & PSRF_GoesInModule))
@@ -1107,11 +1109,14 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
   ObjFile *file = debugChunk->file;
   SmallVector<ScopeFixup, 4> scopeFixups;
-  for (std::pair<size_t, size_t> range : descriptorRanges) {
-    SmallVector<ScopeFixup, 4> rangeFixups = computeScopeFixups(
-        ctx, descriptors.slice(range.first, range.second - range.first),
-        moduleSymStart, file);
-    scopeFixups.append(rangeFixups.begin(), rangeFixups.end());
+  {
+    ScopedTimer t(ctx.pdbSymbolScopeFixupsTimer);
+    for (std::pair<size_t, size_t> range : descriptorRanges) {
+      SmallVector<ScopeFixup, 4> rangeFixups = computeScopeFixups(
+          ctx, descriptors.slice(range.first, range.second - range.first),
+          moduleSymStart, file);
+      scopeFixups.append(rangeFixups.begin(), rangeFixups.end());
+    }
   }
 
   copyRelocateAndAlignPlannedSymbolRecordsCPU(debugChunk, sectionContents,
@@ -1119,13 +1124,18 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
   PDBSymbolRemapSourceMap sourceMap =
       makePDBSymbolRemapSourceMap(debugChunk->file->debugTypesObj);
   if (ctx.config.lldCudaGHash &&
-      shouldUsePDBSymbolRemapCUDA(descriptors, storage))
+      shouldUsePDBSymbolRemapCUDA(descriptors, storage)) {
+    ScopedTimer t(ctx.pdbSymbolRemapCUDATimer);
     executePDBSymbolRemapCUDA(descriptors, typeRefs, sourceMap,
                               MutableArrayRef<uint8_t>(storage));
-  else
+  } else {
     remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, sourceMap, descriptors,
                                              typeRefs, storage);
-  applyScopeFixups(scopeFixups, storage);
+  }
+  {
+    ScopedTimer t(ctx.pdbSymbolScopeFixupsTimer);
+    applyScopeFixups(scopeFixups, storage);
+  }
 }
 
 void PDBLinker::analyzeSymbolSubsection(
