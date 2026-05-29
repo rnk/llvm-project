@@ -138,6 +138,10 @@ makePlannedSymbolRecordDescriptors(ArrayRef<SymbolRecordPlan> plans,
   return descriptors;
 }
 
+static PDBSymbolRemapSourceMap makePDBSymbolRemapSourceMap(TpiSource *source) {
+  return {source->tpiMap, source->ipiMap};
+}
+
 class PDBLinker {
   friend DebugSHandler;
 
@@ -220,6 +224,7 @@ public:
   void
   remapAndTranslateSymbolRecordCPU(SectionChunk *debugChunk,
                                    const PlannedSymbolRecordDescriptor &desc,
+                                   PDBSymbolRemapSourceMap sourceMap,
                                    ArrayRef<PlannedSymbolTypeRef> typeRefs,
                                    MutableArrayRef<uint8_t> recordBytes);
   void writeSymbolRecordTo(SectionChunk *debugChunk,
@@ -237,7 +242,7 @@ public:
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       std::vector<uint8_t> &storage);
   void remapAndTranslatePlannedSymbolRecordsCPU(
-      SectionChunk *debugChunk,
+      SectionChunk *debugChunk, PDBSymbolRemapSourceMap sourceMap,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
   void executePlannedSymbolRecordsCPU(
@@ -931,6 +936,19 @@ static TiRefKind toTiRefKind(const PlannedSymbolTypeRef &typeRef) {
                                            : TiRefKind::TypeRef;
 }
 
+static bool remapTypeIndexWithSourceMap(TypeIndex &ti, TiRefKind refKind,
+                                        PDBSymbolRemapSourceMap sourceMap) {
+  if (ti.isSimple())
+    return true;
+
+  ArrayRef<TypeIndex> map =
+      refKind == TiRefKind::IndexRef ? sourceMap.ipiMap : sourceMap.tpiMap;
+  if (ti.toArrayIndex() >= map.size())
+    return false;
+  ti = map[ti.toArrayIndex()];
+  return true;
+}
+
 void PDBLinker::remapAndTranslateSymbolRecordCPU(
     SectionChunk *debugChunk, const SymbolRecordPlan &plan,
     ArrayRef<PlannedSymbolTypeRef> typeRefs,
@@ -974,6 +992,7 @@ void PDBLinker::remapAndTranslateSymbolRecordCPU(
 
 void PDBLinker::remapAndTranslateSymbolRecordCPU(
     SectionChunk *debugChunk, const PlannedSymbolRecordDescriptor &desc,
+    PDBSymbolRemapSourceMap sourceMap,
     ArrayRef<PlannedSymbolTypeRef> typeRefs,
     MutableArrayRef<uint8_t> recordBytes) {
   assert(recordBytes.size() == desc.alignedSize);
@@ -993,7 +1012,7 @@ void PDBLinker::remapAndTranslateSymbolRecordCPU(
       TypeIndex &ti = *reinterpret_cast<TypeIndex *>(contents.data() +
                                                      typeRef.contentOffset);
       TiRefKind refKind = toTiRefKind(typeRef);
-      if (LLVM_LIKELY(source->remapTypeIndex(ti, refKind)))
+      if (LLVM_LIKELY(remapTypeIndexWithSourceMap(ti, refKind, sourceMap)))
         continue;
 
       if (ctx.config.verbose) {
@@ -1053,7 +1072,7 @@ void PDBLinker::copyRelocateAndAlignPlannedSymbolRecordsCPU(
 }
 
 void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
-    SectionChunk *debugChunk,
+    SectionChunk *debugChunk, PDBSymbolRemapSourceMap sourceMap,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
   parallelFor(0, descriptors.size(), [&](size_t i) {
@@ -1065,7 +1084,7 @@ void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
         MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
                                                 desc.alignedSize);
     remapAndTranslateSymbolRecordCPU(
-        debugChunk, desc,
+        debugChunk, desc, sourceMap,
         typeRefs.slice(desc.typeRefStartIndex, desc.typeRefCount), recordBytes);
   });
 }
@@ -1081,8 +1100,10 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
 
   copyRelocateAndAlignPlannedSymbolRecordsCPU(debugChunk, sectionContents,
                                               descriptors, storage);
-  remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, descriptors, typeRefs,
-                                           storage);
+  PDBSymbolRemapSourceMap sourceMap =
+      makePDBSymbolRemapSourceMap(debugChunk->file->debugTypesObj);
+  remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, sourceMap, descriptors,
+                                           typeRefs, storage);
   applyScopeFixups(scopeFixups, storage);
 }
 

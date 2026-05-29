@@ -13,13 +13,13 @@ using namespace lld;
 using namespace lld::coff;
 
 void lld::coff::executePDBSymbolRemapCUDA(
-    ArrayRef<uint8_t> sectionContents,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs,
+    PDBSymbolRemapSourceMap sourceMap,
     MutableArrayRef<uint8_t> moduleSymbolStorage) {
-  (void)sectionContents;
   (void)descriptors;
   (void)typeRefs;
+  (void)sourceMap;
   (void)moduleSymbolStorage;
   fatal("CUDA PDB symbol remap requires LLD_ENABLE_COFF_GHASH_CUDA=ON");
 }

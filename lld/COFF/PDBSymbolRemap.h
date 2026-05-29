@@ -10,6 +10,8 @@
 #define LLD_COFF_PDBSYMBOLREMAP_H
 
 #include "lld/Common/LLVM.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/DebugInfo/CodeView/TypeIndex.h"
 #include <cstdint>
 
 namespace lld::coff {
@@ -53,10 +55,19 @@ struct PlannedSymbolRecordDescriptor {
   uint16_t flags;
 };
 
+// Source type-index maps for the remap/translate phase. This boundary stays
+// numeric: CUDA implementations should copy the raw 32-bit TypeIndex values to
+// device memory before launching kernels rather than depending on CodeView
+// parsing helpers.
+struct PDBSymbolRemapSourceMap {
+  ArrayRef<llvm::codeview::TypeIndex> tpiMap;
+  ArrayRef<llvm::codeview::TypeIndex> ipiMap;
+};
+
 void executePDBSymbolRemapCUDA(
-    ArrayRef<uint8_t> sectionContents,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs,
+    PDBSymbolRemapSourceMap sourceMap,
     MutableArrayRef<uint8_t> moduleSymbolStorage);
 
 } // namespace lld::coff
