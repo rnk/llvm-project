@@ -353,8 +353,6 @@ void lld::coff::executePDBSymbolRemapCUDA(
       deviceData(deviceErrors));
   cuErr.fatalIfFailed(cudaGetLastError(),
                       "CUDA PDB symbol remap failed to launch kernel");
-  cuErr.fatalIfFailed(cudaDeviceSynchronize(),
-                      "CUDA PDB symbol remap failed while synchronizing kernel");
 
   DeviceSymbolRemapErrorSummary errors;
   cuErr.fatalIfFailed(cudaMemcpy(&errors, deviceData(deviceErrors),
