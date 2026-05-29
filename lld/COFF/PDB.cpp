@@ -182,8 +182,7 @@ public:
   // in the PDB.
   Error planSymbolSubsection(SectionChunk *debugChunk,
                              ArrayRef<uint8_t> sectionContents,
-                             BinaryStreamRef symData,
-                             uint32_t &moduleSymOffset,
+                             BinaryStreamRef symData, uint32_t &moduleSymOffset,
                              uint32_t &nextRelocIndex,
                              std::vector<SymbolRecordPlan> &plans,
                              std::vector<PlannedSymbolTypeRef> &typeRefs,
@@ -207,12 +206,22 @@ public:
                                           ArrayRef<uint8_t> sectionContents,
                                           const SymbolRecordPlan &plan,
                                           MutableArrayRef<uint8_t> recordBytes);
+  void
+  copyRelocateAndAlignSymbolRecordTo(SectionChunk *debugChunk,
+                                     ArrayRef<uint8_t> sectionContents,
+                                     const PlannedSymbolRecordDescriptor &desc,
+                                     MutableArrayRef<uint8_t> recordBytes);
   // Rewrite type indices in the already relocated record. Replace
   // unrecognized symbol records with S_SKIP records.
   void remapAndTranslateSymbolRecordCPU(SectionChunk *debugChunk,
                                         const SymbolRecordPlan &plan,
                                         ArrayRef<PlannedSymbolTypeRef> typeRefs,
                                         MutableArrayRef<uint8_t> recordBytes);
+  void
+  remapAndTranslateSymbolRecordCPU(SectionChunk *debugChunk,
+                                   const PlannedSymbolRecordDescriptor &desc,
+                                   ArrayRef<PlannedSymbolTypeRef> typeRefs,
+                                   MutableArrayRef<uint8_t> recordBytes);
   void writeSymbolRecordTo(SectionChunk *debugChunk,
                            ArrayRef<uint8_t> sectionContents,
                            const SymbolRecordPlan &plan,
@@ -225,16 +234,15 @@ public:
                          std::vector<uint8_t> &storage);
   void copyRelocateAndAlignPlannedSymbolRecordsCPU(
       SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-      ArrayRef<SymbolRecordPlan> plans,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       std::vector<uint8_t> &storage);
   void remapAndTranslatePlannedSymbolRecordsCPU(
-      SectionChunk *debugChunk, ArrayRef<SymbolRecordPlan> plans,
+      SectionChunk *debugChunk,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
   void executePlannedSymbolRecordsCPU(
       SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-      uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
+      uint32_t moduleSymStart,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
 
@@ -252,8 +260,10 @@ private:
   void translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
                           const SymbolRecordPlan &plan,
                           ArrayRef<PlannedSymbolTypeRef> typeRefs);
-  void planIdSymbolTranslation(SymbolRecordPlan &plan,
-                               TpiSource *source,
+  void translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
+                          const PlannedSymbolRecordDescriptor &desc,
+                          ArrayRef<PlannedSymbolTypeRef> typeRefs);
+  void planIdSymbolTranslation(SymbolRecordPlan &plan, TpiSource *source,
                                ArrayRef<PlannedSymbolTypeRef> typeRefs);
   void addCommonLinkerModuleSymbols(StringRef path,
                                     pdb::DbiModuleDescriptorBuilder &mod);
@@ -490,6 +500,67 @@ void PDBLinker::translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
   }
 }
 
+void PDBLinker::translateIdSymbols(MutableArrayRef<uint8_t> &recordData,
+                                   const PlannedSymbolRecordDescriptor &desc,
+                                   ArrayRef<PlannedSymbolTypeRef> typeRefs) {
+  RecordPrefix *prefix = reinterpret_cast<RecordPrefix *>(recordData.data());
+
+  SymbolKind kind = symbolKind(recordData);
+
+  if (kind == SymbolKind::S_SKIP)
+    return;
+
+  if ((desc.flags & PSRF_TranslateProcIdEnd) &&
+      kind == SymbolKind::S_PROC_ID_END) {
+    prefix->RecordKind = SymbolKind::S_END;
+    return;
+  }
+
+  // In an object file, GPROC32_ID has an embedded reference which refers to the
+  // single object file type index namespace.  This has already been translated
+  // to the PDB file's ID stream index space, but we need to convert this to a
+  // symbol that refers to the type stream index space.  So we remap again from
+  // ID index space to type index space.
+  if ((desc.flags & PSRF_TranslateProcIdRecord) &&
+      (kind == SymbolKind::S_GPROC32_ID || kind == SymbolKind::S_LPROC32_ID)) {
+    uint32_t typeIndexOffset = desc.idTypeIndexOffset;
+    assert(desc.flags & PSRF_HasIdTypeIndex);
+#ifndef NDEBUG
+    uint32_t discoveredTypeIndexOffset = ~0U;
+    auto content = recordData.drop_front(sizeof(RecordPrefix));
+    for (const PlannedSymbolTypeRef &typeRef : typeRefs) {
+      if (typeRef.refKind == PSTRK_IndexRef) {
+        discoveredTypeIndexOffset = typeRef.contentOffset;
+        break;
+      }
+    }
+    assert(discoveredTypeIndexOffset == typeIndexOffset);
+#else
+    (void)typeRefs;
+    auto content = recordData.drop_front(sizeof(RecordPrefix));
+#endif
+    if (content.size() < typeIndexOffset + sizeof(TypeIndex))
+      Fatal(ctx) << "symbol record too short";
+    TypeIndex *ti =
+        reinterpret_cast<TypeIndex *>(content.data() + typeIndexOffset);
+
+    // `ti` is the index of a FuncIdRecord or MemberFuncIdRecord which lives in
+    // the IPI stream, whose `FunctionType` member refers to the TPI stream.
+    // Note that LF_FUNC_ID and LF_MFUNC_ID have the same record layout, and
+    // in both cases we just need the second type index.
+    if (!ti->isSimple() && !ti->isNoneType()) {
+      if (desc.flags & PSRF_HasIdFinalTypeIndex)
+        *ti = TypeIndex(desc.idFinalTypeIndex);
+      else if (desc.flags & PSRF_WarnInvalidFuncId)
+        *ti = TypeIndex(SimpleTypeKind::NotTranslated);
+    }
+
+    kind = (kind == SymbolKind::S_GPROC32_ID) ? SymbolKind::S_GPROC32
+                                              : SymbolKind::S_LPROC32;
+    prefix->RecordKind = uint16_t(kind);
+  }
+}
+
 void PDBLinker::planIdSymbolTranslation(
     SymbolRecordPlan &plan, TpiSource *source,
     ArrayRef<PlannedSymbolTypeRef> typeRefs) {
@@ -516,9 +587,8 @@ void PDBLinker::planIdSymbolTranslation(
   if (content.size() < plan.idTypeIndexOffset + sizeof(TypeIndex))
     Fatal(ctx) << "symbol record too short";
 
-  TypeIndex ti =
-      *reinterpret_cast<const TypeIndex *>(content.data() +
-                                           plan.idTypeIndexOffset);
+  TypeIndex ti = *reinterpret_cast<const TypeIndex *>(content.data() +
+                                                      plan.idTypeIndexOffset);
   if (ti.isSimple() || ti.isNoneType())
     return;
 
@@ -536,8 +606,8 @@ void PDBLinker::planIdSymbolTranslation(
   } else {
     if (tMerger.getIDTable().contains(ti)) {
       CVType funcIdData = tMerger.getIDTable().getType(ti);
-      if (funcIdData.length() >= 8 && (funcIdData.kind() == LF_FUNC_ID ||
-                                       funcIdData.kind() == LF_MFUNC_ID))
+      if (funcIdData.length() >= 8 &&
+          (funcIdData.kind() == LF_FUNC_ID || funcIdData.kind() == LF_MFUNC_ID))
         newType = *reinterpret_cast<const TypeIndex *>(&funcIdData.data()[8]);
     }
   }
@@ -792,8 +862,7 @@ Error PDBLinker::planSymbolSubsection(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
     BinaryStreamRef symData, uint32_t &moduleSymOffset,
     uint32_t &nextRelocIndex, std::vector<SymbolRecordPlan> &plans,
-    std::vector<PlannedSymbolTypeRef> &typeRefs,
-    bool planStringTableFixups) {
+    std::vector<PlannedSymbolTypeRef> &typeRefs, bool planStringTableFixups) {
   ArrayRef<uint8_t> symsBuffer;
   cantFail(symData.readBytes(0, symData.getLength(), symsBuffer));
 
@@ -844,6 +913,19 @@ void PDBLinker::copyRelocateAndAlignSymbolRecordTo(
   fixRecordAlignment(recordBytes, plan.inputSize);
 }
 
+void PDBLinker::copyRelocateAndAlignSymbolRecordTo(
+    SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
+    const PlannedSymbolRecordDescriptor &desc,
+    MutableArrayRef<uint8_t> recordBytes) {
+  assert(recordBytes.size() == desc.alignedSize);
+  ArrayRef<uint8_t> inputBytes =
+      sectionContents.slice(desc.inputOffset, desc.inputSize);
+  debugChunk->writeAndRelocateSubsectionAt(
+      sectionContents, inputBytes, {desc.relocStartIndex, desc.relocEndIndex},
+      recordBytes.data());
+  fixRecordAlignment(recordBytes, desc.inputSize);
+}
+
 static TiRefKind toTiRefKind(const PlannedSymbolTypeRef &typeRef) {
   return typeRef.refKind == PSTRK_IndexRef ? TiRefKind::IndexRef
                                            : TiRefKind::TypeRef;
@@ -890,6 +972,47 @@ void PDBLinker::remapAndTranslateSymbolRecordCPU(
   translateIdSymbols(recordBytes, plan, typeRefs);
 }
 
+void PDBLinker::remapAndTranslateSymbolRecordCPU(
+    SectionChunk *debugChunk, const PlannedSymbolRecordDescriptor &desc,
+    ArrayRef<PlannedSymbolTypeRef> typeRefs,
+    MutableArrayRef<uint8_t> recordBytes) {
+  assert(recordBytes.size() == desc.alignedSize);
+  // Re-map all the type index references.
+  TpiSource *source = debugChunk->file->debugTypesObj;
+  if (!(desc.flags & PSRF_KnownTypeRefs)) {
+    Log(ctx) << "ignoring unknown symbol record with kind 0x"
+             << utohexstr(desc.kind);
+    replaceWithSkipRecord(recordBytes);
+  } else {
+    MutableArrayRef<uint8_t> contents =
+        recordBytes.drop_front(sizeof(RecordPrefix));
+    for (const PlannedSymbolTypeRef &typeRef : typeRefs) {
+      if (contents.size() < typeRef.contentOffset + sizeof(TypeIndex))
+        Fatal(ctx) << "symbol record too short";
+
+      TypeIndex &ti = *reinterpret_cast<TypeIndex *>(contents.data() +
+                                                     typeRef.contentOffset);
+      TiRefKind refKind = toTiRefKind(typeRef);
+      if (LLVM_LIKELY(source->remapTypeIndex(ti, refKind)))
+        continue;
+
+      if (ctx.config.verbose) {
+        StringRef fname =
+            source->file ? source->file->getName() : StringRef("<unknown PDB>");
+        Log(ctx) << "failed to remap type index in record of kind 0x"
+                 << utohexstr(desc.kind) << " in " << fname << " with bad "
+                 << (refKind == TiRefKind::IndexRef ? "item" : "type")
+                 << " index 0x" << utohexstr(ti.getIndex());
+      }
+      ti = TypeIndex(SimpleTypeKind::NotTranslated);
+    }
+  }
+
+  // An object file may have S_xxx_ID symbols, but these get converted to
+  // "real" symbols in a PDB.
+  translateIdSymbols(recordBytes, desc, typeRefs);
+}
+
 void PDBLinker::writeSymbolRecordTo(SectionChunk *debugChunk,
                                     ArrayRef<uint8_t> sectionContents,
                                     const SymbolRecordPlan &plan,
@@ -914,13 +1037,9 @@ void PDBLinker::writeSymbolRecord(SectionChunk *debugChunk,
 
 void PDBLinker::copyRelocateAndAlignPlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-    ArrayRef<SymbolRecordPlan> plans,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     std::vector<uint8_t> &storage) {
-  assert(plans.size() == descriptors.size());
-
-  parallelFor(0, plans.size(), [&](size_t i) {
-    const SymbolRecordPlan &plan = plans[i];
+  parallelFor(0, descriptors.size(), [&](size_t i) {
     const PlannedSymbolRecordDescriptor &desc = descriptors[i];
     if (!(desc.flags & PSRF_GoesInModule))
       return;
@@ -928,19 +1047,16 @@ void PDBLinker::copyRelocateAndAlignPlannedSymbolRecordsCPU(
     MutableArrayRef<uint8_t> recordBytes =
         MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
                                                 desc.alignedSize);
-    copyRelocateAndAlignSymbolRecordTo(debugChunk, sectionContents, plan,
+    copyRelocateAndAlignSymbolRecordTo(debugChunk, sectionContents, desc,
                                        recordBytes);
   });
 }
 
 void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
-    SectionChunk *debugChunk, ArrayRef<SymbolRecordPlan> plans,
+    SectionChunk *debugChunk,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
-  assert(plans.size() == descriptors.size());
-
-  parallelFor(0, plans.size(), [&](size_t i) {
-    const SymbolRecordPlan &plan = plans[i];
+  parallelFor(0, descriptors.size(), [&](size_t i) {
     const PlannedSymbolRecordDescriptor &desc = descriptors[i];
     if (!(desc.flags & PSRF_GoesInModule))
       return;
@@ -949,25 +1065,24 @@ void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
         MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
                                                 desc.alignedSize);
     remapAndTranslateSymbolRecordCPU(
-        debugChunk, plan,
+        debugChunk, desc,
         typeRefs.slice(desc.typeRefStartIndex, desc.typeRefCount), recordBytes);
   });
 }
 
 void PDBLinker::executePlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-    uint32_t moduleSymStart, ArrayRef<SymbolRecordPlan> plans,
+    uint32_t moduleSymStart,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
-  assert(plans.size() == descriptors.size());
   ObjFile *file = debugChunk->file;
   SmallVector<ScopeFixup, 4> scopeFixups =
       computeScopeFixups(ctx, descriptors, moduleSymStart, file);
 
   copyRelocateAndAlignPlannedSymbolRecordsCPU(debugChunk, sectionContents,
-                                              plans, descriptors, storage);
-  remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, plans, descriptors,
-                                           typeRefs, storage);
+                                              descriptors, storage);
+  remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, descriptors, typeRefs,
+                                           storage);
   applyScopeFixups(scopeFixups, storage);
 }
 
@@ -1077,8 +1192,8 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
           makePlannedSymbolRecordDescriptors(plans, moduleSymStart);
       storage.resize(moduleSymOffset - moduleSymStart);
       executePlannedSymbolRecordsCPU(debugChunk, sectionContents,
-                                     moduleSymStart, plans, descriptors,
-                                     typeRefs, storage);
+                                     moduleSymStart, descriptors, typeRefs,
+                                     storage);
 
       // Writing bytes has a very high overhead, so write the entire subsection
       // at once.
