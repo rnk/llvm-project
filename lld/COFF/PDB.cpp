@@ -132,6 +132,13 @@ static PDBSymbolRemapSourceMap makePDBSymbolRemapSourceMap(TpiSource *source) {
   return {source->tpiMap, source->ipiMap};
 }
 
+struct PlannedSymbolChunkBatch {
+  SectionChunk *debugChunk;
+  ArrayRef<uint8_t> sectionContents;
+  size_t descriptorStart;
+  size_t descriptorEnd;
+};
+
 constexpr size_t minCUDASymbolRemapDescriptors = 4096;
 constexpr size_t minCUDASymbolRemapStorageBytes = 256 * 1024;
 
@@ -231,7 +238,7 @@ public:
                                         ArrayRef<PlannedSymbolTypeRef> typeRefs,
                                         MutableArrayRef<uint8_t> recordBytes);
   void
-  remapAndTranslateSymbolRecordCPU(SectionChunk *debugChunk,
+  remapAndTranslateSymbolRecordCPU(ObjFile *file,
                                    const PlannedSymbolRecordDescriptor &desc,
                                    PDBSymbolRemapSourceMap sourceMap,
                                    ArrayRef<PlannedSymbolTypeRef> typeRefs,
@@ -251,12 +258,12 @@ public:
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       std::vector<uint8_t> &storage);
   void remapAndTranslatePlannedSymbolRecordsCPU(
-      SectionChunk *debugChunk, PDBSymbolRemapSourceMap sourceMap,
+      ObjFile *file, PDBSymbolRemapSourceMap sourceMap,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
   void executePlannedSymbolRecordsCPU(
-      SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-      uint32_t moduleSymStart,
+      ObjFile *file, uint32_t moduleSymStart,
+      ArrayRef<PlannedSymbolChunkBatch> chunkBatches,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
       ArrayRef<std::pair<size_t, size_t>> descriptorRanges,
       ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
@@ -1001,13 +1008,13 @@ void PDBLinker::remapAndTranslateSymbolRecordCPU(
 }
 
 void PDBLinker::remapAndTranslateSymbolRecordCPU(
-    SectionChunk *debugChunk, const PlannedSymbolRecordDescriptor &desc,
+    ObjFile *file, const PlannedSymbolRecordDescriptor &desc,
     PDBSymbolRemapSourceMap sourceMap,
     ArrayRef<PlannedSymbolTypeRef> typeRefs,
     MutableArrayRef<uint8_t> recordBytes) {
   assert(recordBytes.size() == desc.alignedSize);
   // Re-map all the type index references.
-  TpiSource *source = debugChunk->file->debugTypesObj;
+  TpiSource *source = file->debugTypesObj;
   if (!(desc.flags & PSRF_KnownTypeRefs)) {
     Log(ctx) << "ignoring unknown symbol record with kind 0x"
              << utohexstr(desc.kind);
@@ -1083,7 +1090,7 @@ void PDBLinker::copyRelocateAndAlignPlannedSymbolRecordsCPU(
 }
 
 void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
-    SectionChunk *debugChunk, PDBSymbolRemapSourceMap sourceMap,
+    ObjFile *file, PDBSymbolRemapSourceMap sourceMap,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
   ScopedTimer t(ctx.pdbSymbolRemapCPUTimer);
@@ -1096,18 +1103,17 @@ void PDBLinker::remapAndTranslatePlannedSymbolRecordsCPU(
         MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
                                                 desc.alignedSize);
     remapAndTranslateSymbolRecordCPU(
-        debugChunk, desc, sourceMap,
+        file, desc, sourceMap,
         typeRefs.slice(desc.typeRefStartIndex, desc.typeRefCount), recordBytes);
   });
 }
 
 void PDBLinker::executePlannedSymbolRecordsCPU(
-    SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
-    uint32_t moduleSymStart,
+    ObjFile *file, uint32_t moduleSymStart,
+    ArrayRef<PlannedSymbolChunkBatch> chunkBatches,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
     ArrayRef<std::pair<size_t, size_t>> descriptorRanges,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
-  ObjFile *file = debugChunk->file;
   SmallVector<ScopeFixup, 4> scopeFixups;
   {
     ScopedTimer t(ctx.pdbSymbolScopeFixupsTimer);
@@ -1119,17 +1125,22 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
     }
   }
 
-  copyRelocateAndAlignPlannedSymbolRecordsCPU(debugChunk, sectionContents,
-                                              descriptors, storage);
+  for (const PlannedSymbolChunkBatch &batch : chunkBatches) {
+    copyRelocateAndAlignPlannedSymbolRecordsCPU(
+        batch.debugChunk, batch.sectionContents,
+        descriptors.slice(batch.descriptorStart,
+                          batch.descriptorEnd - batch.descriptorStart),
+        storage);
+  }
   PDBSymbolRemapSourceMap sourceMap =
-      makePDBSymbolRemapSourceMap(debugChunk->file->debugTypesObj);
+      makePDBSymbolRemapSourceMap(file->debugTypesObj);
   if (ctx.config.lldCudaGHash &&
       shouldUsePDBSymbolRemapCUDA(descriptors, storage)) {
     ScopedTimer t(ctx.pdbSymbolRemapCUDATimer);
     executePDBSymbolRemapCUDA(descriptors, typeRefs, sourceMap,
                               MutableArrayRef<uint8_t>(storage));
   } else {
-    remapAndTranslatePlannedSymbolRecordsCPU(debugChunk, sourceMap, descriptors,
+    remapAndTranslatePlannedSymbolRecordsCPU(file, sourceMap, descriptors,
                                              typeRefs, storage);
   }
   {
@@ -1205,6 +1216,14 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
                                              BinaryStreamWriter &writer) {
   ExitOnError exitOnErr;
 
+  uint32_t moduleSymStart = writer.getOffset();
+  uint32_t moduleSymOffset = moduleSymStart;
+  std::vector<uint8_t> storage;
+  std::vector<PlannedSymbolRecordDescriptor> descriptors;
+  std::vector<PlannedSymbolTypeRef> typeRefs;
+  SmallVector<std::pair<size_t, size_t>, 4> descriptorRanges;
+  SmallVector<PlannedSymbolChunkBatch, 4> chunkBatches;
+
   // Visit all live .debug$S sections a second time, and write them to the PDB.
   for (SectionChunk *debugChunk : file->getDebugChunks()) {
     if (!debugChunk->live || debugChunk->getSize() == 0 ||
@@ -1219,12 +1238,7 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
     exitOnErr(reader.readArray(subsections, contents.size()));
 
     uint32_t nextRelocIndex = 0;
-    uint32_t moduleSymStart = writer.getOffset();
-    uint32_t moduleSymOffset = moduleSymStart;
-    std::vector<uint8_t> storage;
-    std::vector<PlannedSymbolRecordDescriptor> descriptors;
-    std::vector<PlannedSymbolTypeRef> typeRefs;
-    SmallVector<std::pair<size_t, size_t>, 4> descriptorRanges;
+    size_t chunkDescriptorStart = descriptors.size();
 
     for (const DebugSubsectionRecord &ss : subsections) {
       if (ss.kind() != DebugSubsectionKind::Symbols)
@@ -1253,19 +1267,23 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
       descriptorRanges.push_back({descriptorStart, descriptors.size()});
     }
 
-    if (descriptors.empty())
-      continue;
-
-    storage.resize(moduleSymOffset - moduleSymStart);
-    executePlannedSymbolRecordsCPU(debugChunk, sectionContents, moduleSymStart,
-                                   descriptors, descriptorRanges, typeRefs,
-                                   storage);
-
-    // Writing bytes has a very high overhead, so write the entire debug chunk's
-    // symbol records at once.
-    if (Error e = writer.writeBytes(storage))
-      return e;
+    if (descriptors.size() != chunkDescriptorStart)
+      chunkBatches.push_back({debugChunk, sectionContents, chunkDescriptorStart,
+                              descriptors.size()});
   }
+
+  if (descriptors.empty())
+    return Error::success();
+
+  storage.resize(moduleSymOffset - moduleSymStart);
+  executePlannedSymbolRecordsCPU(file, moduleSymStart, chunkBatches,
+                                 descriptors, descriptorRanges, typeRefs,
+                                 storage);
+
+  // Writing bytes has a very high overhead, so write the entire object's
+  // symbol records at once.
+  if (Error e = writer.writeBytes(storage))
+    return e;
 
   return Error::success();
 }
