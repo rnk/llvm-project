@@ -68,6 +68,7 @@ struct SymbolRecordPlan {
   uint32_t relocStartIndex;
   uint32_t relocEndIndex;
   uint32_t moduleSymOffset;
+  std::optional<StringTableFixup> stringTableFixup;
   bool goesInGlobals;
   bool goesInModule;
   bool opensScope;
@@ -306,9 +307,8 @@ static void addGHashTypeInfo(COFFLinkerContext &ctx,
     source->addGHashTypeRecords(builder);
 }
 
-static void
-recordStringTableReferences(CVSymbol sym, uint32_t symOffset,
-                            std::vector<StringTableFixup> &stringTableFixups) {
+static std::optional<StringTableFixup>
+planStringTableReference(CVSymbol sym, uint32_t symOffset) {
   // For now we only handle S_FILESTATIC, but we may need the same logic for
   // S_DEFRANGE and S_DEFRANGE_SUBFIELD.  However, I cannot seem to generate any
   // PDBs that contain these types of records, so because of the uncertainty
@@ -317,16 +317,15 @@ recordStringTableReferences(CVSymbol sym, uint32_t symOffset,
   case SymbolKind::S_FILESTATIC: {
     // FileStaticSym::ModFileOffset
     uint32_t ref = *reinterpret_cast<const ulittle32_t *>(&sym.data()[8]);
-    stringTableFixups.push_back({ref, symOffset + 8});
-    break;
+    return StringTableFixup{ref, symOffset + 8};
   }
   case SymbolKind::S_DEFRANGE:
   case SymbolKind::S_DEFRANGE_SUBFIELD:
     log("Not fixing up string table reference in S_DEFRANGE / "
         "S_DEFRANGE_SUBFIELD record");
-    break;
+    return std::nullopt;
   default:
-    break;
+    return std::nullopt;
   }
 }
 
@@ -590,17 +589,25 @@ static SymbolRecordPlan planSymbolRecord(SectionChunk *debugChunk,
                                          CVSymbol sym, uint32_t alignedSize,
                                          uint32_t moduleSymOffset,
                                          uint32_t &nextRelocIndex,
-                                         uint32_t symbolScopeDepth) {
+                                         uint32_t symbolScopeDepth,
+                                         bool planStringTableFixups) {
   SectionChunk::RelocationRange relocRange =
       debugChunk->advanceRelocRangePastSubsection(sectionContents, sym.data(),
                                                   nextRelocIndex);
+  bool goesInGlobals = symbolGoesInGlobalsStream(sym, symbolScopeDepth);
+  bool goesInModule = symbolGoesInModuleStream(sym, symbolScopeDepth);
+  std::optional<StringTableFixup> stringTableFixup;
+  if (goesInModule && planStringTableFixups)
+    stringTableFixup = planStringTableReference(sym, moduleSymOffset);
+
   return {sym,
           alignedSize,
           relocRange.startIndex,
           relocRange.endIndex,
           moduleSymOffset,
-          symbolGoesInGlobalsStream(sym, symbolScopeDepth),
-          symbolGoesInModuleStream(sym, symbolScopeDepth),
+          stringTableFixup,
+          goesInGlobals,
+          goesInModule,
           symbolOpensScope(sym.kind()),
           symbolEndsScope(sym.kind())};
 }
@@ -610,7 +617,8 @@ static Error planSymbolSubsection(SectionChunk *debugChunk,
                                   BinaryStreamRef symData,
                                   uint32_t &moduleSymOffset,
                                   uint32_t &nextRelocIndex,
-                                  std::vector<SymbolRecordPlan> &plans) {
+                                  std::vector<SymbolRecordPlan> &plans,
+                                  bool planStringTableFixups = false) {
   ArrayRef<uint8_t> symsBuffer;
   cantFail(symData.readBytes(0, symData.getLength(), symsBuffer));
 
@@ -628,7 +636,8 @@ static Error planSymbolSubsection(SectionChunk *debugChunk,
             alignTo(sym.length(), alignOf(CodeViewContainer::Pdb));
         plans.push_back(planSymbolRecord(debugChunk, sectionContents, sym,
                                          alignedSize, moduleSymOffset,
-                                         nextRelocIndex, scopeLevel));
+                                         nextRelocIndex, scopeLevel,
+                                         planStringTableFixups));
         if (plans.back().goesInModule)
           moduleSymOffset += alignedSize;
         return Error::success();
@@ -715,7 +724,8 @@ void PDBLinker::analyzeSymbolSubsection(
     Warn(ctx) << "empty symbols subsection in " << file->getName();
 
   Error ec = planSymbolSubsection(debugChunk, sectionContents, symData,
-                                  moduleSymOffset, nextRelocIndex, plans);
+                                  moduleSymOffset, nextRelocIndex, plans,
+                                  /*planStringTableFixups=*/true);
 
   for (const SymbolRecordPlan &plan : plans) {
     // Copy global records. Some global records (mainly procedures) reference
@@ -735,8 +745,8 @@ void PDBLinker::analyzeSymbolSubsection(
     // references. There are very few of these and they will be rewritten later
     // during PDB writing.
     if (plan.goesInModule) {
-      recordStringTableReferences(plan.sym, plan.moduleSymOffset,
-                                  stringTableFixups);
+      if (plan.stringTableFixup)
+        stringTableFixups.push_back(*plan.stringTableFixup);
 
       if (ctx.pdbStats.has_value())
         ++ctx.pdbStats->moduleSymbols;
