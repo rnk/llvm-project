@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <vector>
 
 using namespace lld;
 using namespace lld::coff;
@@ -168,25 +169,80 @@ struct SymbolRemapDeviceScratch {
   DeviceBuffer<DeviceSymbolRemapErrorSummary> errors;
 };
 
-void copyTypeIndexMapToDeviceAsync(
-    DeviceBuffer<uint32_t> &buffer,
-    ArrayRef<llvm::codeview::TypeIndex> map,
-    CudaSymbolRemapErrorChecker &cuErr,
-    cudaStream_t stream,
-    const char *allocContext,
-    const char *copyContext) {
+struct MemcpyBatch {
+  std::vector<void *> dsts;
+  std::vector<const void *> srcs;
+  std::vector<size_t> sizes;
+
+  void reserve(size_t count) {
+    dsts.reserve(count);
+    srcs.reserve(count);
+    sizes.reserve(count);
+  }
+
+  void append(void *dst, const void *src, size_t size) {
+    if (size == 0)
+      return;
+    dsts.push_back(dst);
+    srcs.push_back(src);
+    sizes.push_back(size);
+  }
+
+  bool empty() const { return sizes.empty(); }
+  size_t size() const { return sizes.size(); }
+};
+
+void enqueueMemcpyBatchAsync(MemcpyBatch &batch,
+                             CudaSymbolRemapErrorChecker &cuErr,
+                             cudaStream_t stream, const char *copyContext) {
+  if (batch.empty())
+    return;
+
+#if CUDART_VERSION >= 13000
+  cudaMemcpyAttributes attr = {};
+  attr.srcAccessOrder = cudaMemcpySrcAccessOrderStream;
+  size_t attrIdx = 0;
+  cudaError_t batchErr = cudaMemcpyBatchAsync(
+      batch.dsts.data(), batch.srcs.data(), batch.sizes.data(), batch.size(),
+      &attr, &attrIdx, 1, stream);
+  if (batchErr == cudaErrorCallRequiresNewerDriver ||
+      batchErr == cudaErrorNotSupported) {
+    for (size_t i = 0, e = batch.size(); i != e; ++i)
+      cuErr.fatalIfFailed(cudaMemcpyAsync(batch.dsts[i], batch.srcs[i],
+                                          batch.sizes[i], cudaMemcpyDefault,
+                                          stream),
+                          copyContext);
+  } else {
+    cuErr.fatalIfFailed(batchErr, copyContext);
+  }
+#else
+  for (size_t i = 0, e = batch.size(); i != e; ++i)
+    cuErr.fatalIfFailed(cudaMemcpyAsync(batch.dsts[i], batch.srcs[i],
+                                        batch.sizes[i], cudaMemcpyDefault,
+                                        stream),
+                        copyContext);
+#endif
+}
+
+template <typename T>
+void appendDeviceBufferCopy(DeviceBuffer<T> &buffer, ArrayRef<T> values,
+                            CudaSymbolRemapErrorChecker &cuErr,
+                            const char *allocContext, MemcpyBatch &batch) {
+  buffer.ensureCapacity(values.size(), cuErr, allocContext);
+  batch.append(buffer.data(), values.data(), values.size() * sizeof(T));
+}
+
+void appendTypeIndexMapCopy(DeviceBuffer<uint32_t> &buffer,
+                            ArrayRef<llvm::codeview::TypeIndex> map,
+                            CudaSymbolRemapErrorChecker &cuErr,
+                            const char *allocContext, MemcpyBatch &batch) {
   static_assert(sizeof(llvm::codeview::TypeIndex) == sizeof(uint32_t),
                 "TypeIndex must be stored as a single 32-bit value");
 
   buffer.ensureCapacity(map.size(), cuErr, allocContext);
-  if (map.empty())
-    return;
   // cudaMemcpyAsync copies bytes from the TypeIndex object storage; no host
   // uint32_t lvalue is formed, so source alignment is not a correctness issue.
-  cuErr.fatalIfFailed(
-      cudaMemcpyAsync(buffer.data(), map.data(), map.size() * sizeof(uint32_t),
-                      cudaMemcpyHostToDevice, stream),
-      copyContext);
+  batch.append(buffer.data(), map.data(), map.size() * sizeof(uint32_t));
 }
 
 const char *getSymbolRemapErrorName(DeviceSymbolRemapErrorKind kind) {
@@ -426,32 +482,32 @@ void lld::coff::executePDBSymbolRemapCUDA(
 
   thread_local SymbolRemapDeviceScratch scratch;
   cudaStream_t stream = scratch.stream.get(cuErr);
-  scratch.descriptors.copyFromAsync(
-      descriptors, cuErr,
-      stream,
+  MemcpyBatch setupCopies;
+  setupCopies.reserve(5);
+  appendDeviceBufferCopy(
+      scratch.descriptors, descriptors, cuErr,
       "CUDA PDB symbol remap failed to allocate descriptor scratch buffer",
-      "CUDA PDB symbol remap failed to copy descriptors");
-  scratch.typeRefs.copyFromAsync(
-      typeRefs, cuErr,
-      stream,
+      setupCopies);
+  appendDeviceBufferCopy(
+      scratch.typeRefs, typeRefs, cuErr,
       "CUDA PDB symbol remap failed to allocate type-ref scratch buffer",
-      "CUDA PDB symbol remap failed to copy type refs");
-  copyTypeIndexMapToDeviceAsync(
+      setupCopies);
+  appendTypeIndexMapCopy(
       scratch.tpiMap, sourceMap.tpiMap, cuErr,
-      stream,
       "CUDA PDB symbol remap failed to allocate TPI map scratch buffer",
-      "CUDA PDB symbol remap failed to copy TPI map");
-  copyTypeIndexMapToDeviceAsync(
+      setupCopies);
+  appendTypeIndexMapCopy(
       scratch.ipiMap, sourceMap.ipiMap, cuErr,
-      stream,
       "CUDA PDB symbol remap failed to allocate IPI map scratch buffer",
-      "CUDA PDB symbol remap failed to copy IPI map");
-  scratch.moduleSymbolStorage.copyFromAsync(
+      setupCopies);
+  appendDeviceBufferCopy(
+      scratch.moduleSymbolStorage,
       ArrayRef<uint8_t>(moduleSymbolStorage.data(), moduleSymbolStorage.size()),
       cuErr,
-      stream,
       "CUDA PDB symbol remap failed to allocate module symbol scratch buffer",
-      "CUDA PDB symbol remap failed to copy module symbols to device");
+      setupCopies);
+  enqueueMemcpyBatchAsync(setupCopies, cuErr, stream,
+                          "CUDA PDB symbol remap failed to copy setup data");
   scratch.errors.ensureCapacity(
       1, cuErr,
       "CUDA PDB symbol remap failed to allocate error summary scratch buffer");
@@ -472,15 +528,14 @@ void lld::coff::executePDBSymbolRemapCUDA(
                       "CUDA PDB symbol remap failed to launch kernel");
 
   DeviceSymbolRemapErrorSummary errors;
-  cuErr.fatalIfFailed(cudaMemcpyAsync(&errors, scratch.errors.data(),
-                                      sizeof(errors), cudaMemcpyDeviceToHost,
-                                      stream),
-                      "CUDA PDB symbol remap failed to copy error summary");
-  cuErr.fatalIfFailed(cudaMemcpyAsync(moduleSymbolStorage.data(),
-                                      scratch.moduleSymbolStorage.data(),
-                                      moduleSymbolStorage.size(),
-                                      cudaMemcpyDeviceToHost, stream),
-                      "CUDA PDB symbol remap failed to copy module symbols");
+  MemcpyBatch resultCopies;
+  resultCopies.reserve(2);
+  resultCopies.append(&errors, scratch.errors.data(), sizeof(errors));
+  resultCopies.append(moduleSymbolStorage.data(),
+                      scratch.moduleSymbolStorage.data(),
+                      moduleSymbolStorage.size());
+  enqueueMemcpyBatchAsync(resultCopies, cuErr, stream,
+                          "CUDA PDB symbol remap failed to copy results");
   cuErr.fatalIfFailed(cudaStreamSynchronize(stream),
                       "CUDA PDB symbol remap failed to synchronize stream");
 
