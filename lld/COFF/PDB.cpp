@@ -52,6 +52,7 @@
 #include "llvm/Support/TimeProfiler.h"
 #include <memory>
 #include <optional>
+#include <utility>
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -125,17 +126,6 @@ makePlannedSymbolRecordDescriptor(const SymbolRecordPlan &plan,
           plan.idFinalTypeIndex,
           plan.kind,
           flags};
-}
-
-static std::vector<PlannedSymbolRecordDescriptor>
-makePlannedSymbolRecordDescriptors(ArrayRef<SymbolRecordPlan> plans,
-                                   uint32_t moduleSymStart) {
-  std::vector<PlannedSymbolRecordDescriptor> descriptors;
-  descriptors.reserve(plans.size());
-  for (const SymbolRecordPlan &plan : plans)
-    descriptors.push_back(
-        makePlannedSymbolRecordDescriptor(plan, moduleSymStart));
-  return descriptors;
 }
 
 static PDBSymbolRemapSourceMap makePDBSymbolRemapSourceMap(TpiSource *source) {
@@ -268,6 +258,7 @@ public:
       SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
       uint32_t moduleSymStart,
       ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+      ArrayRef<std::pair<size_t, size_t>> descriptorRanges,
       ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage);
 
   /// Add the section map and section contributions to the PDB.
@@ -1112,10 +1103,16 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
     SectionChunk *debugChunk, ArrayRef<uint8_t> sectionContents,
     uint32_t moduleSymStart,
     ArrayRef<PlannedSymbolRecordDescriptor> descriptors,
+    ArrayRef<std::pair<size_t, size_t>> descriptorRanges,
     ArrayRef<PlannedSymbolTypeRef> typeRefs, std::vector<uint8_t> &storage) {
   ObjFile *file = debugChunk->file;
-  SmallVector<ScopeFixup, 4> scopeFixups =
-      computeScopeFixups(ctx, descriptors, moduleSymStart, file);
+  SmallVector<ScopeFixup, 4> scopeFixups;
+  for (std::pair<size_t, size_t> range : descriptorRanges) {
+    SmallVector<ScopeFixup, 4> rangeFixups = computeScopeFixups(
+        ctx, descriptors.slice(range.first, range.second - range.first),
+        moduleSymStart, file);
+    scopeFixups.append(rangeFixups.begin(), rangeFixups.end());
+  }
 
   copyRelocateAndAlignPlannedSymbolRecordsCPU(debugChunk, sectionContents,
                                               descriptors, storage);
@@ -1197,7 +1194,6 @@ void PDBLinker::analyzeSymbolSubsection(
 Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
                                              BinaryStreamWriter &writer) {
   ExitOnError exitOnErr;
-  std::vector<uint8_t> storage;
 
   // Visit all live .debug$S sections a second time, and write them to the PDB.
   for (SectionChunk *debugChunk : file->getDebugChunks()) {
@@ -1213,15 +1209,21 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
     exitOnErr(reader.readArray(subsections, contents.size()));
 
     uint32_t nextRelocIndex = 0;
+    uint32_t moduleSymStart = writer.getOffset();
+    uint32_t moduleSymOffset = moduleSymStart;
+    std::vector<uint8_t> storage;
+    std::vector<PlannedSymbolRecordDescriptor> descriptors;
+    std::vector<PlannedSymbolTypeRef> typeRefs;
+    SmallVector<std::pair<size_t, size_t>, 4> descriptorRanges;
+
     for (const DebugSubsectionRecord &ss : subsections) {
       if (ss.kind() != DebugSubsectionKind::Symbols)
         continue;
 
-      uint32_t moduleSymStart = writer.getOffset();
-      uint32_t moduleSymOffset = moduleSymStart;
-      storage.clear();
       std::vector<SymbolRecordPlan> plans;
-      std::vector<PlannedSymbolTypeRef> typeRefs;
+      uint32_t subsectionModuleSymStart = moduleSymOffset;
+      size_t descriptorStart = descriptors.size();
+      size_t typeRefStart = typeRefs.size();
       auto ec = planSymbolSubsection(debugChunk, sectionContents,
                                      ss.getRecordData(), moduleSymOffset,
                                      nextRelocIndex, plans, typeRefs);
@@ -1229,24 +1231,30 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
       // already warned about them in the first analysis pass.
       if (ec) {
         consumeError(std::move(ec));
-        storage.clear();
+        moduleSymOffset = subsectionModuleSymStart;
+        descriptors.resize(descriptorStart);
+        typeRefs.resize(typeRefStart);
         continue;
       }
 
-      std::vector<PlannedSymbolRecordDescriptor> descriptors =
-          makePlannedSymbolRecordDescriptors(plans, moduleSymStart);
-      storage.resize(moduleSymOffset - moduleSymStart);
-      executePlannedSymbolRecordsCPU(debugChunk, sectionContents,
-                                     moduleSymStart, descriptors, typeRefs,
-                                     storage);
-
-      // Writing bytes has a very high overhead, so write the entire subsection
-      // at once.
-      // TODO: Consider buffering symbols for the entire object file to reduce
-      // overhead even further.
-      if (Error e = writer.writeBytes(storage))
-        return e;
+      for (const SymbolRecordPlan &plan : plans)
+        descriptors.push_back(
+            makePlannedSymbolRecordDescriptor(plan, moduleSymStart));
+      descriptorRanges.push_back({descriptorStart, descriptors.size()});
     }
+
+    if (descriptors.empty())
+      continue;
+
+    storage.resize(moduleSymOffset - moduleSymStart);
+    executePlannedSymbolRecordsCPU(debugChunk, sectionContents, moduleSymStart,
+                                   descriptors, descriptorRanges, typeRefs,
+                                   storage);
+
+    // Writing bytes has a very high overhead, so write the entire debug chunk's
+    // symbol records at once.
+    if (Error e = writer.writeBytes(storage))
+      return e;
   }
 
   return Error::success();
