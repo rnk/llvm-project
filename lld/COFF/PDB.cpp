@@ -1255,25 +1255,35 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
         continue;
 
       std::vector<SymbolRecordPlan> plans;
+      std::vector<PlannedSymbolTypeRef> subsectionTypeRefs;
       uint32_t subsectionModuleSymStart = moduleSymOffset;
       size_t descriptorStart = descriptors.size();
-      size_t typeRefStart = typeRefs.size();
       auto ec = planSymbolSubsection(debugChunk, sectionContents,
                                      ss.getRecordData(), moduleSymOffset,
-                                     nextRelocIndex, plans, typeRefs);
+                                     nextRelocIndex, plans,
+                                     subsectionTypeRefs);
       // If we encounter corrupt records in the second pass, ignore them. We
       // already warned about them in the first analysis pass.
       if (ec) {
         consumeError(std::move(ec));
         moduleSymOffset = subsectionModuleSymStart;
         descriptors.resize(descriptorStart);
-        typeRefs.resize(typeRefStart);
         continue;
       }
 
-      for (const SymbolRecordPlan &plan : plans)
-        descriptors.push_back(
-            makePlannedSymbolRecordDescriptor(plan, moduleSymStart));
+      for (const SymbolRecordPlan &plan : plans) {
+        if (!plan.goesInModule)
+          continue;
+        PlannedSymbolRecordDescriptor desc =
+            makePlannedSymbolRecordDescriptor(plan, moduleSymStart);
+        desc.typeRefStartIndex = typeRefs.size();
+        ArrayRef<PlannedSymbolTypeRef> planTypeRefs =
+            ArrayRef(subsectionTypeRefs)
+                .slice(plan.typeRefStartIndex, plan.typeRefCount);
+        typeRefs.insert(typeRefs.end(), planTypeRefs.begin(),
+                        planTypeRefs.end());
+        descriptors.push_back(desc);
+      }
       descriptorRanges.push_back({descriptorStart, descriptors.size()});
     }
 
