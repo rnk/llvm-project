@@ -79,6 +79,47 @@ struct SymbolRecordPlan {
   bool closesScope;
 };
 
+enum PlannedSymbolRecordFlags : uint16_t {
+  PSRF_GoesInModule = 1 << 0,
+  PSRF_OpensScope = 1 << 1,
+  PSRF_ClosesScope = 1 << 2,
+};
+
+// Numeric-only symbol work item for the future CUDA/bulk executor boundary.
+// Scope and string-table fixups intentionally stay as sparse CPU-side patches
+// for now.
+struct PlannedSymbolRecordDescriptor {
+  uint32_t inputOffset;
+  uint32_t inputSize;
+  uint32_t outputOffset;
+  uint32_t alignedSize;
+  uint32_t relocStartIndex;
+  uint32_t relocEndIndex;
+  uint16_t kind;
+  uint16_t flags;
+};
+
+static PlannedSymbolRecordDescriptor
+makePlannedSymbolRecordDescriptor(const SymbolRecordPlan &plan,
+                                  uint32_t moduleSymStart) {
+  uint16_t flags = 0;
+  if (plan.goesInModule)
+    flags |= PSRF_GoesInModule;
+  if (plan.opensScope)
+    flags |= PSRF_OpensScope;
+  if (plan.closesScope)
+    flags |= PSRF_ClosesScope;
+
+  return {plan.inputOffset,
+          plan.inputSize,
+          plan.moduleSymOffset - moduleSymStart,
+          plan.alignedSize,
+          plan.relocStartIndex,
+          plan.relocEndIndex,
+          plan.kind,
+          flags};
+}
+
 class PDBLinker {
   friend DebugSHandler;
 
@@ -457,12 +498,14 @@ computeScopeFixups(COFFLinkerContext &ctx, ArrayRef<SymbolRecordPlan> plans,
   SmallVector<ScopeFixup, 4> fixups;
 
   for (const SymbolRecordPlan &plan : plans) {
-    uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
+    PlannedSymbolRecordDescriptor desc =
+        makePlannedSymbolRecordDescriptor(plan, moduleSymStart);
 
-    if (plan.opensScope)
-      scopeStackOpen(scopes, currentOffset);
-    else if (plan.closesScope)
-      scopeStackClose(ctx, scopes, fixups, moduleSymStart, currentOffset, file);
+    if (desc.flags & PSRF_OpensScope)
+      scopeStackOpen(scopes, desc.outputOffset);
+    else if (desc.flags & PSRF_ClosesScope)
+      scopeStackClose(ctx, scopes, fixups, moduleSymStart, desc.outputOffset,
+                      file);
   }
 
   return fixups;
@@ -712,15 +755,16 @@ void PDBLinker::executePlannedSymbolRecordsCPU(
 
   parallelFor(0, plans.size(), [&](size_t i) {
     const SymbolRecordPlan &plan = plans[i];
+    PlannedSymbolRecordDescriptor desc =
+        makePlannedSymbolRecordDescriptor(plan, moduleSymStart);
     // Copy, relocate, and rewrite each module symbol into its planned
     // disjoint output range.
-    if (!plan.goesInModule)
+    if (!(desc.flags & PSRF_GoesInModule))
       return;
 
-    uint32_t currentOffset = plan.moduleSymOffset - moduleSymStart;
     MutableArrayRef<uint8_t> recordBytes =
-        MutableArrayRef<uint8_t>(storage).slice(currentOffset,
-                                                plan.alignedSize);
+        MutableArrayRef<uint8_t>(storage).slice(desc.outputOffset,
+                                                desc.alignedSize);
     writeSymbolRecordTo(debugChunk, sectionContents, plan, recordBytes);
   });
 
