@@ -66,6 +66,11 @@ struct SymbolRecordPlan {
   CVSymbol sym;
   uint32_t alignedSize;
   uint32_t relocStartIndex;
+  uint32_t moduleSymOffset;
+  bool goesInGlobals;
+  bool goesInModule;
+  bool opensScope;
+  bool closesScope;
 };
 
 class PDBLinker {
@@ -540,10 +545,49 @@ static void replaceWithSkipRecord(MutableArrayRef<uint8_t> recordBytes) {
 static SymbolRecordPlan planSymbolRecord(SectionChunk *debugChunk,
                                          ArrayRef<uint8_t> sectionContents,
                                          CVSymbol sym, uint32_t alignedSize,
-                                         uint32_t &nextRelocIndex) {
+                                         uint32_t moduleSymOffset,
+                                         uint32_t &nextRelocIndex,
+                                         uint32_t symbolScopeDepth) {
   uint32_t relocStartIndex = debugChunk->advanceRelocIndexPastSubsection(
       sectionContents, sym.data(), nextRelocIndex);
-  return {sym, alignedSize, relocStartIndex};
+  return {sym,
+          alignedSize,
+          relocStartIndex,
+          moduleSymOffset,
+          symbolGoesInGlobalsStream(sym, symbolScopeDepth),
+          symbolGoesInModuleStream(sym, symbolScopeDepth),
+          symbolOpensScope(sym.kind()),
+          symbolEndsScope(sym.kind())};
+}
+
+static Error planSymbolSubsection(SectionChunk *debugChunk,
+                                  ArrayRef<uint8_t> sectionContents,
+                                  BinaryStreamRef symData,
+                                  uint32_t &moduleSymOffset,
+                                  uint32_t &nextRelocIndex,
+                                  std::vector<SymbolRecordPlan> &plans) {
+  ArrayRef<uint8_t> symsBuffer;
+  cantFail(symData.readBytes(0, symData.getLength(), symsBuffer));
+
+  uint32_t scopeLevel = 0;
+  return forEachCodeViewRecord<CVSymbol>(
+      symsBuffer, [&](CVSymbol sym) -> llvm::Error {
+        // Track the current scope before classifying the symbol. This matches
+        // the old analysis and write pass behavior.
+        if (symbolOpensScope(sym.kind()))
+          ++scopeLevel;
+        else if (symbolEndsScope(sym.kind()))
+          --scopeLevel;
+
+        uint32_t alignedSize =
+            alignTo(sym.length(), alignOf(CodeViewContainer::Pdb));
+        plans.push_back(planSymbolRecord(debugChunk, sectionContents, sym,
+                                         alignedSize, moduleSymOffset,
+                                         nextRelocIndex, scopeLevel));
+        if (plans.back().goesInModule)
+          moduleSymOffset += alignedSize;
+        return Error::success();
+      });
 }
 
 // Copy the symbol record, relocate it, and fix the alignment if necessary.
@@ -584,8 +628,8 @@ void PDBLinker::analyzeSymbolSubsection(
   ObjFile *file = debugChunk->file;
   uint32_t moduleSymStart = moduleSymOffset;
 
-  uint32_t scopeLevel = 0;
   std::vector<uint8_t> storage;
+  std::vector<SymbolRecordPlan> plans;
   ArrayRef<uint8_t> sectionContents = debugChunk->getContents();
 
   ArrayRef<uint8_t> symsBuffer;
@@ -594,46 +638,34 @@ void PDBLinker::analyzeSymbolSubsection(
   if (symsBuffer.empty())
     Warn(ctx) << "empty symbols subsection in " << file->getName();
 
-  Error ec = forEachCodeViewRecord<CVSymbol>(
-      symsBuffer, [&](CVSymbol sym) -> llvm::Error {
-        // Track the current scope.
-        if (symbolOpensScope(sym.kind()))
-          ++scopeLevel;
-        else if (symbolEndsScope(sym.kind()))
-          --scopeLevel;
+  Error ec = planSymbolSubsection(debugChunk, sectionContents, symData,
+                                  moduleSymOffset, nextRelocIndex, plans);
 
-        uint32_t alignedSize =
-            alignTo(sym.length(), alignOf(CodeViewContainer::Pdb));
+  for (const SymbolRecordPlan &plan : plans) {
+    // Copy global records. Some global records (mainly procedures) reference
+    // the current offset into the module stream.
+    if (plan.goesInGlobals) {
+      storage.clear();
+      writeSymbolRecord(debugChunk, sectionContents, plan, storage);
+      addGlobalSymbol(builder.getGsiBuilder(), file->moduleDBI->getModuleIndex(),
+                      plan.moduleSymOffset, storage);
 
-        // Copy global records. Some global records (mainly procedures)
-        // reference the current offset into the module stream.
-        if (symbolGoesInGlobalsStream(sym, scopeLevel)) {
-          SymbolRecordPlan plan = planSymbolRecord(
-              debugChunk, sectionContents, sym, alignedSize, nextRelocIndex);
-          storage.clear();
-          writeSymbolRecord(debugChunk, sectionContents, plan, storage);
-          addGlobalSymbol(builder.getGsiBuilder(),
-                          file->moduleDBI->getModuleIndex(), moduleSymOffset,
-                          storage);
+      if (ctx.pdbStats.has_value())
+        ++ctx.pdbStats->globalSymbols;
+    }
 
-          if (ctx.pdbStats.has_value())
-            ++ctx.pdbStats->globalSymbols;
-        }
+    // Do *not* write the module symbol! This is an up-front analysis pass to
+    // calculate the module stream size. Record any string table index
+    // references. There are very few of these and they will be rewritten later
+    // during PDB writing.
+    if (plan.goesInModule) {
+      recordStringTableReferences(plan.sym, plan.moduleSymOffset,
+                                  stringTableFixups);
 
-        // Do *not* write the module symbol! This is an up-front analysis pass
-        // to calculate the module stream size. Update module stream offsets and
-        // record any string table index references. There are very few of these
-        // and they will be rewritten later during PDB writing.
-        if (symbolGoesInModuleStream(sym, scopeLevel)) {
-          recordStringTableReferences(sym, moduleSymOffset, stringTableFixups);
-          moduleSymOffset += alignedSize;
-
-          if (ctx.pdbStats.has_value())
-            ++ctx.pdbStats->moduleSymbols;
-        }
-
-        return Error::success();
-      });
+      if (ctx.pdbStats.has_value())
+        ++ctx.pdbStats->moduleSymbols;
+    }
+  }
 
   // If we encountered corrupt records, ignore the whole subsection. If we wrote
   // any partial records, undo that. For globals, we just keep what we have and
@@ -670,31 +702,25 @@ Error PDBLinker::writeAllModuleSymbolRecords(ObjFile *file,
         continue;
 
       uint32_t moduleSymStart = writer.getOffset();
+      uint32_t moduleSymOffset = moduleSymStart;
       scopes.clear();
       storage.clear();
-      ArrayRef<uint8_t> symsBuffer;
-      BinaryStreamRef sr = ss.getRecordData();
-      cantFail(sr.readBytes(0, sr.getLength(), symsBuffer));
-      auto ec = forEachCodeViewRecord<CVSymbol>(
-          symsBuffer, [&](CVSymbol sym) -> llvm::Error {
-            // Track the current scope. Only update records in the postmerge
-            // pass.
-            if (symbolOpensScope(sym.kind()))
-              scopeStackOpen(scopes, storage);
-            else if (symbolEndsScope(sym.kind()))
-              scopeStackClose(ctx, scopes, storage, moduleSymStart, file);
+      std::vector<SymbolRecordPlan> plans;
+      auto ec = planSymbolSubsection(debugChunk, sectionContents,
+                                     ss.getRecordData(), moduleSymOffset,
+                                     nextRelocIndex, plans);
 
-            // Copy, relocate, and rewrite each module symbol.
-            if (symbolGoesInModuleStream(sym, scopes.size())) {
-              uint32_t alignedSize =
-                  alignTo(sym.length(), alignOf(CodeViewContainer::Pdb));
-              SymbolRecordPlan plan =
-                  planSymbolRecord(debugChunk, sectionContents, sym,
-                                   alignedSize, nextRelocIndex);
-              writeSymbolRecord(debugChunk, sectionContents, plan, storage);
-            }
-            return Error::success();
-          });
+      for (const SymbolRecordPlan &plan : plans) {
+        // Track the current scope. Only update records in the postmerge pass.
+        if (plan.opensScope)
+          scopeStackOpen(scopes, storage);
+        else if (plan.closesScope)
+          scopeStackClose(ctx, scopes, storage, moduleSymStart, file);
+
+        // Copy, relocate, and rewrite each module symbol.
+        if (plan.goesInModule)
+          writeSymbolRecord(debugChunk, sectionContents, plan, storage);
+      }
 
       // If we encounter corrupt records in the second pass, ignore them. We
       // already warned about them in the first analysis pass.
