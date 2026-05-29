@@ -1214,6 +1214,10 @@ bool useFilterPackExperiment() {
   return std::getenv("LLD_CUDA_GHASH_FILTER_PACK") != nullptr;
 }
 
+bool useStreamProviderExperiment() {
+  return std::getenv("LLD_CUDA_GHASH_STREAM_PROVIDER") != nullptr;
+}
+
 __global__ void finalizeGHashGroupsAndScatterSrcs(const uint64_t *hashes,
                                                   const uint64_t *srcs,
                                                   FlatIndex *groups,
@@ -1940,6 +1944,7 @@ void remapPackedSelectedTypeRecordsWithCUDA(
     COFFLinkerContext &ctx, ArrayRef<FlatIndex> mapOffsets, FlatIndex mapCount,
     uint32_t notTranslated, thrust::device_vector<uint64_t> &deviceSrcs,
     GHashFilterCUDAState &filterState, CudaErrorChecker &cuErr) {
+  bool streamProviderExperiment = useStreamProviderExperiment();
   std::vector<uint64_t> uniqueSrcs(filterState.result.uniqueCount);
   if (!uniqueSrcs.empty())
     cuErr.fatal(cudaMemcpy(uniqueSrcs.data(),
@@ -2131,11 +2136,20 @@ void remapPackedSelectedTypeRecordsWithCUDA(
 
   auto sizes = std::make_shared<std::vector<uint16_t>>();
   sizes->reserve(recordCount);
+  uint32_t tpiByteCount = 0;
+  uint32_t ipiByteCount = 0;
   for (uint64_t src : orderedSrcs) {
     SelectedRecordInfo info = getSelectedRecordInfo(
         ctx, *ctx.tpiSourceList[getTpiSrcIdx(src)], getGHashIdx(src));
     sizes->push_back(static_cast<uint16_t>(info.alignedSize));
+    if (sizes->size() <= numTypes)
+      tpiByteCount = checkedUInt32(ctx, size_t(tpiByteCount) + info.alignedSize,
+                                   "selected TPI byte count");
+    else
+      ipiByteCount = checkedUInt32(ctx, size_t(ipiByteCount) + info.alignedSize,
+                                   "selected IPI byte count");
   }
+  assert(size_t(tpiByteCount) + ipiByteCount == packed.records.size());
 
   std::vector<FuncIdToTypeEntry> funcPairs(recordCount);
   cuErr.fatal(cudaMemcpy(funcPairs.data(), deviceData(deviceFuncPairs),
@@ -2151,24 +2165,41 @@ void remapPackedSelectedTypeRecordsWithCUDA(
                 "-lldcudaghash failed to copy remap error state");
   reportRemapErrors(ctx, ctx.tpiSourceList, errorsHost);
 
-  uint32_t byteOffset = 0;
-  for (uint32_t i = 0; i != recordCount; ++i) {
-    uint16_t recordSize = (*sizes)[i];
-    addOrderedRecordRange(ctx, orderedSrcs[i], recordSize, i, byteOffset,
-                          recordRanges);
-    byteOffset = checkedUInt32(ctx, size_t(byteOffset) + recordSize,
-                               "selected type byte count");
-  }
-  assert(byteOffset == packed.records.size());
+  if (streamProviderExperiment) {
+    TpiSource *anchor = ctx.tpiSourceList.front();
+    uint32_t numTypeRecords =
+        checkedUInt32(ctx, numTypes, "selected TPI record count");
+    uint32_t numItemRecords =
+        checkedUInt32(ctx, numItems, "selected IPI record count");
+    RecordRange tpiRange{0, tpiByteCount, 0, numTypeRecords};
+    RecordRange ipiRange{tpiByteCount, ipiByteCount, numTypeRecords,
+                         numItemRecords};
+    if (tpiRange.recordCount != 0)
+      anchor->mergedTpi.deferredRecords =
+          makeRecordProvider(deviceOutputBytes, tpiRange, sizes, hashes);
+    if (ipiRange.recordCount != 0)
+      anchor->mergedIpi.deferredRecords =
+          makeRecordProvider(deviceOutputBytes, ipiRange, sizes, hashes);
+  } else {
+    uint32_t byteOffset = 0;
+    for (uint32_t i = 0; i != recordCount; ++i) {
+      uint16_t recordSize = (*sizes)[i];
+      addOrderedRecordRange(ctx, orderedSrcs[i], recordSize, i, byteOffset,
+                            recordRanges);
+      byteOffset = checkedUInt32(ctx, size_t(byteOffset) + recordSize,
+                                 "selected type byte count");
+    }
+    assert(byteOffset == packed.records.size());
 
-  for (TpiSource *source : ctx.tpiSourceList) {
-    SourceRecordRanges &ranges = recordRanges[source->tpiSrcIdx];
-    if (ranges.tpi.recordCount != 0)
-      source->mergedTpi.deferredRecords =
-          makeRecordProvider(deviceOutputBytes, ranges.tpi, sizes, hashes);
-    if (ranges.ipi.recordCount != 0)
-      source->mergedIpi.deferredRecords =
-          makeRecordProvider(deviceOutputBytes, ranges.ipi, sizes, hashes);
+    for (TpiSource *source : ctx.tpiSourceList) {
+      SourceRecordRanges &ranges = recordRanges[source->tpiSrcIdx];
+      if (ranges.tpi.recordCount != 0)
+        source->mergedTpi.deferredRecords =
+            makeRecordProvider(deviceOutputBytes, ranges.tpi, sizes, hashes);
+      if (ranges.ipi.recordCount != 0)
+        source->mergedIpi.deferredRecords =
+            makeRecordProvider(deviceOutputBytes, ranges.ipi, sizes, hashes);
+    }
   }
 
   for (uint32_t i = 0; i != recordCount; ++i) {
