@@ -1216,8 +1216,11 @@ void TypeMerger::mergeTypesWithGHash() {
 
   llvm::TimeTraceScope timeScope("Merge types (GHASH)");
   ScopedTimer t2(ctx.mergeGHashTimer);
-  if (ctx.config.lldCudaGHash && mergeTypesWithCUDA())
+  if (ctx.config.lldCudaGHash) {
+    if (!mergeTypesWithCUDA())
+      Fatal(ctx) << "-lldcudaghash failed without a CUDA diagnostic";
     return;
+  }
   parallelForEach(ctx.tpiSourceList,
                   [](TpiSource *source) { source->ensureIsItemIndex(); });
 

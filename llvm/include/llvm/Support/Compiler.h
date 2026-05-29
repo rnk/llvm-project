@@ -252,6 +252,13 @@
 #define LLVM_DEPRECATED(MSG, FIX) [[deprecated(MSG)]]
 #endif
 
+// Annotates functions that are callable from both host and CUDA device code.
+#if defined(__CUDACC__)
+#define LLVM_CUDA_HOST_DEVICE __host__ __device__
+#else
+#define LLVM_CUDA_HOST_DEVICE
+#endif
+
 // clang-format off
 #if defined(__clang__) || defined(__GNUC__)
 #define LLVM_SUPPRESS_DEPRECATED_DECLARATIONS_PUSH                             \

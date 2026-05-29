@@ -1381,6 +1381,15 @@ static std::string quote(ArrayRef<StringRef> args) {
   return r;
 }
 
+static bool isInternalPdbCommandLineArg(StringRef arg) {
+  for (StringRef prefix : {"-", "/", "-?", "/?"}) {
+    StringRef name = arg;
+    if (name.consume_front(prefix) && name.equals_insensitive("lldcudaghash"))
+      return true;
+  }
+  return false;
+}
+
 static void fillLinkerVerRecord(Compile3Sym &cs, MachineTypes machine) {
   cs.Machine = toCodeViewMachine(machine);
   // Interestingly, if we set the string to 0.0.0.0, then when trying to view
@@ -1423,7 +1432,13 @@ void PDBLinker::addCommonLinkerModuleSymbols(
   ons.Name = "* Linker *";
   ons.Signature = 0;
 
-  ArrayRef<StringRef> args = ArrayRef(ctx.config.argv).drop_front();
+  SmallVector<StringRef, 256> args;
+  for (StringRef arg : ArrayRef(ctx.config.argv).drop_front()) {
+    // -lldcudaghash is an internal implementation selector for type merging.
+    // Do not let it perturb /Brepro PDB metadata.
+    if (!isInternalPdbCommandLineArg(arg))
+      args.push_back(arg);
+  }
   std::string argStr = quote(args);
   ebs.Fields.push_back("cwd");
   SmallString<64> cwd;

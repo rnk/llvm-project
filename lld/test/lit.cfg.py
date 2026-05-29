@@ -5,6 +5,7 @@ import platform
 import re
 import subprocess
 import locale
+import ctypes
 
 import lit.formats
 import lit.util
@@ -186,5 +187,34 @@ if config.ld_lld_default_mingw:
 if config.enable_threads:
     config.available_features.add("thread_support")
 
-if config.lld_enable_coff_ghash_cuda:
+def has_coff_ghash_cuda_device():
+    override = os.environ.get("LLD_COFF_GHASH_CUDA_TESTS")
+    if override is not None:
+        return lit.util.pythonize_bool(override)
+
+    visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
+    if visible_devices in ("", "-1"):
+        return False
+
+    for libname in ("libcuda.so.1", "libcuda.so"):
+        try:
+            libcuda = ctypes.CDLL(libname)
+            break
+        except OSError:
+            libcuda = None
+    if libcuda is None:
+        return False
+
+    try:
+        if libcuda.cuInit(0) != 0:
+            return False
+        count = ctypes.c_int()
+        if libcuda.cuDeviceGetCount(ctypes.byref(count)) != 0:
+            return False
+        return count.value > 0
+    except Exception:
+        return False
+
+
+if config.lld_enable_coff_ghash_cuda and has_coff_ghash_cuda_device():
     config.available_features.add("lld-coff-ghash-cuda")
