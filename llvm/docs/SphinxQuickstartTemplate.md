@@ -14,7 +14,6 @@ Markdown is preferred for new docs, and migrating old docs from reStructuredText
 [Sphinx], a documentation generator originally written for Python documentation, generates the LLVM HTML documentation from MyST and reST.
 
 See the {ref}`migration <markdown_migration_guidelines>` section for more information on how to migrate existing docs.
-
 [myst]: https://myst-parser.readthedocs.io/en/latest/
 [reStructuredText]: http://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
 [Sphinx]: http://www.sphinx-doc.org

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from html import unescape
 from pathlib import Path
 import re
@@ -88,10 +88,10 @@ CODEISH_WORDS = (
 LABEL_RE = re.compile(r"^\([A-Za-z0-9_. -]+\)=$")
 LINK_DEF_RE = re.compile(r"^\[[^\]]+\]:")
 MD_BULLET_RE = re.compile(r"^(\s*[-*+]\s{2,})(\S.*)$")
-MD_NUMBER_RE = re.compile(r"^(\s*\d+\.\s{2,})(\S.*)$")
+MD_NUMBER_RE = re.compile(r"^(\s*\d+\.\s+)(\S.*)$")
 MD_DEFINITION_RE = re.compile(r"^(\s*:   )(\S.*)$")
 MD_BLOCKQUOTE_BULLET_RE = re.compile(r"^(>\s*[-*+]\s{2,})(\S.*)$")
-MD_BLOCKQUOTE_NUMBER_RE = re.compile(r"^(>\s*\d+\.\s{2,})(\S.*)$")
+MD_BLOCKQUOTE_NUMBER_RE = re.compile(r"^(>\s*\d+\.\s+)(\S.*)$")
 MD_BLOCKQUOTE_RE = re.compile(r"^(>\s?)(\S.*)$")
 MD_INDENT_RE = re.compile(r"^(\s{4,})(\S.*)$")
 
@@ -119,6 +119,7 @@ class Block:
     widths: list[int]
     initial_prefix: str = ""
     subsequent_prefix: str = ""
+    word_counts: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -416,6 +417,7 @@ def append_block(blocks: list[Block], start: int, end: int, items: list[LineItem
     key = normalize_text(text)
     if not key:
         return
+    word_counts = [len(normalize_text(item.content).split()) for item in items]
     blocks.append(
         Block(
             start=start,
@@ -425,6 +427,7 @@ def append_block(blocks: list[Block], start: int, end: int, items: list[LineItem
             widths=[max(20, item.source_width) for item in items],
             initial_prefix=items[0].initial_prefix,
             subsequent_prefix=items[0].subsequent_prefix,
+            word_counts=word_counts,
         )
     )
 
@@ -435,6 +438,8 @@ def markdown_blocks(lines: list[str]) -> list[Block]:
     start = 0
     fence: tuple[str, int] | None = None
     raw_html = False
+    indented_literal = False
+    previous_nonblank = ""
 
     def flush(end: int) -> None:
         nonlocal items, start
@@ -443,20 +448,48 @@ def markdown_blocks(lines: list[str]) -> list[Block]:
             items = []
 
     for index, line in enumerate(lines):
+        stripped_line = line.strip()
         if fence:
             if is_fence_end(line, fence):
                 fence = None
             flush(index)
+            if stripped_line:
+                previous_nonblank = stripped_line
             continue
         fence_start = is_fence_start(line)
         if fence_start:
             flush(index)
             fence = fence_start
+            if stripped_line:
+                previous_nonblank = stripped_line
             continue
 
-        lower = line.strip().lower()
+        if indented_literal:
+            if not stripped_line or line.startswith("    "):
+                flush(index)
+                if stripped_line:
+                    previous_nonblank = stripped_line
+                continue
+            indented_literal = False
+
+        lower = stripped_line.lower()
         if "<table" in lower:
             raw_html = True
+
+        starts_indented_literal = (
+            not items
+            and index > 0
+            and not lines[index - 1].strip()
+            and previous_nonblank.endswith(":")
+            and line.startswith("    ")
+            and not any(regex.match(line) for regex in (MD_BULLET_RE, MD_NUMBER_RE, MD_DEFINITION_RE))
+        )
+        if starts_indented_literal:
+            flush(index)
+            indented_literal = True
+            if stripped_line:
+                previous_nonblank = stripped_line
+            continue
 
         item = markdown_line_item(line, raw_html=raw_html)
         if item is None:
@@ -472,6 +505,8 @@ def markdown_blocks(lines: list[str]) -> list[Block]:
 
         if "</table>" in lower:
             raw_html = False
+        if stripped_line:
+            previous_nonblank = stripped_line
 
     flush(len(lines))
     return blocks
@@ -481,6 +516,8 @@ def rst_blocks(lines: list[str]) -> list[Block]:
     blocks: list[Block] = []
     items: list[LineItem] = []
     start = 0
+    literal_indent: int | None = None
+    pending_literal = False
 
     def flush(end: int) -> None:
         nonlocal items, start
@@ -489,9 +526,33 @@ def rst_blocks(lines: list[str]) -> list[Block]:
             items = []
 
     for index in range(len(lines)):
+        line = lines[index]
+        if literal_indent is not None:
+            indent = len(line) - len(line.lstrip())
+            if not line.strip() or indent >= literal_indent:
+                flush(index)
+                continue
+            literal_indent = None
+
+        if pending_literal:
+            if not line.strip():
+                flush(index)
+                continue
+            indent = len(line) - len(line.lstrip())
+            if indent:
+                flush(index)
+                literal_indent = indent
+                continue
+            pending_literal = False
+
+        if line.strip().endswith("::"):
+            flush(index)
+            pending_literal = True
+            continue
+
         item = rst_line_item(lines, index)
         if item is None:
-            item = rst_continuation_item(lines[index], items)
+            item = rst_continuation_item(line, items)
         if item is None:
             flush(index)
             continue
@@ -535,12 +596,87 @@ def reflow_to_widths(text: str, widths: list[int]) -> list[str]:
     return lines
 
 
+def normalized_word_count(text: str) -> int:
+    return len(normalize_text(text).split())
+
+
+def reflow_to_word_counts(text: str, word_counts: list[int]) -> list[str]:
+    words = text.split()
+    if not words:
+        return [""]
+    if not word_counts:
+        return reflow_to_widths(text, [DEFAULT_WIDTH])
+
+    lines: list[str] = []
+    current: list[str] = []
+    current_count = 0
+    line_index = 0
+
+    for word in words:
+        if current and current_count >= word_counts[line_index] and line_index + 1 < len(word_counts):
+            lines.append(" ".join(current))
+            current = []
+            current_count = 0
+            line_index += 1
+
+        current.append(word)
+        current_count += max(1, normalized_word_count(word))
+
+    if current:
+        lines.append(" ".join(current))
+    return lines
+
+
+def line_end_mismatch_count(lines: list[str], word_counts: list[int]) -> int:
+    expected: set[int] = set()
+    offset = 0
+    for count in word_counts[:-1]:
+        offset += count
+        expected.add(offset)
+
+    actual: set[int] = set()
+    offset = 0
+    for line in lines[:-1]:
+        offset += normalized_word_count(line)
+        actual.add(offset)
+
+    return len(expected ^ actual)
+
+
+def safe_word_count_wrap(
+    block: Block,
+    source: Block,
+    wrapped: list[str],
+    fallback_width: int,
+) -> bool:
+    word_counts = [count for count in source.word_counts if count]
+    if len(wrapped) != len(word_counts):
+        return False
+
+    max_width = max([fallback_width, *source.widths]) + 20
+    full_lines = [block.initial_prefix + wrapped[0]]
+    full_lines.extend(block.subsequent_prefix + line for line in wrapped[1:])
+    if any(len(line) > max_width for line in full_lines):
+        return False
+
+    return not any(re.match(r"^(?:[-*+]|\d+\.)\s+", line) for line in wrapped[1:])
+
+
 def render_markdown_block(block: Block, source: Block, fallback_width: int) -> list[str]:
     widths = source.widths or [fallback_width]
     if len(widths) == 1:
         text_width = max(20, fallback_width - len(block.initial_prefix))
         widths = [max(widths[0], text_width)]
     wrapped = reflow_to_widths(block.text, widths)
+    word_counts = [count for count in source.word_counts if count]
+    if len(word_counts) > 1 and sum(word_counts) == normalized_word_count(block.text):
+        word_wrapped = reflow_to_word_counts(block.text, word_counts)
+        if (
+            safe_word_count_wrap(block, source, word_wrapped, fallback_width)
+            and line_end_mismatch_count(word_wrapped, word_counts)
+            < line_end_mismatch_count(wrapped, word_counts)
+        ):
+            wrapped = word_wrapped
     if not wrapped:
         return []
 

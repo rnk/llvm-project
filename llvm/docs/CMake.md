@@ -37,8 +37,8 @@ We use here the command-line, non-interactive CMake interface.
 2.  Open a shell. Your development tools must be reachable from this shell
     through the `PATH` environment variable.
 
-3.  Create a build directory. Building LLVM in the source directory is not
-    supported. `cd` to this directory:
+3.  Create a build directory. Building LLVM in the source
+    directory is not supported. `cd` to this directory:
 
     ``` console
     $ mkdir mybuilddir
@@ -69,18 +69,18 @@ We use here the command-line, non-interactive CMake interface.
     LLVM components are built; see the [Frequently Used LLVM-related
     variables](#frequently-used-llvm-related-variables) below.
 
-5.  After CMake has finished running, use IDE project files, or start the build
-    from the build directory:
+5.  After CMake has finished running, use IDE project files, or start
+    the build from the build directory:
 
     ``` console
     $ cmake --build .
     ```
 
-    The `--build` option tells `cmake` to invoke the underlying build tool
-    (`make`, `ninja`, `xcodebuild`, `msbuild`, etc.)
+    The `--build` option tells `cmake` to invoke the underlying build
+    tool (`make`, `ninja`, `xcodebuild`, `msbuild`, etc.)
 
-    The underlying build tool can be invoked directly, of course, but the
-    `--build` option is portable.
+    The underlying build tool can be invoked directly, of course, but
+    the `--build` option is portable.
 
 6.  After LLVM has finished building, install it from the build directory:
 
@@ -88,8 +88,8 @@ We use here the command-line, non-interactive CMake interface.
     $ cmake --build . --target install
     ```
 
-    The `--target` option with `install` parameter in addition to the `--build`
-    option tells `cmake` to build the `install` target.
+    The `--target` option with `install` parameter in addition to
+    the `--build` option tells `cmake` to build the `install` target.
 
     It is possible to set a different install prefix at installation time by
     invoking the `cmake_install.cmake` script generated in the build directory:
@@ -108,12 +108,12 @@ CMake comes with extensive documentation, in the form of HTML files, and as
 online help accessible via the `cmake` executable itself. Execute `cmake
 --help` for further help options.
 
-CMake allows you to specify a build tool (e.g., GNU make, Visual Studio, or
-Xcode). If not specified on the command line, CMake tries to guess which build
-tool to use based on your environment. Once it has identified your build tool,
-CMake uses the corresponding *Generator* to create files for your build tool
-(e.g., Makefiles or Visual Studio or Xcode project files). You can explicitly
-specify the generator with the command line option `-G "Name of the
+CMake allows you to specify a build tool (e.g., GNU make, Visual Studio,
+or Xcode). If not specified on the command line, CMake tries to guess which
+build tool to use based on your environment. Once it has identified your
+build tool, CMake uses the corresponding *Generator* to create files for your
+build tool (e.g., Makefiles or Visual Studio or Xcode project files). You can
+explicitly specify the generator with the command line option `-G "Name of the
 generator"`. To see a list of the available generators on your system, execute:
 
 ``` console
@@ -123,19 +123,19 @@ $ cmake --help
 This will list the generator names at the end of the help text.
 
 Generators' names are case-sensitive and may contain spaces. For this reason,
-you should enter them exactly as they are listed in the `cmake --help` output,
-in quotes. For example, to generate project files specifically for Visual
-Studio 12, you can execute:
+you should enter them exactly as they are listed in the `cmake --help`
+output, in quotes. For example, to generate project files specifically for
+Visual Studio 12, you can execute:
 
 ``` console
 $ cmake -G "Visual Studio 12" path/to/llvm/source/root
 ```
 
-A given development platform can have more than one adequate generator. If you
-use Visual Studio, \"NMake Makefiles\" is a generator you can use for building
-with NMake. By default, CMake chooses the most specific generator supported by
-your development environment. If you want an alternative generator, you must
-specify this to CMake with the `-G` option.
+A given development platform can have more than one adequate
+generator. If you use Visual Studio, \"NMake Makefiles\" is a generator you can use
+for building with NMake. By default, CMake chooses the most specific generator
+supported by your development environment. If you want an alternative generator,
+you must specify this to CMake with the `-G` option.
 
 ```{todo}
 Explain variables and cache. Move explanation here from #options section.
@@ -145,15 +145,15 @@ Explain variables and cache. Move explanation here from #options section.
 ## Options and variables
 
 Variables customize how the build will be generated. Options are boolean
-variables, with possible values ON/OFF. Options and variables are defined on
-the CMake command line like this:
+variables, with possible values ON/OFF. Options and variables are defined on the
+CMake command line like this:
 
 ``` console
 $ cmake -DVARIABLE=value path/to/llvm/source
 ```
 
-You can set a variable after the initial CMake invocation to change its value.
-You can also undefine a variable:
+You can set a variable after the initial CMake invocation to change its
+value. You can also undefine a variable:
 
 ``` console
 $ cmake -UVARIABLE path/to/llvm/source
@@ -163,9 +163,9 @@ Variables are stored in the CMake cache. This is a file named `CMakeCache.txt`
 stored at the root of your build directory that is generated by `cmake`.
 Editing it yourself is not recommended.
 
-Variables are listed in the CMake cache and later in this document with the
-variable name and type separated by a colon. You can also specify the variable
-and type on the CMake command line:
+Variables are listed in the CMake cache and later in this document with
+the variable name and type separated by a colon. You can also specify the
+variable and type on the CMake command line:
 
 ``` console
 $ cmake -DVARIABLE:TYPE=value path/to/llvm/source
@@ -197,9 +197,9 @@ commonly used variables that control features of LLVM and enabled subprojects.
 
     -   Optimizations make LLVM/Clang run faster but can be an impediment for
         step-by-step debugging.
-    -   Builds with debug information can use a lot of RAM and disk space and
-        are usually slower to run. You can improve RAM usage by using `lld`,
-        see the {ref}`LLVM_USE_LINKER <llvm_use_linker>` option.
+    -   Builds with debug information can use a lot of RAM and disk space and are
+        usually slower to run. You can improve RAM usage by using `lld`, see
+        the {ref}`LLVM_USE_LINKER <llvm_use_linker>` option.
     -   Assertions are internal checks to help you find bugs. They typically
         slow down LLVM and Clang when enabled but can be useful during
         development. You can manually set {ref}`LLVM_ENABLE_ASSERTIONS
@@ -1091,8 +1091,8 @@ things to go wrong. They are also unstable across LLVM versions.
 
 Recently, LLVM and Clang have been adding some more complicated build system
 features. Utilizing these new features often involves a complicated chain of
-CMake variables passed on the command line. Clang provides a collection of
-CMake cache scripts to make these features more approachable.
+CMake variables passed on the command line. Clang provides a collection of CMake
+cache scripts to make these features more approachable.
 
 CMake cache files are utilized using CMake's `-C` flag:
 
@@ -1101,16 +1101,16 @@ $ cmake -C <path to cache file> <path to sources>
 ```
 
 CMake cache scripts are processed in an isolated scope, only cached variables
-remain set when the main configuration runs. CMake cached variables do not
-reset variables that are already set unless the FORCE option is specified.
+remain set when the main configuration runs. CMake cached variables do not reset
+variables that are already set unless the FORCE option is specified.
 
 A few notes about CMake Caches:
 
 -   Order of command line arguments is important
-    -   `-D` arguments specified before `-C` are set before the cache is
-        processed and can be read inside the cache file
-    -   `-D` arguments specified after `-C` are set after the cache is
-        processed and are unset inside the cache file
+    -   `-D` arguments specified before `-C` are set before the cache is processed and
+        can be read inside the cache file
+    -   `-D` arguments specified after `-C` are set after the cache is processed and
+        are unset inside the cache file
 -   All `-D` arguments will override cache file settings
 -   CMAKE_TOOLCHAIN_FILE is evaluated after both the cache file and the command
     line arguments
@@ -1121,15 +1121,15 @@ via Cache files see {doc}`AdvancedBuilds`.
 
 ## Executing the Tests
 
-Testing is performed when the *check-all* target is built. For instance, if you
-are using Makefiles, execute this command in the root of your build directory:
+Testing is performed when the *check-all* target is built. For instance, if you are
+using Makefiles, execute this command in the root of your build directory:
 
 ``` console
 $ make check-all
 ```
 
-On Visual Studio, you may run tests by building the project \"check-all\". For
-more information about testing, see the {doc}`TestingGuide`.
+On Visual Studio, you may run tests by building the project \"check-all\".
+For more information about testing, see the {doc}`TestingGuide`.
 
 ## Cross compiling
 
@@ -1150,8 +1150,8 @@ importable CMake targets. This means that clients of LLVM can now reliably use
 CMake to develop their own LLVM-based projects against an installed version of
 LLVM regardless of how it was built.
 
-Here is a simple example of a `CMakeLists.txt` file that imports the LLVM
-libraries and uses them to build a simple application `simple-tool`.
+Here is a simple example of a `CMakeLists.txt` file that imports the LLVM libraries
+and uses them to build a simple application `simple-tool`.
 
 ``` cmake
 cmake_minimum_required(VERSION 3.20.0)
@@ -1186,8 +1186,8 @@ The `find_package(...)` directive when used in CONFIG mode (as in the above
 example) will look for the `LLVMConfig.cmake` file in various locations (see
 CMake manual for details). It creates an `LLVM_DIR` cache entry to save the
 directory where `LLVMConfig.cmake` is found or allows the user to specify the
-directory (e.g., by passing `-DLLVM_DIR=/usr/lib/cmake/llvm` to the `cmake`
-command or by setting it directly in `ccmake` or `cmake-gui`).
+directory (e.g., by passing `-DLLVM_DIR=/usr/lib/cmake/llvm` to
+the `cmake` command or by setting it directly in `ccmake` or `cmake-gui`).
 
 This file is available in two different locations.
 
@@ -1200,8 +1200,8 @@ This file is available in two different locations.
     `<LLVM_BUILD_ROOT>` is the root of the LLVM build tree. **Note: this is
     only available when building LLVM with CMake.**
 
-If LLVM is installed in your operating system's normal installation prefix
-(e.g. on Linux this is usually `/usr/`) `find_package(LLVM ...)` will
+If LLVM is installed in your operating system's normal installation prefix (e.g.
+on Linux this is usually `/usr/`) `find_package(LLVM ...)` will
 automatically find LLVM if it is installed correctly. If LLVM is not installed
 or you wish to build directly against the LLVM build tree you can use
 `LLVM_DIR` as previously mentioned.
@@ -1251,9 +1251,9 @@ libraries. The list of libraries is determined by using the
 `llvm_map_components_to_libnames()` CMake function. For a list of available
 components look at the output of running `llvm-config --components`.
 
-Note that for LLVM \< 3.5 `llvm_map_components_to_libraries()` was used instead
-of `llvm_map_components_to_libnames()`. This is now deprecated and will be
-removed in a future version of LLVM.
+Note that for LLVM \< 3.5 `llvm_map_components_to_libraries()` was
+used instead of `llvm_map_components_to_libnames()`. This is now deprecated
+and will be removed in a future version of LLVM.
 
 (cmake-out-of-source-pass)=
 ### Developing LLVM passes out of source
@@ -1310,8 +1310,8 @@ add_llvm_library(LLVMPassname MODULE
   )
 ```
 
-When you are done developing your pass, you may wish to integrate it into the
-LLVM source tree. You can achieve it in two easy steps:
+When you are done developing your pass, you may wish to integrate it
+into the LLVM source tree. You can achieve it in two easy steps:
 
 1.  Copying `<pass name>` folder into `<LLVM root>/lib/Transforms` directory.
 2.  Adding `add_subdirectory(<pass name>)` line into `<LLVM
