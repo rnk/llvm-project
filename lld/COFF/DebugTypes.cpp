@@ -31,11 +31,6 @@
 #include "llvm/Support/Parallel.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TimeProfiler.h"
-#if defined(LLD_ENABLE_COFF_GHASH_CUDA) && LLD_ENABLE_COFF_GHASH_CUDA
-#include <thrust/execution_policy.h>
-#include <thrust/iterator/transform_iterator.h>
-#include <thrust/scan.h>
-#endif
 
 using namespace llvm;
 using namespace llvm::codeview;
@@ -46,7 +41,7 @@ namespace {
 class TypeServerIpiSource;
 
 bool useCudaTypeIndexOffsets(const COFFLinkerContext &ctx) {
-#if defined(LLD_ENABLE_COFF_GHASH_CUDA) && LLD_ENABLE_COFF_GHASH_CUDA
+#if defined(LLD_ENABLE_COFF_GHASH_GPU) && LLD_ENABLE_COFF_GHASH_GPU
   return ctx.config.lldCudaGHash;
 #else
   return false;
@@ -698,7 +693,7 @@ void TpiSource::fillTypeIndexOffsetsFromDebugT() {
 }
 
 void TpiSource::fillTypeIndexMetadata(ArrayRef<uint8_t> typeRecords) {
-#if defined(LLD_ENABLE_COFF_GHASH_CUDA) && LLD_ENABLE_COFF_GHASH_CUDA
+#if defined(LLD_ENABLE_COFF_GHASH_GPU) && LLD_ENABLE_COFF_GHASH_GPU
   ghashTypeRecords = typeRecords;
   SmallVector<uint32_t, 0> recordByteLengths;
   recordByteLengths.reserve(ghashes.size());
@@ -716,15 +711,14 @@ void TpiSource::fillTypeIndexMetadata(ArrayRef<uint8_t> typeRecords) {
   typeIndexOffsets.resize(recordByteLengths.size());
   // CVType::length() includes the RecordPrefix, so the exclusive scan produces
   // offsets that point at each record prefix in file->debugTypes.
-  auto recordStrides = thrust::make_transform_iterator(
-      recordByteLengths.begin(),
-      [](uint32_t byteLength) -> uint32_t { return byteLength; });
-  thrust::exclusive_scan(thrust::host, recordStrides,
-                         recordStrides + recordByteLengths.size(),
-                         typeIndexOffsets.begin(), uint32_t(0));
+  uint32_t offset = 0;
+  for (size_t i = 0, e = recordByteLengths.size(); i != e; ++i) {
+    typeIndexOffsets[i] = offset;
+    offset += recordByteLengths[i];
+  }
   isItemIndex.clear();
 #else
-  llvm_unreachable("CUDA type offset maps require CUDA support");
+  llvm_unreachable("GPU type offset maps require GPU support");
 #endif
 }
 

@@ -21,5 +21,6 @@ void lld::coff::executePDBSymbolRemapCUDA(
   (void)typeRefs;
   (void)sourceMap;
   (void)moduleSymbolStorage;
-  fatal("CUDA PDB symbol remap requires LLD_ENABLE_COFF_GHASH_CUDA=ON");
+  fatal("GPU PDB symbol remap requires LLD_ENABLE_COFF_GHASH_CUDA=ON "
+        "or LLD_ENABLE_COFF_GHASH_HIP=ON");
 }

@@ -253,7 +253,7 @@
 #endif
 
 // Annotates functions that are callable from both host and CUDA device code.
-#if defined(__CUDACC__)
+#if defined(__CUDACC__) || defined(__HIPCC__)
 #define LLVM_CUDA_HOST_DEVICE __host__ __device__
 #else
 #define LLVM_CUDA_HOST_DEVICE

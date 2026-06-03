@@ -7,11 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "PDBSymbolRemap.h"
+#include "COFFGPURuntime.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/DebugInfo/CodeView/CodeView.h"
-
-#include <cuda_runtime.h>
 
 #include <algorithm>
 #include <cstdint>

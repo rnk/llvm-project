@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "TypeMerger.h"
+#include "COFFGPURuntime.h"
 #include "lld/Common/ErrorHandler.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringExtras.h"
@@ -22,7 +23,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <cuda_runtime.h>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -1045,7 +1045,7 @@ void enqueueMemcpyBatchAndSync(MemcpyBatch &batch, const char *enqueueContext,
   cudaStream_t stream = nullptr;
   cuErr.fatal(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking),
               "-lldcudaghash failed to create memcpy stream");
-#if CUDART_VERSION >= 13000
+#if LLD_COFF_GPU_HAS_CUDA_MEMCPY_BATCH && CUDART_VERSION >= 13000
   cudaMemcpyAttributes attr = {};
   attr.srcAccessOrder = cudaMemcpySrcAccessOrderStream;
   size_t attrIdx = 0;
