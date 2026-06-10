@@ -102,6 +102,24 @@ namespace {
 /// not a valid path, never freed.
 static char InvalidPathSentinel[] = "\01\02\03\04";
 
+static std::atomic<bool> DebugSignalCleanup = false;
+
+static void appendUnsigned(char *&P, unsigned V) {
+  char Digits[16];
+  unsigned I = 0;
+  do {
+    Digits[I++] = '0' + V % 10;
+    V /= 10;
+  } while (V);
+  while (I)
+    *P++ = Digits[--I];
+}
+
+template <size_t N> static void appendLiteral(char *&P, const char (&S)[N]) {
+  for (size_t I = 0; I != N - 1; ++I)
+    *P++ = S[I];
+}
+
 /// Signal-safe removal of files.
 /// Inserting and erasing from the list isn't signal-safe, but removal of files
 /// themselves is signal-safe. Memory is freed when the head is freed, deletion
@@ -115,6 +133,12 @@ class FileToRemoveList {
   FileToRemoveList(char *filename) : Filename(filename) {}
 
 public:
+  struct DebugCounts {
+    unsigned Path = 0;
+    unsigned Null = 0;
+    unsigned Sentinel = 0;
+  };
+
   // Not signal-safe.
   ~FileToRemoveList() {
     if (FileToRemoveList *N = Next.exchange(nullptr))
@@ -222,6 +246,37 @@ public:
     // We're done removing files, cleanup can safely proceed.
     Head.exchange(OldHead);
   }
+
+  // Signal-safe.
+  static DebugCounts countForDebug(std::atomic<FileToRemoveList *> &Head) {
+    DebugCounts Counts;
+    for (FileToRemoveList *Current = Head.load(); Current;
+         Current = Current->Next.load()) {
+      char *Path = Current->Filename.load();
+      if (!Path)
+        ++Counts.Null;
+      else if (Path == InvalidPathSentinel)
+        ++Counts.Sentinel;
+      else
+        ++Counts.Path;
+    }
+    return Counts;
+  }
+
+  // Signal-safe.
+  static void printDebugCounts(std::atomic<FileToRemoveList *> &Head) {
+    DebugCounts Counts = countForDebug(Head);
+    char Buffer[128];
+    char *P = Buffer;
+    appendLiteral(P, "LLVM_SIGNAL_CLEANUP_DEBUG path=");
+    appendUnsigned(P, Counts.Path);
+    appendLiteral(P, " null=");
+    appendUnsigned(P, Counts.Null);
+    appendLiteral(P, " sentinel=");
+    appendUnsigned(P, Counts.Sentinel);
+    appendLiteral(P, "\n");
+    (void)::write(STDERR_FILENO, Buffer, P - Buffer);
+  }
 };
 static std::atomic<FileToRemoveList *> FilesToRemove = nullptr;
 
@@ -327,6 +382,8 @@ static void RegisterHandlers(
   // a signal handler could fire while we're registering handlers.
   static ManagedStatic<sys::SmartMutex<true>> SignalHandlerRegistrationMutex;
   sys::SmartScopedLock<true> Guard(*SignalHandlerRegistrationMutex);
+
+  DebugSignalCleanup.store(getenv("LLVM_SIGNAL_CLEANUP_DEBUG") != nullptr);
 
   // If the handlers are already registered, we're done.
   if (NumRegisteredSignals.load() != 0)
@@ -493,6 +550,10 @@ static void SignalHandlerTerminate(int Sig, siginfo_t *Info, void *Context) {
 
 static void InfoSignalHandler(int Sig) {
   SaveAndRestore SaveErrnoDuringASignalHandler(errno);
+  if (DebugSignalCleanup.load()) {
+    RemoveFilesToRemove();
+    FileToRemoveList::printDebugCounts(FilesToRemove);
+  }
   if (SignalHandlerFunctionType CurrentInfoFunction = InfoSignalFunction)
     CurrentInfoFunction();
 }
@@ -500,7 +561,7 @@ static void InfoSignalHandler(int Sig) {
 static void InfoSignalHandlerTerminate(int Sig) {
   InfoSignalHandler(Sig);
 
-  if (Sig == SIGUSR1) {
+  if (Sig == SIGUSR1 && !DebugSignalCleanup.load()) {
     sys::unregisterHandlers();
     raise(Sig);
   }
@@ -546,6 +607,8 @@ bool llvm::sys::RemoveFileOnSignal(StringRef Filename, std::string *ErrMsg) {
 // The public API
 void llvm::sys::DontRemoveFileOnSignal(StringRef Filename) {
   FileToRemoveList::erase(FilesToRemove, Filename.str());
+  if (DebugSignalCleanup.load())
+    usleep(3000000);
 }
 
 /// Add a function to be called when a signal is delivered to the process. The
