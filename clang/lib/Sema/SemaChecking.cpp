@@ -3432,7 +3432,7 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
 #include "clang/Basic/Builtins.inc"
   case Builtin::BI__annotation: {
     const llvm::Triple &TT = Context.getTargetInfo().getTriple();
-    if (!TT.isOSWindows() && !TT.isUEFI()) {
+    if (!TT.isOSWindowsOrUEFI()) {
       Diag(TheCall->getBeginLoc(), diag::err_builtin_target_unsupported)
           << TheCall->getSourceRange();
       return ExprError();
@@ -6068,7 +6068,7 @@ static bool checkVAStartABI(Sema &S, unsigned BuiltinID, Expr *Fn) {
   bool IsX64 = TT.getArch() == llvm::Triple::x86_64;
   bool IsAArch64 = (TT.getArch() == llvm::Triple::aarch64 ||
                     TT.getArch() == llvm::Triple::aarch64_32);
-  bool IsWindowsOrUEFI = TT.isOSWindows() || TT.isUEFI();
+  bool IsWindowsOrUEFI = TT.isOSWindowsOrUEFI();
   bool IsMSVAStart = BuiltinID == Builtin::BI__builtin_ms_va_start;
   if (IsX64 || IsAArch64) {
     CallingConv CC = CC_C;
