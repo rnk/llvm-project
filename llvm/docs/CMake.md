@@ -982,6 +982,32 @@ sub-projects. Nearly all of these variable names begin with `LLVM_`.
     This is intended for cross-compiling: if the user sets this variable, no
     native TableGen will be created.
 
+**LLVM_TABLEGEN_LAUNCHER**:STRING
+
+:   Semicolon-separated command prefix to run every TableGen invocation
+    under, analogous to `CMAKE_<LANG>_COMPILER_LAUNCHER`. For example, a
+    wrapper that runs the command through a remote execution or caching tool.
+    The TableGen executable remains a dependency of each command. Empty by
+    default.
+
+    For reclient, set
+    `-DLLVM_TABLEGEN_LAUNCHER="bash;/path/to/llvm/utils/tablegen-reclient.sh"`.
+    Start reproxy separately, then set `RBE_ACTIVE=1`, `RBE_DIR` to the
+    directory containing `rewrapper.cfg`, and `RBE_EXEC_ROOT` to the absolute
+    execution root containing the source tree, build tree, and TableGen
+    executable. The script finds `rewrapper` on `PATH`; `RBE_REWRAPPER` can
+    override its location. The executable must run on the remote workers,
+    for example by linking it statically when the workers lack its runtime
+    libraries. With `RBE_ACTIVE` set, actions use remote execution without
+    local fallback. Otherwise, the script runs TableGen locally.
+
+    The launcher uploads the TableGen executable and all `.td` files under
+    the include directories, and declares the output, depfile, and additional
+    register-info outputs. It caches the include-directory file lists under
+    `RBE_EXEC_ROOT/.tblgen-td-cache`; remove that directory when adding or
+    removing `.td` files. Set `TBLGEN_NOCACHE=1` to bypass the remote cache,
+    or `TBLGEN_LAUNCH_LOG` to a file to log the input filenames.
+
 **LLVM_TARGET_ARCH**:STRING
 
 :   LLVM target to use for native code generation. This is required for JIT
